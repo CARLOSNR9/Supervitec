@@ -18,21 +18,18 @@ async function bootstrap() {
   // 🌍 CORS
   // ================================
   app.enableCors({
-    origin: '*',
-    methods: 'GET,POST,PATCH,DELETE',
+    origin: process.env.FRONTEND_ORIGIN || '*', // para Render, mejor por env
+    methods: 'GET,POST,PATCH,DELETE,PUT,OPTIONS',
     allowedHeaders: 'Content-Type, Authorization',
+    credentials: true,
   });
 
   // ================================
   // 📁 SERVIR ARCHIVOS ESTÁTICOS
   // ================================
-  // KEY: Aquí se sirven las fotos de /uploads
-  //
   // Con esto podrás acceder a:
   // http://localhost:3001/uploads/bitacoras/foto.jpg
-  //
-  // IMPORTANT: process.cwd() funciona perfecto
-  // en ambientes Nest + TS
+  // y en Render: https://tu-app.onrender.com/uploads/...
   app.useStaticAssets(join(process.cwd(), 'uploads'), {
     prefix: '/uploads',
   });
@@ -49,9 +46,10 @@ async function bootstrap() {
   );
 
   // ================================
-  // 🚀 LEVANTAR SERVIDOR
+  // 🚀 LEVANTAR SERVIDOR (clave para Render)
   // ================================
-  await app.listen(3001);
+  const port = process.env.PORT || 3001; // Render inyecta PORT
+  await app.listen(port, '0.0.0.0');     // escuchar en todas las interfaces
   console.log(`Aplicación ejecutándose en: ${await app.getUrl()}`);
 }
 

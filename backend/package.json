@@ -3,6 +3,8 @@
   "version": "0.0.1",
   "scripts": {
     "start:dev": "nest start --watch",
+    "build": "nest build",
+    "start:prod": "node dist/main.js",
     "prisma:generate": "prisma generate",
     "prisma:seed": "ts-node prisma/seed.ts",
     "prisma:migrate": "prisma migrate dev --name init",
@@ -14,11 +16,11 @@
   "dependencies": {
     "@nestjs/common": "^10.0.0",
     "@nestjs/core": "^10.0.0",
-    "@nestjs/jwt": "^11.0.1",
-    "@nestjs/passport": "^11.0.5",
+    "@nestjs/jwt": "^10.1.0",
+    "@nestjs/passport": "^10.0.3",
     "@nestjs/platform-express": "^10.4.20",
-    "@nestjs/serve-static": "^5.0.4",
-    "@nestjs/swagger": "^11.2.1",
+    "@nestjs/serve-static": "^4.0.2",
+    "@nestjs/swagger": "^7.4.2",
     "@prisma/client": "^6.17.1",
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
@@ -30,11 +32,13 @@
     "reflect-metadata": "^0.2.2"
   },
   "devDependencies": {
+    "@prisma/config": "^7.0.1",
     "@types/bcryptjs": "^3.0.0",
     "@types/fs-extra": "^11.0.4",
     "@types/multer": "^2.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pdfkit": "^0.17.3",
+    "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"
   }
