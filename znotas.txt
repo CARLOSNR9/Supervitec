@@ -1,0 +1,16 @@
+producto no conforme 
+se SE_RECOMIENDA
+
+fotografias de seguimineto max 2 fotos 
+seguimiento a la observacion.
+
+
+se solicita cambiar a auditoria
+
+auditoria  FECHA EJECUCION
+LECCIONES APRENDIDAS FECHA EJECUCION
+SE AUTORIZA FECHA EJECUCION
+SE INICIA FECHA EJECUCION
+SE VALIDA FECHA EJECUCION
+PRODUCTO NO conforme FECHA MEJORA - OBS MEJORA - FOTO MEJORA - FECHA INICIO
+SE RECOMIENDA NO conforme FECHA MEJORA - OBS MEJORA - FOTO MEJORA - INICIO
