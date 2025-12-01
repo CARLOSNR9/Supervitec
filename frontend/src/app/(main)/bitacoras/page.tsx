@@ -532,7 +532,7 @@ const handleEdit = (bitacora: Bitacora) => {
           setForm(createInitialFormState());
           setOpen(true);
         }}
-        onExportExcel={exportBitacorasToExcel}
+       onExportExcel={() => exportBitacorasToExcel(bitacoras)}
         onPrint={printReport}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
