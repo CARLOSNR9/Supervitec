@@ -59,8 +59,9 @@ export default function PerfilUsuario() {
 
   const loadUser = async (userId: number) => {
     try {
-      const data = await apiGet(`/users/${userId}`); 
-      setUser(data);
+      const data = await apiGet<UserData>(`/users/${userId}`);
+setUser(data);
+
       setForm({
         nombreCompleto: data.nombreCompleto || "", 
         email: data.email || "",
