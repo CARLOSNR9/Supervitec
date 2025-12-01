@@ -6,6 +6,7 @@ import { apiGet, apiPost, apiPut, apiDelete } from "@/lib/api";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { User } from "@/types/user";
 import {
   Dialog,
   DialogContent,
@@ -61,7 +62,7 @@ export default function MedicionesPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        const me = await apiGet("/auth/me");
+        const me = await apiGet<User>("/auth/me");
 
         if (me.role !== "ADMIN") {
           router.replace("/"); // si no es admin, redirige al inicio
