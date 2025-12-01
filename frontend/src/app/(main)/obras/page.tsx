@@ -109,8 +109,9 @@ export default function ObrasPage() {
       }
 
       // TODOS los roles deben llamar /obras
-      const obrasRes = await apiGet("/obras");
-      setObras(obrasRes);
+     const obrasRes = await apiGet<Obra[]>("/obras");
+setObras(obrasRes);
+
     } catch (err) {
       console.error(err);
       toast.error("Error al cargar datos del módulo de Obras.");
