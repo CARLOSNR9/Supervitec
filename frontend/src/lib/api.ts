@@ -7,8 +7,7 @@ import Cookies from "js-cookie";
 // 1) CONFIGURACIÓN BASE
 // ---------------------------------------------------------------------
 
-// ✅ Usa variable de entorno si existe; si no, por defecto al backend en 3001
-// Ej.: NEXT_PUBLIC_API_URL="http://localhost:3001"
+// Usa variable NEXT_PUBLIC_API_URL sin barras dobles
 const BASE =
   process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3001";
 
@@ -29,25 +28,30 @@ const api: AxiosInstance = axios.create({
 
 api.interceptors.request.use(
   (config) => {
-    // Evitar adjuntar token en login/refresh
-    // Soporta URLs relativas o absolutas
+    // Soporta URLs relativas y absolutas
     const url = config.url || "";
-    const fullUrl = url.startsWith("http") ? url : `${BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+    const fullUrl = url.startsWith("http")
+      ? url
+      : `${BASE}${url.startsWith("/") ? "" : "/"}${url}`;
+
     const { pathname } = new URL(fullUrl);
 
     const isAuthPath =
-      pathname === "/auth/login" || pathname === "/auth/refresh" || pathname === "/auth/register";
+      pathname === "/auth/login" ||
+      pathname === "/auth/refresh" ||
+      pathname === "/auth/register";
 
     if (!isAuthPath) {
-      // Evitar errores en SSR (Next.js)
       const tokenFromCookie = Cookies.get(TOKEN_KEY);
       const tokenFromStorage =
-        typeof window !== "undefined" ? localStorage.getItem(TOKEN_KEY) : null;
+        typeof window !== "undefined"
+          ? localStorage.getItem(TOKEN_KEY)
+          : null;
 
       const token = tokenFromCookie || tokenFromStorage;
 
       if (token) {
-        // @ts-expect-error: Axios type for headers is broad; this is safe
+        // @ts-expect-error — axios types are too strict, but safe
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -70,8 +74,31 @@ export const apiPost = <T,>(url: string, data?: any): Promise<T> =>
 export const apiPut = <T,>(url: string, data?: any): Promise<T> =>
   api.put<T>(url, data).then((r) => r.data);
 
-export const apiPatch = <T,>(url: string, data?: any): Promise<T> =>
-  api.patch<T>(url, data).then((r) => r.data);
+// ---------------------------------------------------------------------
+// ✅ NUEVO apiPatch — PERMITIENDO HEADERS PERSONALIZADOS (FORM-DATA ETC.)
+// ---------------------------------------------------------------------
+
+export async function apiPatch<T>(
+  url: string,
+  data?: any,
+  config: any = {}
+): Promise<T> {
+  const token = Cookies.get(TOKEN_KEY);
+
+  const headers = {
+    ...(config.headers || {}),
+    ...(token ? { Authorization: `Bearer ${token}` } : {}),
+  };
+
+  return api
+    .patch(url, data, {
+      ...config,
+      headers,
+    })
+    .then((res) => res.data);
+}
+
+// ---------------------------------------------------------------------
 
 export const apiDelete = <T,>(url: string): Promise<T> =>
   api.delete<T>(url).then((r) => r.data);
@@ -86,7 +113,6 @@ export const apiUpload = <T,>(
 
   return api
     .post<T>(url, form, {
-      // ⚠️ No fuerces Content-Type; deja que Axios ponga el boundary
       headers: { "Content-Type": "multipart/form-data" },
     })
     .then((r) => r.data);
