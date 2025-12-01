@@ -17,6 +17,7 @@ const schema = z.object({
   numeroAuto: z.string().optional(),
 });
 
+
 type FormData = z.infer<typeof schema>;
 
 export default function NewOTPage() {
