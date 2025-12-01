@@ -57,7 +57,8 @@ export default function UnidadesPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        const me = await apiGet("/auth/me");
+        const me = await apiGet<{ role: string }>("/auth/me");
+
 
         if (me.role !== "ADMIN") {
           router.replace("/"); // redirige si no es admin
