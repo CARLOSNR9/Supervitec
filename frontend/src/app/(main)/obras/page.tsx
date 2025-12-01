@@ -166,25 +166,28 @@ setObras(obrasRes);
   };
 
   const handleOpenEdit = async (obra: Obra) => {
-    setErrorMsg("");
-    setEditingId(obra.id);
-    setLoading(true);
+  setErrorMsg("");
+  setEditingId(obra.id);
+  setLoading(true);
 
-    try {
-      const res = await apiGet(`/obras/${obra.id}`);
-      setForm({
-        prefijo: res.prefijo,
-        nombre: res.nombre,
-        observaciones: res.observaciones || "",
-        responsablesId: res.responsables.map((r: Responsable) => r.id),
-      });
-      setOpen(true);
-    } catch (err) {
-      toast.error("Error al cargar los datos de la obra.");
-    } finally {
-      setLoading(false);
-    }
-  };
+  try {
+    const res = await apiGet<Obra>(`/obras/${obra.id}`);
+
+    setForm({
+      prefijo: res.prefijo,
+      nombre: res.nombre,
+      observaciones: res.observaciones || "",
+      responsablesId: res.responsables.map((r) => r.id),
+    });
+
+    setOpen(true);
+  } catch (err) {
+    toast.error("Error al cargar los datos de la obra.");
+  } finally {
+    setLoading(false);
+  }
+};
+
 
   const validateForm = () => {
     setErrorMsg("");
