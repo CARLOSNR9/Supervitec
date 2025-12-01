@@ -6,6 +6,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
+import { User } from "@/types/user";
 import {
   Dialog,
   DialogContent,
@@ -94,7 +95,7 @@ export default function ObrasPage() {
 
     // Solo ADMIN o DIRECTOR deben llamar /users
     if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
-      const usersRes = await apiGet("/users");
+        const usersRes = await apiGet<User[]>("/users");
       setUsers(usersRes.filter((u: any) => u.active));
     }
 
