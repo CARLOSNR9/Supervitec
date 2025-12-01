@@ -86,8 +86,8 @@ export default function UsuariosPage() {
   const fetchUsers = async () => {
     try {
       const res = await apiGet<any[]>("/users");
-// O mejor, si existe User: const res = await apiGet<User[]>("/users");
 setUsers(res);
+
 
     } catch (err) {
       toast.error("Error al cargar los usuarios");
@@ -235,7 +235,9 @@ setUsers(res);
 
   const handleEdit = async (user: any) => {
     try {
-      const res = await apiGet(`/users/${user.id}`);
+      
+      const res = await apiGet<any>(`/users/${user.id}`);
+
 
       setForm({
         username: res.username || "",
