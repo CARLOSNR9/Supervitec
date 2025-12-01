@@ -1173,7 +1173,8 @@ const handleSubmit = async () => {
       }
 
       setOpen(false);
-      loadOrdenesTrabajo(); 
+     fetchData();
+
       
     } catch (error: any) {
       console.error(error);
