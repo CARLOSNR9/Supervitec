@@ -10,7 +10,7 @@ import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
 /* ---------------------------------------------------------
-   🎯 SCHEMA — Recibe strings, los convierte a number
+   🎯 SCHEMA — Convierte strings → number automáticamente  
 --------------------------------------------------------- */
 const schema = z.object({
   obraId: z.coerce.number().int().positive(),
@@ -21,16 +21,10 @@ const schema = z.object({
 });
 
 /* ---------------------------------------------------------
-   🎯 FORM DATA — Debe reflejar los tipos *ANTES* del parseo
-   React Hook Form SIEMPRE recibe strings desde <input>
+   🎯 FormData — El tipo correcto para React Hook Form  
+   Usa z.input para evitar conflictos con el resolver.
 --------------------------------------------------------- */
-type FormData = {
-  obraId: string;
-  responsableId: string;
-  tipoTrabajo: string;
-  identificacion: string;
-  numeroAuto?: string;
-};
+type FormData = z.input<typeof schema>;
 
 export default function NewOTPage() {
   const {
@@ -43,10 +37,8 @@ export default function NewOTPage() {
 
   const router = useRouter();
 
-  /* ---------------------------------------------------------
-     🎯 SUBMIT — Aquí Zod ya convierte strings → number
-  --------------------------------------------------------- */
   async function onSubmit(data: FormData) {
+    // 🔥 Aquí Zod YA transformó strings → numbers
     await apiPost("/orden-trabajo", data);
     toast.success("OT creada");
     router.push("/ot");
@@ -58,22 +50,18 @@ export default function NewOTPage() {
 
       <form onSubmit={handleSubmit(onSubmit)} className="grid gap-3 max-w-xl">
         
-        {/* Obra y Responsable */}
+        {/* Obra + Responsable */}
         <div className="grid grid-cols-2 gap-3">
           <div>
             <label className="text-sm">Obra ID</label>
             <Input {...register("obraId")} />
-            {errors.obraId && (
-              <p className="text-red-600 text-xs">{errors.obraId.message}</p>
-            )}
+            {errors.obraId && <p className="text-red-600 text-xs">{errors.obraId.message}</p>}
           </div>
 
           <div>
             <label className="text-sm">Responsable ID</label>
             <Input {...register("responsableId")} />
-            {errors.responsableId && (
-              <p className="text-red-600 text-xs">{errors.responsableId.message}</p>
-            )}
+            {errors.responsableId && <p className="text-red-600 text-xs">{errors.responsableId.message}</p>}
           </div>
         </div>
 
@@ -101,11 +89,9 @@ export default function NewOTPage() {
           <Input {...register("numeroAuto")} />
         </div>
 
-        {/* Botón */}
         <Button type="submit" disabled={isSubmitting}>
           {isSubmitting ? "Guardando..." : "Guardar"}
         </Button>
-
       </form>
     </div>
   );
