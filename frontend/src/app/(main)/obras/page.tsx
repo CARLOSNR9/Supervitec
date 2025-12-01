@@ -90,31 +90,39 @@ export default function ObrasPage() {
   }, []);
 
   const fetchData = async () => {
-  setLoading(true);
-  try {
-
-    // Solo ADMIN o DIRECTOR deben llamar /users
-    if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
+    setLoading(true);
+    try {
+      // Solo ADMIN o DIRECTOR deben llamar /users
+      if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
         const usersRes = await apiGet<User[]>("/users");
-      setUsers(usersRes.filter((u: any) => u.active));
+
+        // 🎯 FIX: Mapeo User -> Responsable (SIN ROMPER nada)
+        setUsers(
+          usersRes
+            .filter((u) => u.active)
+            .map((u) => ({
+              id: u.id,
+              nombreCompleto: u.username, // se usará como nombre visible
+              username: u.username,
+            }))
+        );
+      }
+
+      // TODOS los roles deben llamar /obras
+      const obrasRes = await apiGet("/obras");
+      setObras(obrasRes);
+    } catch (err) {
+      console.error(err);
+      toast.error("Error al cargar datos del módulo de Obras.");
+    } finally {
+      setLoading(false);
     }
-
-    // TODOS los roles deben llamar /obras
-    const obrasRes = await apiGet("/obras");
-    setObras(obrasRes);
-
-  } catch (err) {
-    console.error(err);
-    toast.error("Error al cargar datos del módulo de Obras.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+  };
 
   // ---------------------------------------------------------------------
   // LÓGICA DE FILTRADO
   // ---------------------------------------------------------------------
+
   const filteredObras = useMemo(() => {
     if (!currentUserRole) return [];
 
@@ -197,7 +205,6 @@ export default function ObrasPage() {
 
     if (!validateForm()) return;
 
-    // DTO limpio (sin creatorId, lo pone el backend con req.user)
     const dataToSubmit = {
       prefijo: form.prefijo,
       nombre: form.nombre,
@@ -214,7 +221,7 @@ export default function ObrasPage() {
         toast.success("✅ Obra creada exitosamente.");
       }
 
-      await fetchData();               // ✅ recarga obras y usuarios
+      await fetchData();
       setOpen(false);
       setEditingId(null);
       setForm(initialFormState);
@@ -261,11 +268,9 @@ export default function ObrasPage() {
 
   const canModify =
     currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
-    
-const canDelete =
-  currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
 
-
+  const canDelete =
+    currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
 
   return (
     <main className="p-8">
@@ -358,39 +363,30 @@ const canDelete =
                     {obra.observaciones || "-"}
                   </td>
 
-<td className="p-3 text-center">
-  <div className="flex justify-center gap-2">
-    {/* EDITAR: ADMIN y DIRECTOR */}
-    {canModify && (
-      <Button
-        variant="outline"
-        size="icon"
-        onClick={() => handleOpenEdit(obra)}
-      >
-        <Pencil className="h-4 w-4" />
-      </Button>
-    )}
+                  <td className="p-3 text-center">
+                    <div className="flex justify-center gap-2">
 
-    {/* ELIMINAR: ADMIN y DIRECTOR */}
-    {canDelete && (
-      <Button
-        variant="destructive"
-        size="icon"
-        onClick={() => handleDelete(obra.id, obra.nombre)}
-      >
-        <Trash2 className="h-4 w-4" />
-      </Button>
-    )}
-  </div>
-</td>
+                      {canModify && (
+                        <Button
+                          variant="outline"
+                          size="icon"
+                          onClick={() => handleOpenEdit(obra)}
+                        >
+                          <Pencil className="h-4 w-4" />
+                        </Button>
+                      )}
 
-
-                 
-
-
-
-
-
+                      {canDelete && (
+                        <Button
+                          variant="destructive"
+                          size="icon"
+                          onClick={() => handleDelete(obra.id, obra.nombre)}
+                        >
+                          <Trash2 className="h-4 w-4" />
+                        </Button>
+                      )}
+                    </div>
+                  </td>
                 </tr>
               ))
             )}
@@ -431,7 +427,6 @@ const canDelete =
               />
             </div>
 
-            {/* Selector de responsables */}
             <div>
               <label className="text-sm font-medium">Responsables*</label>
               <Select
@@ -495,7 +490,6 @@ const canDelete =
               </div>
             </div>
 
-            {/* Observaciones */}
             <Textarea
               placeholder="Observaciones"
               value={form.observaciones}
