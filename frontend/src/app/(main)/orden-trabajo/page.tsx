@@ -1172,7 +1172,7 @@ const handleSubmit = async () => {
         toast.success("✅ Orden de Trabajo guardada.");
       }
 
-      setDialogOpen(false); 
+      setOpen(false);
       loadOrdenesTrabajo(); 
       
     } catch (error: any) {
