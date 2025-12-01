@@ -43,7 +43,8 @@ export default function VariablesPage() {
   const fetchVariables = async () => {
     setLoading(true);
     try {
-      const res = await apiGet("/variables");
+            const res = await apiGet<Variable[]>("/variables");
+
       setVariables(res);
     } catch {
       toast.error("Error al cargar las variables.");
