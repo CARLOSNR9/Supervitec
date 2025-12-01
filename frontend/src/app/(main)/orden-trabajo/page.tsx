@@ -1515,7 +1515,8 @@ const handleSubmit = async () => {
                       <SelectValue placeholder="Seleccione la causa de No Cumplimiento" />
                     </SelectTrigger>
                     <SelectContent>
-                      {n2Options.map((opcion) => (
+                      {n2Options.map((opcion: string) => (
+
                         <SelectItem key={opcion} value={opcion}>
                           {opcion.length > 80 ? opcion.substring(0, 80) + "..." : opcion}
                         </SelectItem>
