@@ -2,7 +2,8 @@
 
 "use client";
 
-import { AlertTriangle, TrendingUp, Zap, MessageSquare } from "lucide-react";
+// ✅ CORRECCIÓN: Se agregó 'CheckCircle' a los imports
+import { AlertTriangle, TrendingUp, Zap, MessageSquare, CheckCircle } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -78,6 +79,7 @@ export default function RiskPrediction() {
                     </div>
                 ))}
                 
+                {/* Ahora CheckCircle ya está importado y no dará error */}
                 {IARiskData.filter(d => d.probabilidadFallo <= 50).length === IARiskData.length && (
                     <div className="text-center text-green-600 font-medium py-4">
                         <CheckCircle className="h-5 w-5 inline mr-2" />
