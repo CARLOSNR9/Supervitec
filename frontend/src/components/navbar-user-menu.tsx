@@ -1,6 +1,5 @@
 "use client";
 
-import { useEffect, useState } from "react";
 import Cookies from "js-cookie";
 import { useRouter } from "next/navigation";
 import {
@@ -12,34 +11,22 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { jwtDecode } from "jwt-decode";
 import { LogOut, Settings, User } from "lucide-react";
 
-interface UserPayload {
+// ✅ Definimos la interfaz para recibir los datos desde el Navbar padre
+interface NavbarUserMenuProps {
   username: string;
   role: string;
 }
 
-export default function NavbarUserMenu() {
-  const [user, setUser] = useState<UserPayload | null>(null);
+// ✅ Recibimos username y role como props
+export default function NavbarUserMenu({ username, role }: NavbarUserMenuProps) {
   const router = useRouter();
-
-  useEffect(() => {
-    try {
-      const token = Cookies.get("svtec_token");
-      if (token) {
-        const decoded: any = jwtDecode(token);
-        setUser({ username: decoded.username, role: decoded.role });
-      }
-    } catch (err) {
-      console.error("Error al decodificar token:", err);
-    }
-  }, []);
 
   const handleLogout = () => {
     Cookies.remove("svtec_token");
-    setUser(null);
-    router.push("/login");
+    // Forzamos un refresco completo o redirección
+    window.location.href = "/login";
   };
 
   const formatRole = (role: string) => {
@@ -52,24 +39,25 @@ export default function NavbarUserMenu() {
         return "Residente";
       case "VISITANTE":
         return "Visitante";
+      case "DIRECTOR":
+        return "Director";
       default:
         return "Usuario";
     }
   };
 
-  if (!user) return null;
-
   return (
     <DropdownMenu>
       <DropdownMenuTrigger className="flex items-center gap-2 outline-none">
         <div className="flex flex-col items-end">
-          <span className="text-sm font-semibold text-white">{user.username}</span>
-          <span className="text-[11px] text-gray-300">{formatRole(user.role)}</span>
+          {/* Usamos las props directamente */}
+          <span className="text-sm font-semibold text-white">{username}</span>
+          <span className="text-[11px] text-gray-300">{formatRole(role)}</span>
         </div>
         <Avatar className="h-9 w-9 border-2 border-white shadow-md">
-          <AvatarImage src="/user-avatar.png" alt={user.username} />
+          <AvatarImage src="/user-avatar.png" alt={username} />
           <AvatarFallback className="bg-sky-700 text-white font-bold">
-            {user.username.charAt(0).toUpperCase()}
+            {username.charAt(0).toUpperCase()}
           </AvatarFallback>
         </Avatar>
       </DropdownMenuTrigger>
@@ -78,7 +66,6 @@ export default function NavbarUserMenu() {
         <DropdownMenuLabel>Cuenta</DropdownMenuLabel>
         <DropdownMenuSeparator />
 
-        {/* ✅ Redirecciones actualizadas */}
         <DropdownMenuItem
           onClick={() => router.push("/perfil")}
           className="cursor-pointer"
