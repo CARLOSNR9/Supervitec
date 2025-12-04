@@ -9,7 +9,7 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// ✅ Esquema de validación (Ajustado para coerción estricta)
+// ✅ Esquema de validación
 const schema = z.object({
   obraId: z.coerce.number({ invalid_type_error: "Obra inválida" }).int().positive({ message: "Seleccione una obra válida" }),
   responsableId: z.coerce.number({ invalid_type_error: "Responsable inválido" }).int().positive({ message: "Seleccione un responsable válido" }),
@@ -22,10 +22,10 @@ const schema = z.object({
   observaciones: z.string().optional(),
 });
 
-// Inferir el tipo directamente del esquema para evitar desincronización
+// Inferir el tipo
 export type BitacoraFormData = z.infer<typeof schema>;
 
-// 🧩 Función auxiliar para obtener datos del backend
+// 🧩 Función auxiliar
 async function fetchData<T>(endpoint: string): Promise<T[]> {
   const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL || "http://localhost:3001"}${endpoint}`);
   if (!res.ok) throw new Error(`Error al cargar ${endpoint}`);
@@ -37,22 +37,23 @@ export default function BitacoraForm({
   onSubmit,
   submitting,
 }: {
-  // Usamos DefaultValues de RHF para compatibilidad estricta
   defaultValues?: DefaultValues<BitacoraFormData>; 
   onSubmit: (data: BitacoraFormData) => Promise<void>;
   submitting?: boolean;
 }) {
-  const { register, handleSubmit, setValue, formState: { errors } } = useForm<BitacoraFormData>({
+  // 🔥 CAMBIO CRÍTICO AQUÍ: Quitamos <BitacoraFormData> después de useForm
+  // Esto permite que el resolver maneje la coerción de string -> number sin errores de TS
+  const { register, handleSubmit, setValue, formState: { errors } } = useForm({
     resolver: zodResolver(schema),
     defaultValues,
   });
 
-  // 🚀 Estados locales para datos dinámicos
+  // 🚀 Estados locales
   const [variables, setVariables] = useState<any[]>([]);
   const [mediciones, setMediciones] = useState<any[]>([]);
   const [unidades, setUnidades] = useState<any[]>([]);
 
-  // ✅ Cargar listas dinámicas
+  // ✅ Cargar listas
   useEffect(() => {
     Promise.all([
       fetchData("/variables"),
@@ -71,7 +72,8 @@ export default function BitacoraForm({
     <form
       onSubmit={handleSubmit(async (data) => {
         try {
-          await onSubmit(data);
+          // Casteamos data para asegurar que cumple con el tipo esperado al enviar
+          await onSubmit(data as BitacoraFormData);
         } catch (e: any) {
           toast.error(e.message ?? "Error al guardar");
         }
@@ -82,14 +84,13 @@ export default function BitacoraForm({
       <div className="grid grid-cols-2 gap-3">
         <div>
           <label className="text-sm font-medium">Obra ID</label>
-          {/* Nota: Idealmente esto sería un Select de Obras, pero mantengo tu Input number */}
           <Input type="number" {...register("obraId")} />
-          {errors.obraId && <p className="text-xs text-red-600 mt-1">{errors.obraId.message}</p>}
+          {errors.obraId && <p className="text-xs text-red-600 mt-1">{errors.obraId?.message as string}</p>}
         </div>
         <div>
           <label className="text-sm font-medium">Responsable ID</label>
           <Input type="number" {...register("responsableId")} />
-          {errors.responsableId && <p className="text-xs text-red-600 mt-1">{errors.responsableId.message}</p>}
+          {errors.responsableId && <p className="text-xs text-red-600 mt-1">{errors.responsableId?.message as string}</p>}
         </div>
       </div>
 
@@ -97,7 +98,6 @@ export default function BitacoraForm({
       <div>
         <label className="text-sm font-medium">Variable</label>
         <Select 
-          // Si hay defaultValues, convertimos a string para que el Select lo muestre
           defaultValue={defaultValues?.variableId ? String(defaultValues.variableId) : undefined}
           onValueChange={(v) => setValue("variableId", Number(v), { shouldValidate: true })}
         >
