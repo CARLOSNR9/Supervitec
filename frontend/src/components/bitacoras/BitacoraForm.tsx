@@ -1,7 +1,7 @@
 "use client";
 
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { useForm, DefaultValues } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
@@ -9,19 +9,20 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// ✅ Esquema de validación
+// ✅ Esquema de validación (Ajustado para coerción estricta)
 const schema = z.object({
-  obraId: z.coerce.number().int().positive({ message: "Seleccione una obra válida" }),
-  responsableId: z.coerce.number().int().positive({ message: "Seleccione un responsable válido" }),
-  variableId: z.coerce.number().int().optional(),
-  medicionId: z.coerce.number().int().optional(),
-  unidadId: z.coerce.number().int().optional(),
+  obraId: z.coerce.number({ invalid_type_error: "Obra inválida" }).int().positive({ message: "Seleccione una obra válida" }),
+  responsableId: z.coerce.number({ invalid_type_error: "Responsable inválido" }).int().positive({ message: "Seleccione un responsable válido" }),
+  variableId: z.coerce.number().optional(),
+  medicionId: z.coerce.number().optional(),
+  unidadId: z.coerce.number().optional(),
   fechaMejora: z.string().optional(),
   fechaEjecucion: z.string().optional(),
   ubicacion: z.string().optional(),
   observaciones: z.string().optional(),
 });
 
+// Inferir el tipo directamente del esquema para evitar desincronización
 export type BitacoraFormData = z.infer<typeof schema>;
 
 // 🧩 Función auxiliar para obtener datos del backend
@@ -36,7 +37,8 @@ export default function BitacoraForm({
   onSubmit,
   submitting,
 }: {
-  defaultValues?: Partial<BitacoraFormData>;
+  // Usamos DefaultValues de RHF para compatibilidad estricta
+  defaultValues?: DefaultValues<BitacoraFormData>; 
   onSubmit: (data: BitacoraFormData) => Promise<void>;
   submitting?: boolean;
 }) {
@@ -71,7 +73,7 @@ export default function BitacoraForm({
         try {
           await onSubmit(data);
         } catch (e: any) {
-          toast.error(e.message ?? "Error");
+          toast.error(e.message ?? "Error al guardar");
         }
       })}
       className="grid gap-3"
@@ -79,21 +81,26 @@ export default function BitacoraForm({
       {/* Obra y Responsable */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm">Obra ID</label>
+          <label className="text-sm font-medium">Obra ID</label>
+          {/* Nota: Idealmente esto sería un Select de Obras, pero mantengo tu Input number */}
           <Input type="number" {...register("obraId")} />
-          {errors.obraId && <p className="text-xs text-red-600">{errors.obraId.message}</p>}
+          {errors.obraId && <p className="text-xs text-red-600 mt-1">{errors.obraId.message}</p>}
         </div>
         <div>
-          <label className="text-sm">Responsable ID</label>
+          <label className="text-sm font-medium">Responsable ID</label>
           <Input type="number" {...register("responsableId")} />
-          {errors.responsableId && <p className="text-xs text-red-600">{errors.responsableId.message}</p>}
+          {errors.responsableId && <p className="text-xs text-red-600 mt-1">{errors.responsableId.message}</p>}
         </div>
       </div>
 
       {/* Variable */}
       <div>
-        <label className="text-sm">Variable</label>
-        <Select onValueChange={(v) => setValue("variableId", Number(v))}>
+        <label className="text-sm font-medium">Variable</label>
+        <Select 
+          // Si hay defaultValues, convertimos a string para que el Select lo muestre
+          defaultValue={defaultValues?.variableId ? String(defaultValues.variableId) : undefined}
+          onValueChange={(v) => setValue("variableId", Number(v), { shouldValidate: true })}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="-- Seleccionar Variable --" />
           </SelectTrigger>
@@ -107,10 +114,13 @@ export default function BitacoraForm({
         </Select>
       </div>
 
-      {/* Medición (antes Registro) */}
+      {/* Medición */}
       <div>
-        <label className="text-sm">Medición</label>
-        <Select onValueChange={(v) => setValue("medicionId", Number(v))}>
+        <label className="text-sm font-medium">Medición</label>
+        <Select 
+          defaultValue={defaultValues?.medicionId ? String(defaultValues.medicionId) : undefined}
+          onValueChange={(v) => setValue("medicionId", Number(v), { shouldValidate: true })}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="-- Seleccionar Medición --" />
           </SelectTrigger>
@@ -126,8 +136,11 @@ export default function BitacoraForm({
 
       {/* Unidad */}
       <div>
-        <label className="text-sm">Unidad</label>
-        <Select onValueChange={(v) => setValue("unidadId", Number(v))}>
+        <label className="text-sm font-medium">Unidad</label>
+        <Select 
+          defaultValue={defaultValues?.unidadId ? String(defaultValues.unidadId) : undefined}
+          onValueChange={(v) => setValue("unidadId", Number(v), { shouldValidate: true })}
+        >
           <SelectTrigger className="w-full">
             <SelectValue placeholder="-- Seleccionar Unidad --" />
           </SelectTrigger>
@@ -144,29 +157,32 @@ export default function BitacoraForm({
       {/* Fechas */}
       <div className="grid grid-cols-2 gap-3">
         <div>
-          <label className="text-sm">Fecha Mejora</label>
+          <label className="text-sm font-medium">Fecha Mejora</label>
           <Input type="date" {...register("fechaMejora")} />
         </div>
         <div>
-          <label className="text-sm">Fecha Ejecución</label>
+          <label className="text-sm font-medium">Fecha Ejecución</label>
           <Input type="date" {...register("fechaEjecucion")} />
         </div>
       </div>
 
       {/* Ubicación */}
       <div>
-        <label className="text-sm">Ubicación</label>
+        <label className="text-sm font-medium">Ubicación</label>
         <Input {...register("ubicacion")} />
       </div>
 
       {/* Observaciones */}
       <div>
-        <label className="text-sm">Observaciones</label>
-        <textarea className="w-full border rounded p-2 min-h-24" {...register("observaciones")} />
+        <label className="text-sm font-medium">Observaciones</label>
+        <textarea 
+          className="flex w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50 min-h-24" 
+          {...register("observaciones")} 
+        />
       </div>
 
-      <Button type="submit" disabled={submitting}>
-        {submitting ? "Guardando..." : "Guardar"}
+      <Button type="submit" disabled={submitting} className="w-full md:w-auto">
+        {submitting ? "Guardando..." : "Guardar Bitácora"}
       </Button>
     </form>
   );
