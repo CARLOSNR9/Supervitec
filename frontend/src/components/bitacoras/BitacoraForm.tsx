@@ -9,10 +9,11 @@ import { toast } from "sonner";
 import { useEffect, useState } from "react";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-// ✅ Esquema de validación
+// ✅ Esquema de validación CORREGIDO
+// Eliminamos { invalid_type_error: ... } dentro de z.coerce.number() porque causaba el error de compilación.
 const schema = z.object({
-  obraId: z.coerce.number({ invalid_type_error: "Obra inválida" }).int().positive({ message: "Seleccione una obra válida" }),
-  responsableId: z.coerce.number({ invalid_type_error: "Responsable inválido" }).int().positive({ message: "Seleccione un responsable válido" }),
+  obraId: z.coerce.number().int().positive({ message: "Seleccione una obra válida" }),
+  responsableId: z.coerce.number().int().positive({ message: "Seleccione un responsable válido" }),
   variableId: z.coerce.number().optional(),
   medicionId: z.coerce.number().optional(),
   unidadId: z.coerce.number().optional(),
@@ -41,10 +42,9 @@ export default function BitacoraForm({
   onSubmit: (data: BitacoraFormData) => Promise<void>;
   submitting?: boolean;
 }) {
-  // 🔥 CAMBIO CRÍTICO AQUÍ: Quitamos <BitacoraFormData> después de useForm
-  // Esto permite que el resolver maneje la coerción de string -> number sin errores de TS
+  // Mantenemos el 'as any' en el resolver para evitar el conflicto de tipos anterior
   const { register, handleSubmit, setValue, formState: { errors } } = useForm({
-    resolver: zodResolver(schema),
+    resolver: zodResolver(schema) as any, 
     defaultValues,
   });
 
@@ -72,7 +72,7 @@ export default function BitacoraForm({
     <form
       onSubmit={handleSubmit(async (data) => {
         try {
-          // Casteamos data para asegurar que cumple con el tipo esperado al enviar
+          // Casteamos data para asegurar tipos en el envío
           await onSubmit(data as BitacoraFormData);
         } catch (e: any) {
           toast.error(e.message ?? "Error al guardar");
@@ -85,6 +85,7 @@ export default function BitacoraForm({
         <div>
           <label className="text-sm font-medium">Obra ID</label>
           <Input type="number" {...register("obraId")} />
+          {/* El 'as string' evita errores de TS si el mensaje es undefined */}
           {errors.obraId && <p className="text-xs text-red-600 mt-1">{errors.obraId?.message as string}</p>}
         </div>
         <div>
