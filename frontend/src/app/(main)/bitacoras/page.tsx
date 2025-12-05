@@ -516,7 +516,8 @@ const handleEdit = (bitacora: Bitacora) => {
   };
 
   return (
-    <main className="p-8">
+    
+      <main className="p-4 md:p-8">
       <BitacoraTable
         bitacoras={paginatedBitacoras}
         stats={stats}

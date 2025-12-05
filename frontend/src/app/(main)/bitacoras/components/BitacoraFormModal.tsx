@@ -1,4 +1,3 @@
-// app/bitacoras/components/BitacoraFormModal.tsx
 "use client";
 
 import { useState, useMemo, useEffect } from "react";
@@ -121,7 +120,8 @@ export default function BitacoraFormModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-4xl">
+        {/* ✅ CORRECCIÓN MÓVIL: max-h-[90vh] + overflow-y-auto permite scroll interno en el modal */}
+        <DialogContent className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg">
           <DialogHeader>
             <DialogTitle>
               {isEditing ? "Editar Bitácora" : "Nuevo Registro de Bitácora"}
@@ -137,7 +137,8 @@ export default function BitacoraFormModal({
           </DialogHeader>
 
           {open && (
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4 mt-2">
+            // ✅ Grid responsiva: 1 columna en móvil, 2 en tablet, 4 en PC
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
 
               {/* ESTADO */}
               <Select
@@ -163,24 +164,26 @@ export default function BitacoraFormModal({
               />
 
               {/* OBRA */}
-              <Select
-                value={form.obraId || "none"}
-                onValueChange={(v) =>
-                  setForm({ ...form, obraId: v === "none" ? "" : v })
-                }
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Obra *" />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="none">-- Seleccionar Obra --</SelectItem>
-                  {obras.map((o) => (
-                    <SelectItem key={o.id} value={o.id.toString()}>
-                      {o.prefijo ? `${o.prefijo} - ` : ""} {o.nombre}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <div className="col-span-1 md:col-span-2">
+                <Select
+                    value={form.obraId || "none"}
+                    onValueChange={(v) =>
+                    setForm({ ...form, obraId: v === "none" ? "" : v })
+                    }
+                >
+                    <SelectTrigger>
+                    <SelectValue placeholder="Obra *" />
+                    </SelectTrigger>
+                    <SelectContent>
+                    <SelectItem value="none">-- Seleccionar Obra --</SelectItem>
+                    {obras.map((o) => (
+                        <SelectItem key={o.id} value={o.id.toString()}>
+                        {o.prefijo ? `${o.prefijo} - ` : ""} {o.nombre}
+                        </SelectItem>
+                    ))}
+                    </SelectContent>
+                </Select>
+              </div>
 
               {/* VARIABLE */}
               <Select
@@ -275,14 +278,15 @@ export default function BitacoraFormModal({
               </Select>
 
               {/* GPS + BOTONES */}
-              <div className="md:col-span-2 flex flex-col gap-2">
-                <div className="flex gap-2">
+              <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-2 p-2 border rounded-md bg-gray-50">
+                <label className="text-xs font-semibold text-gray-500">Geolocalización</label>
+                <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="button"
                     variant="outline"
                     disabled={isEditing}
                     onClick={() => !isEditing && getGeoLocation()}
-                    className="flex-1 bg-blue-50 hover:bg-blue-100 border-blue-300 text-blue-700"
+                    className="flex-1 bg-white hover:bg-blue-50 border-blue-300 text-blue-700"
                   >
                     <MapPin className="h-4 w-4 mr-2" /> Capturar GPS
                   </Button>
@@ -292,82 +296,82 @@ export default function BitacoraFormModal({
                     variant="secondary"
                     disabled={isEditing || !form.latitud || !form.longitud}
                     onClick={() => !isEditing && setMapOpen(true)}
-                    className="flex-1 bg-green-50 hover:bg-green-100 border-green-300 text-green-700"
+                    className="flex-1 bg-white hover:bg-green-50 border-green-300 text-green-700"
                   >
                     <Map className="h-4 w-4 mr-2" /> Ver mapa
                   </Button>
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input value={form.latitud} readOnly disabled={isEditing} />
-                  <Input value={form.longitud} readOnly disabled={isEditing} />
+                  <Input value={form.latitud} readOnly disabled={isEditing} placeholder="Latitud" className="bg-white" />
+                  <Input value={form.longitud} readOnly disabled={isEditing} placeholder="Longitud" className="bg-white" />
                 </div>
               </div>
 
               {/* OBSERVACIONES */}
-              <Textarea
-                placeholder="Observaciones"
-                value={form.observaciones}
-                onChange={(e) =>
-                  setForm({ ...form, observaciones: e.target.value })
-                }
-                className="md:col-span-2"
-              />
+              <div className="col-span-1 md:col-span-2 lg:col-span-4">
+                <Textarea
+                    placeholder="Observaciones generales de la actividad..."
+                    value={form.observaciones}
+                    onChange={(e) =>
+                    setForm({ ...form, observaciones: e.target.value })
+                    }
+                    className="min-h-[80px]"
+                />
+              </div>
 
-              {/* FECHAS */}
-              <div
-                className={`grid ${
-                  isProductoNoConformeOrSeRecomienda
-                    ? "grid-cols-2"
-                    : "grid-cols-1"
-                } gap-2 md:col-span-4`}
-              >
-                {/* Fecha mejora */}
-                {isProductoNoConformeOrSeRecomienda && (
-                  <div>
-                    <label className="block text-sm font-medium">
-                      Fecha de Mejora
+              {/* FECHAS CONDICIONALES */}
+              {(isProductoNoConformeOrSeRecomienda || form.fechaMejora || form.fechaEjecucion) && (
+                <div className="col-span-1 md:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-yellow-50 rounded-md border border-yellow-200">
+                    {/* Fecha mejora */}
+                    {isProductoNoConformeOrSeRecomienda && (
+                    <div>
+                        <label className="block text-sm font-medium text-yellow-800 mb-1">
+                        Fecha Compromiso / Mejora
+                        </label>
+                        <Input
+                        type="date"
+                        value={form.fechaMejora}
+                        min={
+                            form.fechaCreacion
+                            ? form.fechaCreacion.split("T")[0]
+                            : undefined
+                        }
+                        onChange={(e) =>
+                            setForm({ ...form, fechaMejora: e.target.value })
+                        }
+                        className="bg-white"
+                        />
+                    </div>
+                    )}
+
+                    {/* Fecha ejecución */}
+                    <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Fecha Real de Ejecución
                     </label>
                     <Input
-                      type="date"
-                      value={form.fechaMejora}
-                      min={
+                        type="date"
+                        value={form.fechaEjecucion}
+                        min={
                         form.fechaCreacion
-                          ? form.fechaCreacion.split("T")[0]
-                          : undefined
-                      }
-                      onChange={(e) =>
-                        setForm({ ...form, fechaMejora: e.target.value })
-                      }
+                            ? form.fechaCreacion.split("T")[0]
+                            : undefined
+                        }
+                        onChange={(e) =>
+                        setForm({ ...form, fechaEjecucion: e.target.value })
+                        }
+                        className="bg-white"
                     />
-                  </div>
-                )}
-
-                {/* Fecha ejecución */}
-                <div>
-                  <label className="block text-sm font-medium">
-                    Fecha de Ejecución
-                  </label>
-                  <Input
-                    type="date"
-                    value={form.fechaEjecucion}
-                    min={
-                      form.fechaCreacion
-                        ? form.fechaCreacion.split("T")[0]
-                        : undefined
-                    }
-                    onChange={(e) =>
-                      setForm({ ...form, fechaEjecucion: e.target.value })
-                    }
-                  />
+                    </div>
                 </div>
-              </div>
+              )}
 
               {/* ======================= */}
               {/* FOTOGRAFÍAS NORMALES   */}
               {/* ======================= */}
-              <div className="col-span-4">
-                <label className="block text-sm font-medium text-gray-700 mb-1">
+              <div className="col-span-1 md:col-span-2 lg:col-span-4">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
                   Fotografías (máximo 3)
                 </label>
 
@@ -377,11 +381,12 @@ export default function BitacoraFormModal({
                   {form.fotosExistentes.map((foto, idx) => (
                     <div
                       key={`exist-${idx}`}
-                      className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-300"
+                      className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
                     >
                       <img
                         src={foto.url}
                         className="object-cover w-full h-full"
+                        alt="Evidencia"
                       />
 
                       <button
@@ -394,7 +399,7 @@ export default function BitacoraFormModal({
                             ),
                           })
                         }
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
                       >
                         ✕
                       </button>
@@ -405,11 +410,12 @@ export default function BitacoraFormModal({
                   {form.fotoFiles.map((file, idx) => (
                     <div
                       key={`new-${idx}`}
-                      className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-300"
+                      className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
                     >
                       <img
                         src={URL.createObjectURL(file)}
                         className="object-cover w-full h-full"
+                        alt="Nueva evidencia"
                       />
 
                       <button
@@ -420,7 +426,7 @@ export default function BitacoraFormModal({
                             fotoFiles: form.fotoFiles.filter((_, i) => i !== idx),
                           })
                         }
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
                       >
                         ✕
                       </button>
@@ -429,9 +435,9 @@ export default function BitacoraFormModal({
 
                   {/* --- BOTÓN AGREGAR --- */}
                   {form.fotoFiles.length + form.fotosExistentes.length < 3 && (
-                    <label className="w-24 h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84]">
-                      <span className="text-2xl">📷</span>
-                      <span className="text-xs text-center">Agregar</span>
+                    <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84] hover:bg-blue-50 transition-colors">
+                      <span className="text-xl md:text-2xl">📷</span>
+                      <span className="text-[10px] md:text-xs text-center mt-1">Agregar</span>
                       <input
                         type="file"
                         accept="image/*"
@@ -464,19 +470,20 @@ export default function BitacoraFormModal({
               {/* SEGUIMIENTO + FOTOS EXTRA     */}
               {/* ============================ */}
               {isProductoNoConformeOrSeRecomienda && (
-                <>
+                <div className="col-span-1 md:col-span-2 lg:col-span-4 p-3 bg-gray-50 rounded-md border border-gray-200 mt-2">
+                  <label className="block text-sm font-bold text-gray-800 mb-2">Seguimiento de Calidad</label>
                   <Textarea
-                    placeholder="Seguimiento"
+                    placeholder="Describa el seguimiento realizado..."
                     value={form.seguimiento}
                     onChange={(e) =>
                       setForm({ ...form, seguimiento: e.target.value })
                     }
-                    className="md:col-span-2"
+                    className="bg-white mb-4"
                   />
 
-                  <div className="col-span-4">
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Fotografías de seguimiento (máximo 2)
+                  <div className="">
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Evidencias de corrección (máximo 2)
                     </label>
 
                     <div className="flex flex-wrap gap-3">
@@ -485,11 +492,12 @@ export default function BitacoraFormModal({
                       {form.fotosSeguimientoExistentes.map((foto, idx) => (
                         <div
                           key={`seg-exist-${idx}`}
-                          className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-300"
+                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
                         >
                           <img
                             src={foto.url}
                             className="object-cover w-full h-full"
+                            alt="Seguimiento"
                           />
                           <button
                             type="button"
@@ -502,7 +510,7 @@ export default function BitacoraFormModal({
                                   ),
                               })
                             }
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
                           >
                             ✕
                           </button>
@@ -513,11 +521,12 @@ export default function BitacoraFormModal({
                       {form.fotosSeguimiento.map((file, idx) => (
                         <div
                           key={`seg-new-${idx}`}
-                          className="relative w-24 h-24 rounded-lg overflow-hidden border border-gray-300"
+                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
                         >
                           <img
                             src={URL.createObjectURL(file)}
                             className="object-cover w-full h-full"
+                            alt="Nuevo seguimiento"
                           />
                           <button
                             type="button"
@@ -530,7 +539,7 @@ export default function BitacoraFormModal({
                                   ),
                               })
                             }
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-5 h-5 flex items-center justify-center text-xs"
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
                           >
                             ✕
                           </button>
@@ -541,9 +550,9 @@ export default function BitacoraFormModal({
                       {form.fotosSeguimiento.length +
                         form.fotosSeguimientoExistentes.length <
                         2 && (
-                        <label className="w-24 h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84]">
-                          <span className="text-2xl">📷</span>
-                          <span className="text-xs text-center">Agregar</span>
+                        <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84] hover:bg-white transition-colors">
+                          <span className="text-xl md:text-2xl">📷</span>
+                          <span className="text-[10px] md:text-xs text-center mt-1">Agregar</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -574,38 +583,38 @@ export default function BitacoraFormModal({
                       )}
                     </div>
                   </div>
-                </>
+                </div>
               )}
             </div>
           )}
 
           {errorMsg && (
-            <p className="text-sm text-red-500 text-center mt-2">{errorMsg}</p>
+            <p className="text-sm text-red-500 text-center mt-2 font-medium bg-red-50 p-2 rounded">{errorMsg}</p>
           )}
 
           <Button
             onClick={onSubmit}
             disabled={loading}
-            className="mt-4 bg-[#0C2D57] hover:bg-[#113a84]"
+            className="mt-4 w-full md:w-auto bg-[#0C2D57] hover:bg-[#113a84] text-white font-bold py-3"
           >
             {loading
               ? "Guardando..."
               : isEditing
-              ? "Guardar cambios"
-              : "Agregar"}
+              ? "Guardar Cambios"
+              : "Registrar Bitácora"}
           </Button>
         </DialogContent>
       </Dialog>
 
       {/* MODAL MAPA */}
       <Dialog open={mapOpen} onOpenChange={setMapOpen}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="w-[95%] max-w-2xl max-h-[80vh] overflow-hidden p-0">
+          <DialogHeader className="p-4 bg-gray-50 border-b">
             <DialogTitle>Ajustar ubicación GPS</DialogTitle>
           </DialogHeader>
 
           {form.latitud && form.longitud ? (
-            <div className="w-full h-[400px] rounded-lg overflow-hidden">
+            <div className="w-full h-[300px] md:h-[400px]">
               <DynamicMap
                 lat={parseFloat(form.latitud)}
                 lng={parseFloat(form.longitud)}
@@ -620,9 +629,12 @@ export default function BitacoraFormModal({
               />
             </div>
           ) : (
-            <p className="text-center text-gray-500">
-              No hay coordenadas disponibles.
-            </p>
+            <div className="p-8 text-center">
+              <p className="text-gray-500">No hay coordenadas disponibles para mostrar el mapa.</p>
+              <Button variant="outline" onClick={() => setMapOpen(false)} className="mt-4">
+                Cerrar
+              </Button>
+            </div>
           )}
         </DialogContent>
       </Dialog>

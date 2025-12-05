@@ -11,20 +11,27 @@ interface DynamicMapProps {
   onClose?: () => void;
 }
 
-export default function DynamicMap({ lat, lng, onPositionChange, onClose }: DynamicMapProps) {
+export default function DynamicMap({ lat, lng, onPositionChange }: DynamicMapProps) {
+  // ✅ Usamos ref para el contenedor DIV en lugar de ID para evitar conflictos en React
+  const mapContainerRef = useRef<HTMLDivElement>(null);
   const mapRef = useRef<L.Map | null>(null);
   const markerRef = useRef<L.Marker | null>(null);
 
   // Crear mapa solo una vez
   useEffect(() => {
-    if (mapRef.current) return;
+    if (mapRef.current || !mapContainerRef.current) return;
 
-    const map = L.map("dynamic-map", {
+    // Inicializamos el mapa sobre la referencia del DOM
+    const map = L.map(mapContainerRef.current, {
       center: [lat || 0, lng || 0],
       zoom: 16,
+      zoomControl: false, // Desactivamos el zoom por defecto para moverlo
     });
 
     mapRef.current = map;
+
+    // Añadimos controles de zoom abajo a la derecha (mejor para móviles)
+    L.control.zoom({ position: "bottomright" }).addTo(map);
 
     L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
       attribution:
@@ -51,17 +58,24 @@ export default function DynamicMap({ lat, lng, onPositionChange, onClose }: Dyna
     marker.on("dragend", (e) => {
       const position = e.target.getLatLng();
       onPositionChange?.(position.lat, position.lng);
-      if (onClose) setTimeout(() => onClose(), 300);
+      // 🚀 MEJORA UX: Quitamos el onClose automático al soltar.
+      // Es mejor que el usuario ajuste el pin con calma y cierre el modal manualmente.
     });
+
+    // 🔧 TRUCO: Forzar ajuste de tamaño para evitar cuadros grises en Modals
+    setTimeout(() => {
+      map.invalidateSize();
+    }, 200);
 
     return () => {
       map.remove();
       mapRef.current = null;
       markerRef.current = null;
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Actualiza posición cuando cambian lat/lng
+  // Actualiza posición cuando cambian lat/lng (por si se captura GPS de nuevo)
   useEffect(() => {
     if (!mapRef.current || !markerRef.current) return;
 
@@ -69,16 +83,22 @@ export default function DynamicMap({ lat, lng, onPositionChange, onClose }: Dyna
     const marker = markerRef.current;
     const newPos = L.latLng(lat || 0, lng || 0);
 
-    // Usa try-catch + timeout para evitar error '_leaflet_pos'
-    setTimeout(() => {
+    // Evitamos errores de animación si el mapa no está listo
+    requestAnimationFrame(() => {
       try {
         marker.setLatLng(newPos);
-        map.setView(newPos);
+        map.setView(newPos); // Centrar mapa en la nueva posición
       } catch (e) {
-        console.warn("⚠️ Leaflet aún no listo:", e);
+        console.warn("⚠️ Leaflet sync warning:", e);
       }
-    }, 50);
+    });
   }, [lat, lng]);
 
-  return <div id="dynamic-map" className="w-full h-full rounded-lg" />;
+  return (
+    <div 
+      ref={mapContainerRef} 
+      className="w-full h-full rounded-lg border border-gray-200 z-0" 
+      style={{ minHeight: "300px" }} // Altura mínima garantizada para móvil
+    />
+  );
 }
