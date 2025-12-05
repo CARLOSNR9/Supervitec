@@ -20,8 +20,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
+// Agregamos 'Tag' para el icono de variable
+import { Search, Plus, Pencil, Trash2, RefreshCw, Tag } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Variable {
   id: number;
@@ -43,8 +45,7 @@ export default function VariablesPage() {
   const fetchVariables = async () => {
     setLoading(true);
     try {
-            const res = await apiGet<Variable[]>("/variables");
-
+      const res = await apiGet<Variable[]>("/variables");
       setVariables(res);
     } catch {
       toast.error("Error al cargar las variables.");
@@ -57,9 +58,7 @@ export default function VariablesPage() {
   useEffect(() => {
     const init = async () => {
       try {
-        
         const me = await apiGet<{ id: number; role: string }>("/auth/me");
-
 
         if (me.role !== "ADMIN") {
           router.replace("/"); // redirige a inicio si no es ADMIN
@@ -137,27 +136,29 @@ export default function VariablesPage() {
   }
 
   return (
-    <main className="p-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#0C2D57]">
+    // ✅ Padding responsivo
+    <main className="p-4 md:p-8">
+      {/* HEADER adaptable */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 md:gap-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0C2D57]">
           Informe de Variables
         </h1>
-        <div className="flex gap-2">
+        
+        <div className="flex gap-2 w-full md:w-auto">
           <Button variant="outline" onClick={fetchVariables} disabled={loading}>
             <RefreshCw
               className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
             />
           </Button>
           <Button
-            className="bg-[#16A34A] hover:bg-green-700 text-white"
+            className="bg-[#16A34A] hover:bg-green-700 text-white flex-1 md:flex-none"
             onClick={() => {
               setForm({ nombre: "", observaciones: "" });
               setEditId(null);
               setOpen(true);
             }}
           >
-            + Nuevo
+            <Plus className="h-4 w-4 mr-1" /> Nuevo
           </Button>
         </div>
       </div>
@@ -166,15 +167,66 @@ export default function VariablesPage() {
       <div className="relative w-full max-w-md mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input
-          placeholder="Búsqueda rápida por Variable u Observaciones..."
+          placeholder="Buscar por Variable u Observaciones..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
         />
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      {/* 📱 VISTA MÓVIL: TARJETAS */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {loading ? (
+          <p className="text-center text-gray-500 py-4">Cargando...</p>
+        ) : filteredVariables.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">No hay variables registradas.</p>
+        ) : (
+          filteredVariables.map((v) => (
+            <Card key={v.id} className="shadow-sm border border-gray-200">
+              <CardHeader className="pb-2 flex flex-row justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-green-50 p-2 rounded-full">
+                    <Tag className="h-5 w-5 text-green-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-lg">{v.nombre}</h3>
+                    <p className="text-xs text-gray-400">ID: {v.id}</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2 text-sm space-y-3">
+                {v.observaciones && (
+                  <div className="bg-gray-50 p-2 rounded text-gray-600 text-xs italic">
+                    "{v.observaciones}"
+                  </div>
+                )}
+                
+                <div className="flex gap-2 pt-2 border-t mt-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => handleEdit(v)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2 text-blue-600" /> Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => handleDelete(v.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
+      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
         <Table>
           <TableHeader className="bg-gray-100 text-gray-700">
             <TableRow>
@@ -185,7 +237,16 @@ export default function VariablesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filteredVariables.length === 0 ? (
+            {loading ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center py-6 text-gray-500"
+                >
+                  Cargando...
+                </TableCell>
+              </TableRow>
+            ) : filteredVariables.length === 0 ? (
               <TableRow>
                 <TableCell
                   colSpan={4}
@@ -225,7 +286,7 @@ export default function VariablesPage() {
 
       {/* Modal */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-md">
+        <DialogContent className="max-w-[90%] md:max-w-md rounded-lg">
           <DialogHeader>
             <DialogTitle>
               {editId ? "Editar Variable" : "Nuevo Registro de Variables"}

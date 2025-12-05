@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api"; // Asumo la existencia de estos helpers
+import { apiGet, apiPost, apiPatch, apiDelete } from "@/lib/api";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +20,15 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, RefreshCw, Pencil, Trash2 } from "lucide-react";
-import { format } from "date-fns";
-import { z } from "zod"; // Usamos Zod para validación de forma avanzada (opcional, pero útil)
+// Agregamos 'HardHat' como icono de contratista
+import { Search, RefreshCw, Pencil, Trash2, HardHat, Mail, User } from "lucide-react";
+import { z } from "zod";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 // ---------------------------------------------------------------------
 // TIPOS Y ESQUEMA DE VALIDACIÓN (ZOD)
 // ---------------------------------------------------------------------
 
-// El tipo de dato devuelto por la API del backend
 interface Contratista {
   id: number;
   nombre: string;
@@ -37,7 +37,6 @@ interface Contratista {
   observaciones?: string;
 }
 
-// Esquema de validación para crear/editar (alineado con CreateContratistaDto del backend)
 const ContratistaSchema = z.object({
   nombre: z.string().min(1, "El nombre es obligatorio.").max(100),
   responsable: z.string().max(100).optional().or(z.literal("")),
@@ -63,7 +62,7 @@ export default function ContratistasPage() {
   const [open, setOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [form, setForm] = useState<ContratistaForm>(initialFormState);
-  const [isEditing, setIsEditing] = useState<number | null>(null); // ID del contratista a editar
+  const [isEditing, setIsEditing] = useState<number | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
   // ---------------------------------------------------------------------
@@ -114,7 +113,7 @@ export default function ContratistasPage() {
     try {
       await apiDelete(`/contratistas/${id}`);
       toast.success("❌ Contratista eliminado exitosamente.");
-      fetchData(); // Recargar la lista
+      fetchData();
     } catch (err: any) {
       console.error("Error eliminando contratista:", err);
       const detail = err.response?.data?.message || "No se pudo eliminar el contratista.";
@@ -124,33 +123,26 @@ export default function ContratistasPage() {
 
   const handleSubmit = async () => {
     try {
-      // 1. Validar el formulario con Zod
       const validatedData = ContratistaSchema.parse(form);
-
       setLoading(true);
 
       if (isEditing) {
-        // ACTUALIZAR (PATCH)
         await apiPatch(`/contratistas/${isEditing}`, validatedData);
         toast.success(`✅ Contratista "${validatedData.nombre}" actualizado exitosamente.`);
       } else {
-        // CREAR (POST)
         await apiPost("/contratistas", validatedData);
         toast.success(`✅ Contratista "${validatedData.nombre}" creado exitosamente.`);
       }
 
       setOpen(false);
       setForm(initialFormState);
-      fetchData(); // Recargar la lista
+      fetchData();
     } catch (err: any) {
       console.log(err);
-      
       let errorMessages = ["Error al guardar el contratista."];
       if (err.issues) {
-        // Error de validación de Zod
         errorMessages = err.issues.map((issue: any) => `${issue.path[0]}: ${issue.message}`);
       } else if (err.response?.data?.message) {
-         // Error de NestJS (ej. Nombre duplicado P2002)
         errorMessages = Array.isArray(err.response.data.message) 
             ? err.response.data.message 
             : [err.response.data.message];
@@ -191,13 +183,15 @@ export default function ContratistasPage() {
   // ---------------------------------------------------------------------
 
   return (
-    <main className="p-8">
-      {/* ENCABEZADO */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#0C2D57]">
+    // ✅ Padding responsivo
+    <main className="p-4 md:p-8">
+      {/* ENCABEZADO ADAPTABLE */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 md:gap-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0C2D57]">
           Informe de Contratistas
         </h1>
-        <div className="flex gap-2">
+        
+        <div className="flex gap-2 w-full md:w-auto">
           <Button
             variant="outline"
             onClick={fetchData}
@@ -208,7 +202,7 @@ export default function ContratistasPage() {
           </Button>
           <Button
             onClick={handleOpenRegister}
-            className="bg-[#0C2D57] hover:bg-[#113a84]"
+            className="bg-[#0C2D57] hover:bg-[#113a84] flex-1 md:flex-none"
           >
             + Nuevo Contratista
           </Button>
@@ -216,21 +210,81 @@ export default function ContratistasPage() {
       </div>
 
       {/* BÚSQUEDA */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
           <Input
-            placeholder="Buscar por Nombre, Responsable, Email o Observaciones..."
+            placeholder="Buscar por Nombre, Responsable, Email..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10"
           />
         </div>
-        {loading && <p className="text-sm text-gray-500">Cargando datos...</p>}
+        {loading && <p className="text-sm text-gray-500 animate-pulse">Cargando datos...</p>}
       </div>
 
-      {/* TABLA DE CONTRATISTAS */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      {/* 📱 VISTA MÓVIL: TARJETAS */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {filteredContratistas.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">No se encontraron registros.</p>
+        ) : (
+          filteredContratistas.map((c) => (
+            <Card key={c.id} className="shadow-sm border border-gray-200">
+              <CardHeader className="pb-2 flex flex-row justify-between items-center">
+                <div className="flex items-center gap-3 w-full">
+                  <div className="bg-blue-50 p-2 rounded-full flex-shrink-0">
+                    <HardHat className="h-5 w-5 text-blue-800" />
+                  </div>
+                  <div className="overflow-hidden">
+                    <h3 className="font-semibold text-gray-800 text-lg truncate">{c.nombre}</h3>
+                    <p className="text-xs text-gray-400">ID: {c.id}</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2 text-sm space-y-2">
+                <div className="flex items-center gap-2 text-gray-600">
+                  <User className="h-4 w-4 text-gray-400" />
+                  <span className="font-medium">Resp:</span> 
+                  <span>{c.responsable || "N/A"}</span>
+                </div>
+                
+                <div className="flex items-center gap-2 text-gray-600">
+                  <Mail className="h-4 w-4 text-gray-400" />
+                  <span className="truncate">{c.email || "N/A"}</span>
+                </div>
+
+                {c.observaciones && (
+                  <div className="bg-gray-50 p-2 rounded text-gray-600 text-xs italic mt-2">
+                    "{c.observaciones}"
+                  </div>
+                )}
+                
+                <div className="flex gap-2 pt-2 border-t mt-3">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => handleEdit(c)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2 text-blue-600" /> Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => handleDelete(c.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
+      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
         <Table>
           <TableHeader className="bg-gray-100 text-gray-700 text-left">
             <TableRow>
@@ -259,10 +313,10 @@ export default function ContratistasPage() {
                   className="hover:bg-gray-50 transition-colors"
                 >
                   <TableCell className="font-medium">{c.id}</TableCell>
-                  <TableCell>{c.nombre}</TableCell>
+                  <TableCell className="font-medium text-[#0C2D57]">{c.nombre}</TableCell>
                   <TableCell>{c.responsable || 'N/A'}</TableCell>
                   <TableCell>{c.email || 'N/A'}</TableCell>
-                  <TableCell className="max-w-[300px] truncate">{c.observaciones || 'Sin observaciones'}</TableCell>
+                  <TableCell className="max-w-[300px] truncate" title={c.observaciones}>{c.observaciones || 'Sin observaciones'}</TableCell>
                   <TableCell>
                     <div className="flex gap-2">
                         <Button
@@ -271,7 +325,7 @@ export default function ContratistasPage() {
                             onClick={() => handleEdit(c)}
                             title="Editar Contratista"
                         >
-                            <Pencil className="h-4 w-4" />
+                            <Pencil className="h-4 w-4 text-blue-600" />
                         </Button>
                         <Button
                             variant="destructive"
@@ -292,7 +346,7 @@ export default function ContratistasPage() {
 
       {/* MODAL CREAR/EDITAR CONTRATISTA */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-2xl">
+        <DialogContent className="max-w-2xl w-[95%] rounded-lg">
           <DialogHeader>
             <DialogTitle>
               {isEditing ? "Editar Registro de Contratista" : "Nuevo Registro de Contratista"}
@@ -338,6 +392,7 @@ export default function ContratistasPage() {
                 placeholder="Descripción del trabajo o notas relevantes"
                 value={form.observaciones}
                 onChange={(e) => setForm({ ...form, observaciones: e.target.value })}
+                className="h-24"
               />
             </label>
           </div>
@@ -345,7 +400,7 @@ export default function ContratistasPage() {
           <Button
             onClick={handleSubmit}
             disabled={loading}
-            className="mt-4 bg-[#0C2D57] hover:bg-[#113a84]"
+            className="mt-4 bg-[#0C2D57] hover:bg-[#113a84] w-full"
           >
             {loading ? "Guardando..." : (isEditing ? "Guardar Cambios" : "Agregar")}
           </Button>

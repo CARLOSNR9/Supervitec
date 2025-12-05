@@ -20,9 +20,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, RefreshCw, Pencil, Trash2 } from "lucide-react";
+// Agregamos 'Construction' para el icono de obra
+import { Search, RefreshCw, Pencil, Trash2, Construction, Users } from "lucide-react";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 // ---------------------------------------------------------------------
 // TIPOS Y ESTADOS
@@ -92,26 +95,21 @@ export default function ObrasPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      // Solo ADMIN o DIRECTOR deben llamar /users
       if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
         const usersRes = await apiGet<User[]>("/users");
-
-        // 🎯 FIX: Mapeo User -> Responsable (SIN ROMPER nada)
         setUsers(
           usersRes
             .filter((u) => u.active)
             .map((u) => ({
               id: u.id,
-              nombreCompleto: u.username, // se usará como nombre visible
+              nombreCompleto: u.username,
               username: u.username,
             }))
         );
       }
 
-      // TODOS los roles deben llamar /obras
-     const obrasRes = await apiGet<Obra[]>("/obras");
-setObras(obrasRes);
-
+      const obrasRes = await apiGet<Obra[]>("/obras");
+      setObras(obrasRes);
     } catch (err) {
       console.error(err);
       toast.error("Error al cargar datos del módulo de Obras.");
@@ -166,28 +164,27 @@ setObras(obrasRes);
   };
 
   const handleOpenEdit = async (obra: Obra) => {
-  setErrorMsg("");
-  setEditingId(obra.id);
-  setLoading(true);
+    setErrorMsg("");
+    setEditingId(obra.id);
+    setLoading(true);
 
-  try {
-    const res = await apiGet<Obra>(`/obras/${obra.id}`);
+    try {
+      const res = await apiGet<Obra>(`/obras/${obra.id}`);
 
-    setForm({
-      prefijo: res.prefijo,
-      nombre: res.nombre,
-      observaciones: res.observaciones || "",
-      responsablesId: res.responsables.map((r) => r.id),
-    });
+      setForm({
+        prefijo: res.prefijo,
+        nombre: res.nombre,
+        observaciones: res.observaciones || "",
+        responsablesId: res.responsables.map((r) => r.id),
+      });
 
-    setOpen(true);
-  } catch (err) {
-    toast.error("Error al cargar los datos de la obra.");
-  } finally {
-    setLoading(false);
-  }
-};
-
+      setOpen(true);
+    } catch (err) {
+      toast.error("Error al cargar los datos de la obra.");
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const validateForm = () => {
     setErrorMsg("");
@@ -266,6 +263,14 @@ setObras(obrasRes);
     return names.join(", ");
   };
 
+  const getStatusColor = (estado?: string | null) => {
+    switch(estado) {
+        case "FINALIZADA": return "bg-green-100 text-green-700";
+        case "EN_PROGRESO": return "bg-blue-100 text-blue-700";
+        default: return "bg-yellow-100 text-yellow-700";
+    }
+  }
+
   // ---------------------------------------------------------------------
   // RENDERIZADO
   // ---------------------------------------------------------------------
@@ -277,11 +282,13 @@ setObras(obrasRes);
     currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
 
   return (
-    <main className="p-8">
-      {/* ENCABEZADO */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#0C2D57]">Índice de Obras</h1>
-        <div className="flex gap-2">
+    // ✅ Padding responsivo
+    <main className="p-4 md:p-8">
+      {/* ENCABEZADO ADAPTABLE */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 md:gap-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0C2D57]">Índice de Obras</h1>
+        
+        <div className="flex gap-2 w-full md:w-auto">
           <Button
             variant="outline"
             onClick={fetchData}
@@ -293,7 +300,7 @@ setObras(obrasRes);
           {canModify && (
             <Button
               onClick={handleOpenRegister}
-              className="bg-[#0C2D57] hover:bg-[#113a84]"
+              className="bg-[#0C2D57] hover:bg-[#113a84] flex-1 md:flex-none"
             >
               + Nueva Obra
             </Button>
@@ -302,7 +309,7 @@ setObras(obrasRes);
       </div>
 
       {/* BÚSQUEDA */}
-      <div className="flex items-center gap-4 mb-6">
+      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6">
         <div className="relative w-full max-w-md">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
           <Input
@@ -312,11 +319,80 @@ setObras(obrasRes);
             className="pl-10"
           />
         </div>
-        {loading && <p className="text-sm text-gray-500">Cargando datos...</p>}
+        {loading && <p className="text-sm text-gray-500 animate-pulse">Cargando datos...</p>}
       </div>
 
-      {/* TABLA */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      {/* 📱 VISTA MÓVIL: TARJETAS */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {filteredObras.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">
+            No se encontraron obras o no tienes asignadas.
+          </p>
+        ) : (
+          filteredObras.map((obra) => (
+            <Card key={obra.id} className="shadow-sm border border-gray-200">
+              <CardHeader className="pb-2 flex flex-row justify-between items-start">
+                <div className="flex items-center gap-3 w-full">
+                  <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
+                    <Construction className="h-6 w-6 text-orange-600" />
+                  </div>
+                  <div className="overflow-hidden pr-2">
+                    <h3 className="font-bold text-gray-800 text-lg truncate">{obra.nombre}</h3>
+                    <div className="flex items-center gap-2 mt-1">
+                        <Badge variant="outline" className="text-xs font-mono bg-gray-50">
+                            {obra.prefijo}
+                        </Badge>
+                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getStatusColor(obra.estado)}`}>
+                            {(obra.estado || "PENDIENTE").replace("_", " ")}
+                        </span>
+                    </div>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2 text-sm space-y-3">
+                <div className="flex items-start gap-2 text-gray-600">
+                  <Users className="h-4 w-4 mt-0.5 text-gray-400 shrink-0" />
+                  <span className="text-xs line-clamp-2">
+                    {formatResponsables(obra.responsables)}
+                  </span>
+                </div>
+
+                {obra.observaciones && (
+                  <div className="bg-gray-50 p-2 rounded text-gray-600 text-xs italic">
+                    "{obra.observaciones}"
+                  </div>
+                )}
+                
+                <div className="flex gap-2 pt-2 border-t mt-2">
+                  {canModify && (
+                    <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="flex-1"
+                        onClick={() => handleOpenEdit(obra)}
+                    >
+                        <Pencil className="h-4 w-4 mr-2 text-blue-600" /> Editar
+                    </Button>
+                  )}
+                  {canDelete && (
+                    <Button
+                        size="sm"
+                        variant="destructive"
+                        className="flex-1"
+                        onClick={() => handleDelete(obra.id, obra.nombre)}
+                    >
+                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                    </Button>
+                  )}
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
+      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 text-gray-700 text-left">
             <tr>
@@ -349,13 +425,7 @@ setObras(obrasRes);
                   <td className="p-3">{obra.nombre}</td>
                   <td className="p-3">
                     <span
-                      className={`px-2 py-1 rounded-md text-xs font-semibold ${
-                        obra.estado === "FINALIZADA"
-                          ? "bg-green-100 text-green-700"
-                          : obra.estado === "EN_PROGRESO"
-                          ? "bg-blue-100 text-blue-700"
-                          : "bg-yellow-100 text-yellow-700"
-                      }`}
+                      className={`px-2 py-1 rounded-md text-xs font-semibold ${getStatusColor(obra.estado)}`}
                     >
                       {(obra.estado || "NO_ESTADO").replace("_", " ")}
                     </span>
@@ -369,7 +439,6 @@ setObras(obrasRes);
 
                   <td className="p-3 text-center">
                     <div className="flex justify-center gap-2">
-
                       {canModify && (
                         <Button
                           variant="outline"
@@ -400,7 +469,7 @@ setObras(obrasRes);
 
       {/* MODAL CREAR/EDITAR */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[90%] md:max-w-md rounded-lg">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Editar Obra" : "Nuevo Registro de Obra"}
@@ -408,7 +477,7 @@ setObras(obrasRes);
           </DialogHeader>
 
           <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <Input
                 placeholder="Prefijo*"
                 value={form.prefijo}

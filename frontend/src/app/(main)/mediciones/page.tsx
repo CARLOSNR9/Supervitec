@@ -22,8 +22,10 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { Search, Plus, Pencil, Trash2, RefreshCw } from "lucide-react";
+// Agregamos 'Scale' para el icono de medición
+import { Search, Plus, Pencil, Trash2, RefreshCw, Scale } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 interface Medicion {
   id: number;
@@ -148,13 +150,15 @@ export default function MedicionesPage() {
   // Render
   // ----------------------------
   return (
-    <main className="p-8">
-      {/* Header */}
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-3xl font-bold text-[#0C2D57]">
+    // ✅ Padding responsivo
+    <main className="p-4 md:p-8">
+      {/* HEADER ADAPTABLE */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 md:gap-0">
+        <h1 className="text-2xl md:text-3xl font-bold text-[#0C2D57]">
           Informe de Mediciones
         </h1>
-        <div className="flex gap-2">
+        
+        <div className="flex gap-2 w-full md:w-auto">
           <Button
             variant="outline"
             onClick={fetchMediciones}
@@ -175,7 +179,7 @@ export default function MedicionesPage() {
           >
             <DialogTrigger asChild>
               <Button
-                className="bg-green-600 hover:bg-green-700"
+                className="bg-green-600 hover:bg-green-700 flex-1 md:flex-none"
                 onClick={() => {
                   resetForm();
                   setOpen(true);
@@ -184,7 +188,7 @@ export default function MedicionesPage() {
                 <Plus className="h-4 w-4 mr-1" /> Nuevo
               </Button>
             </DialogTrigger>
-            <DialogContent className="max-w-md">
+            <DialogContent className="max-w-[90%] md:max-w-md rounded-lg">
               <DialogHeader>
                 <DialogTitle>
                   {editId
@@ -225,15 +229,66 @@ export default function MedicionesPage() {
       <div className="relative w-full max-w-md mb-6">
         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-500" />
         <Input
-          placeholder="Búsqueda rápida por Medición u Observaciones..."
+          placeholder="Buscar por Medición u Observaciones..."
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
           className="pl-10"
         />
       </div>
 
-      {/* Tabla */}
-      <div className="bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
+      {/* 📱 VISTA MÓVIL: TARJETAS */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {loading ? (
+          <p className="text-center text-gray-500 py-4">Cargando...</p>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-gray-500 py-4">No hay mediciones registradas.</p>
+        ) : (
+          filtered.map((m) => (
+            <Card key={m.id} className="shadow-sm border border-gray-200">
+              <CardHeader className="pb-2 flex flex-row justify-between items-center">
+                <div className="flex items-center gap-3">
+                  <div className="bg-orange-50 p-2 rounded-full">
+                    <Scale className="h-5 w-5 text-orange-600" />
+                  </div>
+                  <div>
+                    <h3 className="font-semibold text-gray-800 text-lg">{m.nombre}</h3>
+                    <p className="text-xs text-gray-400">ID: {m.id}</p>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="pt-2 text-sm space-y-3">
+                {m.observaciones && (
+                  <div className="bg-gray-50 p-2 rounded text-gray-600 text-xs italic">
+                    "{m.observaciones}"
+                  </div>
+                )}
+                
+                <div className="flex gap-2 pt-2 border-t mt-2">
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1"
+                    onClick={() => handleEdit(m)}
+                  >
+                    <Pencil className="h-4 w-4 mr-2 text-blue-600" /> Editar
+                  </Button>
+                  <Button
+                    size="sm"
+                    variant="destructive"
+                    className="flex-1"
+                    onClick={() => handleDelete(m.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                  </Button>
+                </div>
+              </CardContent>
+            </Card>
+          ))
+        )}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
+      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
         <Table>
           <TableHeader className="bg-gray-100 text-gray-700">
             <TableRow>
@@ -244,15 +299,22 @@ export default function MedicionesPage() {
             </TableRow>
           </TableHeader>
           <TableBody>
-            {filtered.length === 0 ? (
+            {loading ? (
               <TableRow>
                 <TableCell
                   colSpan={4}
                   className="text-center py-6 text-gray-500"
                 >
-                  {loading
-                    ? "Cargando..."
-                    : "No hay mediciones registradas."}
+                  Cargando...
+                </TableCell>
+              </TableRow>
+            ) : filtered.length === 0 ? (
+              <TableRow>
+                <TableCell
+                  colSpan={4}
+                  className="text-center py-6 text-gray-500"
+                >
+                  No hay mediciones registradas.
                 </TableCell>
               </TableRow>
             ) : (
