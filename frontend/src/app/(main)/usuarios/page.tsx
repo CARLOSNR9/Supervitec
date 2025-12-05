@@ -19,8 +19,10 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff, CheckCircle2, XCircle } from "lucide-react";
+import { Eye, EyeOff, CheckCircle2, XCircle, Pencil, Trash2, User } from "lucide-react";
 import { toast } from "sonner";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 
 // 🚀 Utility para asignar color según rol
 const getRoleColorClass = (role: string) => {
@@ -64,8 +66,8 @@ export default function UsuariosPage() {
     phone: "",
     role: "RESIDENTE",
     active: true,
-    maxUsers: 0, // 🔹 NUEVO
-    maxObras: 0, // 🔹 NUEVO
+    maxUsers: 0,
+    maxObras: 0,
   });
 
   // ========= Obtener usuario actual & lista de usuarios ==========
@@ -86,9 +88,7 @@ export default function UsuariosPage() {
   const fetchUsers = async () => {
     try {
       const res = await apiGet<any[]>("/users");
-setUsers(res);
-
-
+      setUsers(res);
     } catch (err) {
       toast.error("Error al cargar los usuarios");
       console.error(err);
@@ -151,7 +151,6 @@ setUsers(res);
       return false;
     }
 
-    // Opcional: puedes validar que maxUsers/maxObras > 0 para DIRECTOR
     if (
       currentUser?.role === "ADMIN" &&
       form.role === "DIRECTOR" &&
@@ -183,7 +182,6 @@ setUsers(res);
           ...(form.password && { password: form.password }),
         };
 
-        // ADMIN editando un DIRECTOR → puede enviar límites
         if (currentUser?.role === "ADMIN" && form.role === "DIRECTOR") {
           if (form.maxUsers > 0) dataToSubmit.maxUsers = form.maxUsers;
           if (form.maxObras > 0) dataToSubmit.maxObras = form.maxObras;
@@ -202,7 +200,6 @@ setUsers(res);
           active: form.active,
         };
 
-        // ADMIN creando DIRECTOR → puede mandar límites
         if (currentUser?.role === "ADMIN" && form.role === "DIRECTOR") {
           if (form.maxUsers > 0) dataToSubmit.maxUsers = form.maxUsers;
           if (form.maxObras > 0) dataToSubmit.maxObras = form.maxObras;
@@ -235,10 +232,7 @@ setUsers(res);
 
   const handleEdit = async (user: any) => {
     try {
-      
       const res = await apiGet<any>(`/users/${user.id}`);
-
-
       setForm({
         username: res.username || "",
         nombreCompleto: res.nombreCompleto || "",
@@ -248,7 +242,7 @@ setUsers(res);
         phone: res.phone || "",
         role: res.role || "RESIDENTE",
         active: res.active,
-        maxUsers: res.maxUsers ?? 0, // si backend empieza a mandarlos, se precargan
+        maxUsers: res.maxUsers ?? 0,
         maxObras: res.maxObras ?? 0,
       });
 
@@ -293,22 +287,87 @@ setUsers(res);
 
   // =================== RENDER =======================
   return (
-    <main className="p-8">
+    // ✅ Padding responsivo
+    <main className="p-4 md:p-8">
       {/* ENCABEZADO */}
-      <div className="flex justify-between mb-6 items-center">
+      <div className="flex flex-col md:flex-row justify-between mb-6 items-start md:items-center gap-4 md:gap-0">
         <h1 className="text-2xl font-semibold text-gray-700">Usuarios</h1>
         <Button
+          className="w-full md:w-auto"
           onClick={() => {
             resetForm();
             setOpen(true);
           }}
         >
-          + Nuevo
+          + Nuevo Usuario
         </Button>
       </div>
 
-      {/* TABLA */}
-      <div className="overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
+      {/* 📱 VISTA MÓVIL: TARJETAS (Visible solo en pantallas pequeñas) */}
+      <div className="grid grid-cols-1 gap-4 md:hidden">
+        {users.map((u) => (
+          <Card key={u.id} className="shadow-sm border border-gray-200">
+            <CardHeader className="pb-2 flex flex-row justify-between items-start">
+              <div className="flex items-center gap-3">
+                <div className="bg-gray-100 p-2 rounded-full">
+                  <User className="h-5 w-5 text-gray-600" />
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-800">{u.nombreCompleto || u.username}</h3>
+                  <p className="text-xs text-gray-500">@{u.username}</p>
+                </div>
+              </div>
+              <Badge className={`${getRoleColorClass(u.role)} border-0`}>
+                {u.role}
+              </Badge>
+            </CardHeader>
+            <CardContent className="pt-2 text-sm space-y-2">
+              <div className="flex justify-between border-b pb-2">
+                <span className="text-gray-500">Estado:</span>
+                {u.active ? (
+                  <span className="text-green-600 font-medium flex items-center gap-1">
+                    <CheckCircle2 className="h-3 w-3" /> Activo
+                  </span>
+                ) : (
+                  <span className="text-gray-400 font-medium flex items-center gap-1">
+                    <XCircle className="h-3 w-3" /> Inactivo
+                  </span>
+                )}
+              </div>
+              <div className="flex justify-between py-1">
+                <span className="text-gray-500">Email:</span>
+                <span className="text-gray-800 truncate max-w-[150px]">{u.email || "-"}</span>
+              </div>
+              <div className="flex justify-between py-1 pb-3">
+                <span className="text-gray-500">Teléfono:</span>
+                <span className="text-gray-800">{u.phone || "-"}</span>
+              </div>
+              
+              <div className="flex gap-2 pt-2">
+                <Button 
+                  size="sm" 
+                  variant="outline" 
+                  className="flex-1"
+                  onClick={() => handleEdit(u)}
+                >
+                  <Pencil className="h-4 w-4 mr-2" /> Editar
+                </Button>
+                <Button
+                  size="sm"
+                  variant="destructive"
+                  className="flex-1"
+                  onClick={() => handleDelete(u.id)}
+                >
+                  <Trash2 className="h-4 w-4 mr-2" /> Eliminar
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+        ))}
+      </div>
+
+      {/* 💻 VISTA ESCRITORIO: TABLA (Oculta en móvil) */}
+      <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 text-gray-700 text-left">
             <tr>
@@ -368,9 +427,9 @@ setUsers(res);
         </table>
       </div>
 
-      {/* MODAL */}
+      {/* MODAL (Funciona igual en ambos) */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
+        <DialogContent className="max-w-[90%] md:max-w-lg rounded-lg">
           <DialogHeader>
             <DialogTitle>
               {editingId ? "Editar usuario" : "Registrar usuario"}
@@ -381,7 +440,7 @@ setUsers(res);
             </DialogDescription>
           </DialogHeader>
 
-          <div className="flex flex-col gap-3">
+          <div className="flex flex-col gap-3 max-h-[70vh] overflow-y-auto px-1">
             <Input
               placeholder="Usuario"
               value={form.username}
@@ -511,7 +570,7 @@ setUsers(res);
               </button>
             </div>
 
-            {/* SELECT DE ROLES FILTRADO SEGÚN currentUser */}
+            {/* SELECT DE ROLES */}
             <Select
               value={form.role}
               onValueChange={(v) => setForm({ ...form, role: v })}
