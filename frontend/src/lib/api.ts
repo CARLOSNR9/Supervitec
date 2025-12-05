@@ -49,7 +49,7 @@ api.interceptors.request.use(
       const token = tokenFromCookie || tokenFromStorage;
 
       if (token) {
-        // @ts-expect-error — axios typings are strict but safe
+        // Se eliminó la directiva @ts-expect-error innecesaria para pasar el build de Vercel
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -63,7 +63,7 @@ api.interceptors.request.use(
 // 3) FUNCIONES HTTP
 // ---------------------------------------------------------------------
 
-export const apiGet = <T,>(url: string, params?: any): Promise<T> =>
+export const apiGet = <T>(url: string, params?: any): Promise<T> =>
   api.get<T>(url, { params }).then((r) => r.data);
 
 // ---------------------------------------------------------------------
@@ -94,7 +94,7 @@ export async function apiPost<T>(
 // ❗ apiPut NO necesita ser cambiado
 // ---------------------------------------------------------------------
 
-export const apiPut = <T,>(url: string, data?: any): Promise<T> =>
+export const apiPut = <T>(url: string, data?: any): Promise<T> =>
   api.put<T>(url, data).then((r) => r.data);
 
 // ---------------------------------------------------------------------
@@ -123,14 +123,14 @@ export async function apiPatch<T>(
 
 // ---------------------------------------------------------------------
 
-export const apiDelete = <T,>(url: string): Promise<T> =>
+export const apiDelete = <T>(url: string): Promise<T> =>
   api.delete<T>(url).then((r) => r.data);
 
 // ---------------------------------------------------------------------
 // UPLOAD (NO SE TOCA)
 // ---------------------------------------------------------------------
 
-export const apiUpload = <T,>(
+export const apiUpload = <T>(
   url: string,
   files: File[],
   fieldName = "files"
