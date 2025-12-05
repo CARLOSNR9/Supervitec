@@ -1,6 +1,6 @@
 "use client";
 
-import { AlertTriangle, CheckCircle, Construction, ListChecks, Users } from "lucide-react";
+import { AlertTriangle, Construction, ListChecks, Users } from "lucide-react";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -31,23 +31,30 @@ const riskLevel = MOCK_DATA.otNoCumplidas / MOCK_DATA.totalOTs;
 
 export default function DashboardPage() {
   return (
-    <main className="p-8 space-y-8">
-      <h1 className="text-4xl font-extrabold text-[#0C2D57] border-b pb-4">
-        Dashboard de Gestión de Construcción
+    // ✅ CORRECCIÓN 1: padding responsivo (p-4 en móvil, p-8 en PC)
+    <main className="p-4 md:p-8 space-y-6 md:space-y-8">
+      
+      {/* Título adaptable */}
+      <h1 className="text-2xl md:text-4xl font-extrabold text-[#0C2D57] border-b pb-4">
+        Dashboard de Gestión
       </h1>
 
       {/* 🚀 INTEGRACIÓN IA: Análisis Predictivo */}
+      {/* El componente RiskPrediction ya debería ser responsivo si usaste flex-col internamente */}
       <RiskPrediction />
 
       {/* SECCIÓN 1: MÉTRICAS CLAVE Y RIESGO */}
-      <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
+      {/* ✅ CORRECCIÓN 2: Grid adaptable (1 col en móvil, 2 en tablet, 4 en PC) */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6">
+        
+        {/* Tarjeta de Riesgo - Ocupa 2 espacios solo en pantallas grandes */}
         <Card
-          className={`col-span-2 shadow-xl border-l-8 ${
+          className={`col-span-1 sm:col-span-2 shadow-xl border-l-8 ${
             riskLevel > 0.15 ? "border-red-600" : "border-green-600"
           }`}
         >
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-xl font-medium text-[#0C2D57]">
+            <CardTitle className="text-lg md:text-xl font-medium text-[#0C2D57]">
               Nivel de Riesgo Operacional
             </CardTitle>
             <AlertTriangle
@@ -57,7 +64,7 @@ export default function DashboardPage() {
             />
           </CardHeader>
           <CardContent>
-            <div className="text-4xl font-bold">
+            <div className="text-3xl md:text-4xl font-bold">
               {calculateRiskPercentage(MOCK_DATA.otNoCumplidas, MOCK_DATA.totalOTs)}%
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -70,11 +77,11 @@ export default function DashboardPage() {
         {/* OBRAS ACTIVAS */}
         <Card className="shadow-lg border-l-4 border-blue-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium">Obras Activas</CardTitle>
+            <CardTitle className="text-base md:text-lg font-medium">Obras Activas</CardTitle>
             <Construction className="h-5 w-5 text-blue-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">
+            <div className="text-2xl md:text-3xl font-bold">
               {MOCK_DATA.obrasEnProgreso} / {MOCK_DATA.totalObras}
             </div>
             <p className="text-xs text-gray-500 mt-1">
@@ -86,44 +93,47 @@ export default function DashboardPage() {
         {/* BITÁCORAS ABIERTAS */}
         <Card className="shadow-lg border-l-4 border-yellow-500">
           <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-lg font-medium">Bitácoras Pendientes</CardTitle>
+            <CardTitle className="text-base md:text-lg font-medium">Bitácoras Pendientes</CardTitle>
             <ListChecks className="h-5 w-5 text-yellow-500" />
           </CardHeader>
           <CardContent>
-            <div className="text-3xl font-bold">{MOCK_DATA.bitacorasAbiertas}</div>
+            <div className="text-2xl md:text-3xl font-bold">{MOCK_DATA.bitacorasAbiertas}</div>
             <p className="text-xs text-gray-500 mt-1">
-              Registros de Bitácoras que requieren seguimiento.
+              Registros que requieren seguimiento.
             </p>
           </CardContent>
         </Card>
       </div>
 
       {/* SECCIÓN 2: DESGLOSE DE OT Y RESPONSABLES */}
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+      {/* ✅ CORRECCIÓN 3: Grid de 1 columna en móvil, 2 en PC */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 md:gap-8">
+        
+        {/* Desglose de OT */}
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="text-xl text-[#0C2D57]">
+            <CardTitle className="text-lg md:text-xl text-[#0C2D57]">
               Desglose de Órdenes de Trabajo (OT)
             </CardTitle>
           </CardHeader>
           <CardContent className="space-y-4">
-            <div className="flex justify-between items-center border-b pb-2">
+            <div className="flex justify-between items-center border-b pb-2 text-sm md:text-base">
               <span className="font-semibold">Estado de Verificación</span>
               <span className="font-semibold">Total</span>
             </div>
-            <div className="flex justify-between items-center text-green-700">
+            <div className="flex justify-between items-center text-green-700 text-sm md:text-base">
               <span>OT Cumplidas (Revisión OK)</span>
               <Badge className="bg-green-100 text-green-700 hover:bg-green-200">
                 {MOCK_DATA.otCumplidas}
               </Badge>
             </div>
-            <div className="flex justify-between items-center text-red-700">
+            <div className="flex justify-between items-center text-red-700 text-sm md:text-base">
               <span>OT con Fallos (NO CUMPLE)</span>
               <Badge className="bg-red-100 text-red-700 hover:bg-red-200">
                 {MOCK_DATA.otNoCumplidas}
               </Badge>
             </div>
-            <div className="flex justify-between items-center border-t pt-2 font-bold text-gray-700">
+            <div className="flex justify-between items-center border-t pt-2 font-bold text-gray-700 text-sm md:text-base">
               <span>Total de Revisiones</span>
               <span>{MOCK_DATA.totalOTs}</span>
             </div>
@@ -133,10 +143,10 @@ export default function DashboardPage() {
         {/* RENDIMIENTO POR RESPONSABLE */}
         <Card className="shadow-xl">
           <CardHeader>
-            <CardTitle className="text-xl text-[#0C2D57]">
+            <CardTitle className="text-lg md:text-xl text-[#0C2D57]">
               OT Asignadas por Usuario
             </CardTitle>
-            <p className="text-sm text-gray-500">
+            <p className="text-xs md:text-sm text-gray-500">
               Métricas de asignación y riesgo por responsable.
             </p>
           </CardHeader>
@@ -144,14 +154,14 @@ export default function DashboardPage() {
             {MOCK_DATA.responsableData.map((resp) => (
               <div
                 key={resp.nombre}
-                className="flex justify-between items-center border-b pb-2"
+                className="flex flex-col sm:flex-row sm:justify-between sm:items-center border-b pb-2 gap-1 sm:gap-0"
               >
                 <div className="flex items-center gap-2">
                   <Users className="h-4 w-4 text-gray-600" />
-                  <span className="font-medium">{resp.nombre}</span>
+                  <span className="font-medium text-sm md:text-base">{resp.nombre}</span>
                 </div>
-                <div className="text-right">
-                  <div className="font-bold">{resp.total} OT Asignadas</div>
+                <div className="text-left sm:text-right">
+                  <div className="font-bold text-sm md:text-base">{resp.total} OT Asignadas</div>
                   <span
                     className={`text-xs ${
                       resp.riesgo > 10 ? "text-red-500" : "text-green-500"
@@ -167,7 +177,7 @@ export default function DashboardPage() {
         </Card>
       </div>
 
-      <footer className="text-center pt-8 text-gray-400 text-sm">
+      <footer className="text-center pt-4 md:pt-8 text-gray-400 text-xs md:text-sm">
         Dashboard generado con datos en tiempo real (Simulados: 08/11/2025).
       </footer>
     </main>
