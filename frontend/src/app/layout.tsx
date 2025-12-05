@@ -1,29 +1,28 @@
-// Archivo: frontend/src/app/layout.tsx (LAYOUT RAÍZ - CORREGIDO)
+// Archivo: frontend/src/app/layout.tsx (LAYOUT RAÍZ - FINAL)
 
 import "leaflet/dist/leaflet.css";
 import type { Metadata } from "next";
 import { Inter } from 'next/font/google'; 
-import "./globals.css"; // Importación de estilos globales
+import "./globals.css"; 
+// 👇 1. IMPORTAMOS LOS PROVIDERS
+import Providers from "@/components/providers"; 
 
-// 1. Definición de la Fuente
 const inter = Inter({ subsets: ['latin'] }); 
 
-// 2. Definición de Metadatos
 export const metadata: Metadata = {
   title: "SuperviTEC PRO",
   description: "Plataforma de Supervisión Técnica y Control Documental de Obra",
 };
 
-// 3. El componente DEBE llamarse RootLayout
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    // 🚀 CORRECCIÓN CLAVE 1: Debe incluir <html>.
     <html lang="es">
-      {/* 🚀 CORRECCIÓN CLAVE 2: Debe incluir <body>. */}
-      {/* Aplicamos las clases de fuente y fondo AQUÍ. Esto resuelve los errores de hidratación. */}
       <body className={`${inter.className} bg-gray-50 text-gray-900 min-h-screen`}>
-        {/* Solo se renderiza 'children'. Los componentes de UI (Navbar, Toaster) van en el layout anidado. */}
-        {children}
+        {/* 👇 2. ENVOLVEMOS TODA LA APP CON PROVIDERS */}
+        {/* Esto inyecta React Query y el Toaster en toda la aplicación */}
+        <Providers>
+          {children}
+        </Providers>
       </body>
     </html>
   );
