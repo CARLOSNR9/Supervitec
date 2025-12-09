@@ -3,7 +3,8 @@
 import { Bitacora } from "../types/bitacora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Pencil } from "lucide-react";
+// ✅ IMPORTAR EL ICONO EYE
+import { Search, RefreshCw, Pencil, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -20,7 +21,7 @@ interface SortConfig {
 }
 
 interface BitacoraTableProps {
-  bitacoras: Bitacora[]; // paginadas
+  bitacoras: Bitacora[];
   stats: Stats;
   sortConfig: SortConfig;
   onSort: (key: string) => void;
@@ -40,6 +41,8 @@ interface BitacoraTableProps {
 
   onEdit: (bitacora: Bitacora) => void;
   onGeneratePDF: (bitacora: Bitacora) => void;
+  // ✅ NUEVA PROP
+  onView: (bitacora: Bitacora) => void;
 }
 
 export default function BitacoraTable({
@@ -59,6 +62,7 @@ export default function BitacoraTable({
   onSearchChange,
   onEdit,
   onGeneratePDF,
+  onView, // ✅ RECIBIR PROP
 }: BitacoraTableProps) {
   return (
     <>
@@ -157,6 +161,16 @@ export default function BitacoraTable({
                 )}
 
                 <div className="flex gap-2 pt-2 mt-2">
+                  {/* ✅ BOTÓN VER EN MÓVIL */}
+                  <Button 
+                    size="sm" 
+                    variant="outline" 
+                    className="flex-1 text-gray-700 border-gray-200 hover:bg-gray-100"
+                    onClick={() => onView(b)}
+                  >
+                    <Eye className="h-4 w-4 mr-2" /> Ver
+                  </Button>
+
                   <Button 
                     size="sm" 
                     variant="outline" 
@@ -171,7 +185,7 @@ export default function BitacoraTable({
                     className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
                     onClick={() => onGeneratePDF(b)}
                   >
-                    🧾 PDF
+                    PDF
                   </Button>
                 </div>
               </CardContent>
@@ -180,7 +194,7 @@ export default function BitacoraTable({
         )}
       </div>
 
-      {/* 💻 VISTA ESCRITORIO: TABLA (visible desde md en adelante) */}
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
       <div className="hidden md:block p-1 w-full">
         <div className="overflow-x-auto bg-white shadow-md rounded-2xl border border-gray-200">
           <table className="min-w-full border-collapse">
@@ -193,7 +207,6 @@ export default function BitacoraTable({
                 <ThSortable label="Fecha" sortKey="fechaCreacion" sortConfig={sortConfig} onSort={onSort} />
                 <ThSortable label="Variable" sortKey="variable" sortConfig={sortConfig} onSort={onSort} />
                 <ThSortable label="Observaciones" sortKey="observaciones" sortConfig={sortConfig} onSort={onSort} />
-                {/* Ocultamos columnas menos importantes en tablets pequeñas si es necesario */}
                 <th className="px-4 py-3 text-center">Acciones</th>
               </tr>
             </thead>
@@ -222,16 +235,25 @@ export default function BitacoraTable({
 
                     <td className="px-4 py-3 text-center">
                       <div className="flex justify-center gap-2">
+                        {/* ✅ BOTÓN VER EN ESCRITORIO */}
+                        <button
+                          onClick={() => onView(b)}
+                          className="text-gray-600 hover:text-gray-900 transition bg-gray-100 p-1.5 rounded-md hover:bg-gray-200"
+                          title="Ver Detalle"
+                        >
+                          <Eye size={18} />
+                        </button>
+
                         <button
                           onClick={() => onEdit(b)}
-                          className="text-blue-600 hover:text-blue-800 transition"
+                          className="text-blue-600 hover:text-blue-800 transition bg-blue-50 p-1.5 rounded-md hover:bg-blue-100"
                           title="Editar"
                         >
                           <Pencil size={18} />
                         </button>
                         <button
                           onClick={() => onGeneratePDF(b)}
-                          className="text-red-600 hover:text-red-800 transition"
+                          className="text-red-600 hover:text-red-800 transition bg-red-50 p-1.5 rounded-md hover:bg-red-100"
                           title="PDF"
                         >
                           🧾
@@ -250,6 +272,7 @@ export default function BitacoraTable({
             </tbody>
           </table>
 
+          {/* ... (Paginación y Stats se mantienen igual) ... */}
           {/* QUICK STATS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 bg-gray-50 border-t">
             <StatCard label="Total" value={stats.total} />

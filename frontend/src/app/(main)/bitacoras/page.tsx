@@ -15,6 +15,8 @@ import html2canvas from "html2canvas-pro";
 
 import BitacoraTable from "./components/BitacoraTable";
 import BitacoraFormModal from "./components/BitacoraFormModal";
+// ✅ IMPORTAR EL NUEVO MODAL DE DETALLE
+import BitacoraDetailsModal from "./components/BitacoraDetailsModal";
 
 import {
   Bitacora,
@@ -39,7 +41,12 @@ export default function BitacorasPage() {
   const [mediciones, setMediciones] = useState<Catalogo[]>([]);
   const [unidades, setUnidades] = useState<Catalogo[]>([]);
 
+  // Modal de creación / edición
   const [open, setOpen] = useState(false);
+  // ✅ ESTADOS PARA EL MODAL DE DETALLE (VER)
+  const [viewModalOpen, setViewModalOpen] = useState(false);
+  const [selectedBitacora, setSelectedBitacora] = useState<Bitacora | null>(null);
+
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
@@ -174,199 +181,189 @@ export default function BitacorasPage() {
   // ===============================
   // SUBMIT
   // ===============================
- 
 
-const handleSubmit = async () => {
-  if (!validateForm()) return;
+  const handleSubmit = async () => {
+    if (!validateForm()) return;
 
-  setLoading(true);
+    setLoading(true);
 
-  try {
-    const token = Cookies.get("svtec_token");
-    if (!token) {
-      toast.error("No hay token.");
+    try {
+      const token = Cookies.get("svtec_token");
+      if (!token) {
+        toast.error("No hay token.");
+        setLoading(false);
+        return;
+      }
+
+      // ==========================
+      // 🟩 FORM DATA
+      // ==========================
+      const fd = new FormData();
+
+      // IDs numéricos
+      if (form.obraId) fd.append("obraId", form.obraId);
+      if (form.contratistaId) fd.append("contratistaId", form.contratistaId);
+      if (form.variableId) fd.append("variableId", form.variableId);
+      if (form.medicionId) fd.append("medicionId", form.medicionId);
+      if (form.unidadId) fd.append("unidadId", form.unidadId);
+
+      // Estado
+      fd.append("estado", form.estado);
+
+      // Fechas obligatorias / opcionales
+      fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
+
+      if (form.fechaMejora) {
+        fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
+      }
+
+      if (form.fechaEjecucion) {
+        fd.append("fechaEjecucion", new Date(form.fechaEjecucion).toISOString());
+      }
+
+      // Strings
+      if (form.ubicacion?.trim()) fd.append("ubicacion", form.ubicacion.trim());
+      if (form.observaciones?.trim())
+        fd.append("observaciones", form.observaciones.trim());
+      if (form.seguimiento?.trim())
+        fd.append("seguimiento", form.seguimiento.trim());
+
+      // GPS
+      if (form.latitud) fd.append("latitud", form.latitud);
+      if (form.longitud) fd.append("longitud", form.longitud);
+
+      // ==========================
+      // 🟦 FOTOS NUEVAS (NORMALES)
+      // backend: FilesInterceptor('files')
+      // ==========================
+      if (form.fotoFiles && form.fotoFiles.length > 0) {
+        form.fotoFiles.forEach((file) => {
+          fd.append("files", file); // 🔥 ESTE NOMBRE DEBE SER EXACTO
+        });
+      }
+
+      // ==========================
+      // 🟧 FOTOS DE SEGUIMIENTO NUEVAS
+      // ==========================
+      if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
+        form.fotosSeguimiento.forEach((file) => {
+          fd.append("files", file); // se envían igual por ahora
+        });
+      }
+
+      // ==========================
+      // 🌟 FOTOS EXISTENTES (NO SE BORRAN)
+      // ==========================
+      if (form.fotosExistentes && form.fotosExistentes.length > 0) {
+        fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
+      }
+
+      if (
+        form.fotosSeguimientoExistentes &&
+        form.fotosSeguimientoExistentes.length > 0
+      ) {
+        fd.append(
+          "fotosSeguimientoExistentes",
+          JSON.stringify(form.fotosSeguimientoExistentes)
+        );
+      }
+
+      // =======================================
+      // 🟩 ENVIAR AL BACKEND
+      //   SI HAY editingId → PATCH
+      //   Si no → POST
+      // =======================================
+      const url = editingId ? `/bitacoras/${editingId}` : `/bitacoras`;
+      const method = editingId ? apiPatch : apiPost;
+
+      await method(url, fd); // axios manda FormData automáticamente
+
+      toast.success(
+        editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada"
+      );
+
+      // ==========================
+      // RESET + RELOAD
+      // ==========================
+      setForm(createInitialFormState());
+      setEditingId(null);
+      setOpen(false);
+
+      await fetchData();
+    } catch (error: any) {
+      console.error("❌ ERROR SUBMIT:", error);
+      toast.error(
+        error?.response?.data?.message ?? "Error al guardar la bitácora."
+      );
+    } finally {
       setLoading(false);
-      return;
     }
-
-    // ==========================
-    // 🟩 FORM DATA
-    // ==========================
-    const fd = new FormData();
-
-    // IDs numéricos
-    if (form.obraId) fd.append("obraId", form.obraId);
-    if (form.contratistaId) fd.append("contratistaId", form.contratistaId);
-    if (form.variableId) fd.append("variableId", form.variableId);
-    if (form.medicionId) fd.append("medicionId", form.medicionId);
-    if (form.unidadId) fd.append("unidadId", form.unidadId);
-
-    // Estado
-    fd.append("estado", form.estado);
-
-    // Fechas obligatorias / opcionales
-    fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
-
-    if (form.fechaMejora) {
-      fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
-    }
-
-    if (form.fechaEjecucion) {
-      fd.append("fechaEjecucion", new Date(form.fechaEjecucion).toISOString());
-    }
-
-    // Strings
-    if (form.ubicacion?.trim()) fd.append("ubicacion", form.ubicacion.trim());
-    if (form.observaciones?.trim()) fd.append("observaciones", form.observaciones.trim());
-    if (form.seguimiento?.trim()) fd.append("seguimiento", form.seguimiento.trim());
-
-    // GPS
-    if (form.latitud) fd.append("latitud", form.latitud);
-    if (form.longitud) fd.append("longitud", form.longitud);
-
-    // ==========================
-    // 🟦 FOTOS NUEVAS (NORMALES)
-    // backend: FilesInterceptor('files')
-    // ==========================
-    if (form.fotoFiles && form.fotoFiles.length > 0) {
-      form.fotoFiles.forEach((file) => {
-        fd.append("files", file); // 🔥 ESTE NOMBRE DEBE SER EXACTO
-      });
-    }
-
-    // ==========================
-    // 🟧 FOTOS DE SEGUIMIENTO NUEVAS
-    // (si luego quieres agregarlas al backend, se agrega otro Interceptor)
-    // ==========================
-    if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
-      form.fotosSeguimiento.forEach((file) => {
-        fd.append("files", file); // se envían igual por ahora
-      });
-    }
-
-    // ==========================
-    // 🌟 FOTOS EXISTENTES (NO SE BORRAN)
-    // ==========================
-    if (form.fotosExistentes && form.fotosExistentes.length > 0) {
-      fd.append(
-        "fotosExistentes",
-        JSON.stringify(form.fotosExistentes)
-      );
-    }
-
-    if (form.fotosSeguimientoExistentes && form.fotosSeguimientoExistentes.length > 0) {
-      fd.append(
-        "fotosSeguimientoExistentes",
-        JSON.stringify(form.fotosSeguimientoExistentes)
-      );
-    }
-
-    // =======================================
-    // 🟩 ENVIAR AL BACKEND
-    //   SI HAY editingId → PATCH
-    //   Si no → POST
-    // =======================================
-    const url = editingId
-      ? `/bitacoras/${editingId}`
-      : `/bitacoras`;
-
-    const method = editingId ? apiPatch : apiPost;
-
-    await method(url, fd); // axios manda FormData automáticamente
-
-    toast.success(
-      editingId
-        ? "✔️ Bitácora actualizada"
-        : "✔️ Bitácora creada"
-    );
-
-    // ==========================
-    // RESET + RELOAD
-    // ==========================
-    setForm(createInitialFormState());
-    setEditingId(null);
-    setOpen(false);
-
-    await fetchData();
-  } catch (error: any) {
-    console.error("❌ ERROR SUBMIT:", error);
-    toast.error(
-      error?.response?.data?.message ??
-        "Error al guardar la bitácora."
-    );
-  } finally {
-    setLoading(false);
-  }
-};
-
-
-
+  };
 
   // ===============================
   // EDITAR
   // ===============================
 
-const handleEdit = (bitacora: Bitacora) => {
-  setEditingId(bitacora.id);
+  const handleEdit = (bitacora: Bitacora) => {
+    setEditingId(bitacora.id);
 
-  setForm({
-    ...createInitialFormState(),
+    setForm({
+      ...createInitialFormState(),
 
-    obraId: bitacora.obraId?.toString() ?? "",
-    contratistaId: bitacora.contratistaId?.toString() ?? "",
-    variableId: bitacora.variableId?.toString() ?? "",
-    medicionId: bitacora.medicionId?.toString() ?? "",
-    unidadId: bitacora.unidadId?.toString() ?? "",
+      obraId: bitacora.obraId?.toString() ?? "",
+      contratistaId: bitacora.contratistaId?.toString() ?? "",
+      variableId: bitacora.variableId?.toString() ?? "",
+      medicionId: bitacora.medicionId?.toString() ?? "",
+      unidadId: bitacora.unidadId?.toString() ?? "",
 
-    estado: bitacora.estado,
+      estado: bitacora.estado,
 
-    fechaCreacion: bitacora.fechaCreacion
-      ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
-      : "",
+      fechaCreacion: bitacora.fechaCreacion
+        ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
+        : "",
 
-    fechaEjecucion: bitacora.fechaEjecucion
-      ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
-      : "",
+      fechaEjecucion: bitacora.fechaEjecucion
+        ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
+        : "",
 
-    fechaMejora: bitacora.fechaMejora
-      ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
-      : "",
+      fechaMejora: bitacora.fechaMejora
+        ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
+        : "",
 
-    ubicacion: bitacora.ubicacion ?? "",
-    observaciones: bitacora.observaciones ?? "",
-    seguimiento: bitacora.seguimiento ?? "",
+      ubicacion: bitacora.ubicacion ?? "",
+      observaciones: bitacora.observaciones ?? "",
+      seguimiento: bitacora.seguimiento ?? "",
 
-    latitud: bitacora.latitud?.toString() ?? "",
-    longitud: bitacora.longitud?.toString() ?? "",
+      latitud: bitacora.latitud?.toString() ?? "",
+      longitud: bitacora.longitud?.toString() ?? "",
 
-    // ⭐ Nuevas fotos (vacías)
-    fotoFiles: [],
-    fotosSeguimiento: [],
+      // ⭐ Nuevas fotos (vacías)
+      fotoFiles: [],
+      fotosSeguimiento: [],
 
-    // ⭐ Fotos que vienen del backend (mostrar en modal)
-    fotosExistentes:
-      bitacora.evidencias?.map((f) => ({
-        id: f.id,
-        url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-      })) ?? [],
+      // ⭐ Fotos que vienen del backend (mostrar en modal)
+      fotosExistentes:
+        bitacora.evidencias?.map((f) => ({
+          id: f.id,
+          url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+        })) ?? [],
 
-    fotosSeguimientoExistentes:
-      bitacora.evidenciasSeguimiento?.map((f) => ({
-        id: f.id,
-        url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-      })) ?? [],
-  });
+      fotosSeguimientoExistentes:
+        bitacora.evidenciasSeguimiento?.map((f) => ({
+          id: f.id,
+          url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+        })) ?? [],
+    });
 
-  setOpen(true);
-};
+    setOpen(true);
+  };
 
+  // ✅ FUNCIÓN PARA ABRIR EL MODAL DE DETALLES
+  const handleView = (bitacora: Bitacora) => {
+    setSelectedBitacora(bitacora);
+    setViewModalOpen(true);
+  };
 
-
-
-
-
-
-  // ⬇️ El resto del archivo se mantiene exactamente igual
   // =====================================================================
   // FILTROS, SORT, ESTADÍSTICAS, PAGINACIÓN, EXPORT, RENDER...
   // =====================================================================
@@ -516,8 +513,7 @@ const handleEdit = (bitacora: Bitacora) => {
   };
 
   return (
-    
-      <main className="p-4 md:p-8">
+    <main className="p-4 md:p-8">
       <BitacoraTable
         bitacoras={paginatedBitacoras}
         stats={stats}
@@ -533,12 +529,13 @@ const handleEdit = (bitacora: Bitacora) => {
           setForm(createInitialFormState());
           setOpen(true);
         }}
-       onExportExcel={() => exportBitacorasToExcel(bitacoras)}
+        onExportExcel={() => exportBitacorasToExcel(bitacoras)}
         onPrint={printReport}
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onEdit={handleEdit}
         onGeneratePDF={handleGeneratePDF}
+        onView={handleView} // ✅ PASAR LA FUNCIÓN A LA TABLA
       />
 
       <BitacoraFormModal
@@ -556,6 +553,13 @@ const handleEdit = (bitacora: Bitacora) => {
         errorMsg={errorMsg}
         onSubmit={handleSubmit}
         isEditing={editingId !== null}
+      />
+
+      {/* ✅ MODAL DE DETALLE (VER) */}
+      <BitacoraDetailsModal
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        data={selectedBitacora}
       />
     </main>
   );
