@@ -217,7 +217,8 @@ function InfoItem({
   return (
     <div className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 transition">
       <div className="mt-1 bg-white p-2 rounded-full border shadow-sm">
-        {React.cloneElement(icon as React.ReactElement, { size: 16 })}
+        {/* ✅ CORRECCIÓN AQUÍ: Usamos 'as any' para evitar el error de TypeScript sobre 'size' */}
+        {React.cloneElement(icon as any, { size: 16 })}
       </div>
       <div>
         <p className="text-xs text-gray-500 font-medium">{label}</p>
