@@ -1,5 +1,6 @@
 "use client";
 
+import React from "react";
 import {
   Dialog,
   DialogContent,
@@ -9,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bitacora } from "../types/bitacora";
-import { X, Calendar, MapPin, User, FileText, Ruler, Tag } from "lucide-react";
+import { Calendar, MapPin, User, FileText, Tag } from "lucide-react";
 
 interface BitacoraDetailsModalProps {
   open: boolean;
@@ -24,7 +25,6 @@ export default function BitacoraDetailsModal({
 }: BitacoraDetailsModalProps) {
   if (!data) return null;
 
-  // Función para construir la URL de la imagen
   const getImageUrl = (path: string) => {
     return `${process.env.NEXT_PUBLIC_API_URL}${path}`;
   };
@@ -38,7 +38,7 @@ export default function BitacoraDetailsModal({
               Detalle de Bitácora #{data.id}
             </DialogTitle>
             <p className="text-xs text-gray-500 mt-1">
-              Creado el {new Date(data.fechaCreacion).toLocaleString("es-CO")}
+              Creado el {data.fechaCreacion ? new Date(data.fechaCreacion).toLocaleString("es-CO") : "-"}
             </p>
           </div>
           <Badge
@@ -217,7 +217,7 @@ function InfoItem({
   return (
     <div className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 transition">
       <div className="mt-1 bg-white p-2 rounded-full border shadow-sm">
-        {React.cloneElement(icon, { size: 16 })}
+        {React.cloneElement(icon as React.ReactElement, { size: 16 })}
       </div>
       <div>
         <p className="text-xs text-gray-500 font-medium">{label}</p>
@@ -229,5 +229,3 @@ function InfoItem({
     </div>
   );
 }
-
-import React from "react";
