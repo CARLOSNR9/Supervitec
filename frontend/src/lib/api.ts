@@ -15,7 +15,9 @@ const TOKEN_KEY = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "svtec_token";
 // Instancia Axios base
 const api: AxiosInstance = axios.create({
   baseURL: BASE,
-  timeout: 10000,
+  // ANTES: timeout: 10000 (10 segundos)
+  // AHORA: 60s para dar tiempo a que Render “despierte” en la primera petición
+  timeout: 60000,
   headers: {
     "Content-Type": "application/json",
   },

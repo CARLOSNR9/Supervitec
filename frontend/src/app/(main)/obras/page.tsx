@@ -337,6 +337,9 @@ export default function ObrasPage() {
                     <Construction className="h-6 w-6 text-orange-600" />
                   </div>
                   <div className="overflow-hidden pr-2">
+                    {/* ✅ MOSTRAR EL ID CON # */}
+                    <p className="text-xs text-gray-500 font-bold mb-0.5">#{obra.id}</p>
+                    
                     <h3 className="font-bold text-gray-800 text-lg truncate">{obra.nombre}</h3>
                     <div className="flex items-center gap-2 mt-1">
                         <Badge variant="outline" className="text-xs font-mono bg-gray-50">
