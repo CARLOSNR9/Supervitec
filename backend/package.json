@@ -25,11 +25,13 @@
     "bcryptjs": "^3.0.3",
     "class-transformer": "^0.5.1",
     "class-validator": "^0.14.2",
+    "cloudinary": "^2.8.0",
     "fs-extra": "^11.3.2",
     "multer": "^2.0.2",
     "passport-jwt": "^4.0.1",
     "pdfkit": "^0.17.2",
-    "reflect-metadata": "^0.2.2"
+    "reflect-metadata": "^0.2.2",
+    "streamifier": "^0.1.1"
   },
   "devDependencies": {
     "@nestjs/cli": "^11.0.14",
@@ -39,6 +41,7 @@
     "@types/multer": "^2.0.0",
     "@types/passport-jwt": "^4.0.1",
     "@types/pdfkit": "^0.17.3",
+    "@types/streamifier": "^0.1.2",
     "prisma": "^6.17.1",
     "ts-node": "^10.9.2",
     "typescript": "^5.9.3"

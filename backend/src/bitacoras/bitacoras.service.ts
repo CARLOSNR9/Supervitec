@@ -4,18 +4,25 @@ import {
   Logger,
   NotFoundException,
 } from '@nestjs/common';
-import { PrismaClient, BitacoraEstado } from '@prisma/client';
+import { PrismaService } from '../prisma/prisma.service';
+import { BitacoraEstado } from '@prisma/client';
 import { CreateBitacoraDto } from './dto/create-bitacora.dto';
+ 4
 import { UpdateBitacoraDto } from './dto/update-bitacora.dto';
+import { CloudinaryService } from '../common/cloudinary/cloudinary.service';
 
 @Injectable()
 export class BitacorasService {
-  private readonly prisma = new PrismaClient();
   private readonly logger = new Logger(BitacorasService.name);
 
-  // ============================
-  // CREATE + OPCIONAL IMÁGENES
-  // ============================
+  constructor(
+    private prisma: PrismaService,
+    private cloudinary: CloudinaryService, // ✅ Cloudinary inyectado
+  ) {}
+
+  // ============================================================
+  // CREATE + CLOUDINARY
+  // ============================================================
   async create(
     dto: CreateBitacoraDto,
     responsableId: number,
@@ -23,7 +30,6 @@ export class BitacorasService {
   ) {
     try {
       const data: any = {
-        // enum BitacoraEstado
         estado: dto.estado as BitacoraEstado,
 
         fechaCreacion: dto.fechaCreacion
@@ -52,20 +58,46 @@ export class BitacorasService {
       if (dto.medicionId) data.medicion = { connect: { id: dto.medicionId } };
       if (dto.unidadId) data.unidadRel = { connect: { id: dto.unidadId } };
 
-      const bit = await this.prisma.bitacora.create({ data });
+      // ============================================================
+      // SUBIR ARCHIVOS A CLOUDINARY
+      // ============================================================
+      const evidenciasCloud: any[] = [];
 
-      // Guardar imágenes normales (evidencias)
-      if (files?.length) {
+      if (files?.length > 0) {
+        const uploads = files.map((file) =>
+          this.cloudinary.uploadImage(file).catch((err) => {
+            console.error('❌ Error Cloudinary:', err);
+            return null;
+          }),
+        );
+
+        const results = await Promise.all(uploads);
+
+        results.forEach((res) => {
+          if (res?.secure_url) {
+            evidenciasCloud.push({
+              url: res.secure_url,
+              tipo: 'NORMAL', // se mantiene tu tipo
+            });
+          }
+        });
+      }
+
+      // Crear bitácora
+      const bit = await this.prisma.bitacora.create({
+        data,
+      });
+
+      // Guardar imágenes asociadas
+      if (evidenciasCloud.length > 0) {
         await this.prisma.bitacoraMedia.createMany({
-          data: files.map((f) => ({
+          data: evidenciasCloud.map((e) => ({
+            ...e,
             bitacoraId: bit.id,
-            url: `/uploads/bitacoras/${f.filename}`,
-            tipo: 'NORMAL', // requerido en el schema
           })),
         });
       }
 
-      // Devolvemos con relaciones completas
       return this.findOne(bit.id);
     } catch (error) {
       this.logger.error('❌ Error creando bitácora:', error);
@@ -73,15 +105,13 @@ export class BitacorasService {
     }
   }
 
-  // ============================
+  // ============================================================
   // FIND ALL (ADMIN)
-  // ============================
+  // ============================================================
   async findAll() {
     return this.prisma.bitacora.findMany({
       include: {
-        obra: {
-          select: { id: true, nombre: true, directorId: true },
-        },
+        obra: { select: { id: true, nombre: true, directorId: true } },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
         },
@@ -97,26 +127,19 @@ export class BitacorasService {
   }
 
   // ============================================================
-  // FILTRADO MULTIEMPRESA (DIRECTOR / SUPERVISOR / RESIDENTE)
+  // FIND ALL BY DIRECTOR (MULTIEMPRESA)
   // ============================================================
   async findAllByDirector(directorId: number) {
     return this.prisma.bitacora.findMany({
       where: {
         OR: [
-          // 1) Obras cuyo director es este
           { obra: { directorId } },
-
-          // 2) Bitácoras creadas por usuarios del director
           { responsable: { ownerDirectorId: directorId } },
-
-          // 3) Bitácoras creadas por el propio director
           { responsableId: directorId },
         ],
       },
       include: {
-        obra: {
-          select: { id: true, nombre: true, directorId: true },
-        },
+        obra: { select: { id: true, nombre: true, directorId: true } },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
         },
@@ -132,20 +155,8 @@ export class BitacorasService {
   }
 
   // ============================================================
-  // VALIDAR QUE LA OBRA SEA DEL DIRECTOR
+  // FIND ONE
   // ============================================================
-  async validateObraOwner(obraId: number, directorId: number) {
-    const obra = await this.prisma.obra.findUnique({
-      where: { id: obraId },
-    });
-
-    if (!obra) return false;
-    return obra.directorId === directorId;
-  }
-
-  // ============================
-  // FIND ONE (con medias)
-  // ============================
   async findOne(id: number) {
     const bit = await this.prisma.bitacora.findUnique({
       where: { id },
@@ -168,9 +179,9 @@ export class BitacorasService {
     return bit;
   }
 
-  // ============================
-  // UPDATE + NUEVAS IMÁGENES
-  // ============================
+  // ============================================================
+  // UPDATE + CLOUDINARY
+  // ============================================================
   async update(
     id: number,
     dto: UpdateBitacoraDto,
@@ -179,101 +190,96 @@ export class BitacorasService {
     try {
       const data: any = {};
 
-      // ESTADO (enum)
-      if (dto.estado !== undefined) {
+      // === estado ===
+      if (dto.estado !== undefined)
         data.estado = dto.estado as BitacoraEstado;
-      }
 
-      // FECHAS
-      if (dto.fechaMejora !== undefined) {
-        data.fechaMejora = dto.fechaMejora
-          ? new Date(dto.fechaMejora)
-          : null;
-      }
+      // === fechas ===
+      if (dto.fechaMejora !== undefined)
+        data.fechaMejora = dto.fechaMejora ? new Date(dto.fechaMejora) : null;
 
-      if (dto.fechaEjecucion !== undefined) {
+      if (dto.fechaEjecucion !== undefined)
         data.fechaEjecucion = dto.fechaEjecucion
           ? new Date(dto.fechaEjecucion)
           : null;
-      }
 
-      // STRINGS
-      if (dto.ubicacion !== undefined) {
+      // === strings ===
+      if (dto.ubicacion !== undefined)
         data.ubicacion = dto.ubicacion?.trim() || null;
-      }
 
-      if (dto.observaciones !== undefined) {
+      if (dto.observaciones !== undefined)
         data.observaciones = dto.observaciones?.trim() || null;
-      }
 
-      if (dto.seguimiento !== undefined) {
+      if (dto.seguimiento !== undefined)
         data.seguimiento = dto.seguimiento?.trim() || null;
-      }
 
-      // GPS
-      if (dto.latitud !== undefined) {
-        data.latitud = dto.latitud;
-      }
+      // === GPS ===
+      if (dto.latitud !== undefined) data.latitud = dto.latitud;
+      if (dto.longitud !== undefined) data.longitud = dto.longitud;
 
-      if (dto.longitud !== undefined) {
-        data.longitud = dto.longitud;
-      }
-
-      // RELACIONES
-
-      // Obra
+      // === RELACIONES ===
       if (dto.obraId !== undefined) {
         data.obra = dto.obraId
           ? { connect: { id: dto.obraId } }
           : { disconnect: true };
       }
 
-      // Variable
       if (dto.variableId !== undefined) {
         data.variable = dto.variableId
           ? { connect: { id: dto.variableId } }
           : { disconnect: true };
       }
 
-      // Contratista
       if (dto.contratistaId !== undefined) {
         data.contratista = dto.contratistaId
           ? { connect: { id: dto.contratistaId } }
           : { disconnect: true };
       }
 
-      // Medición
       if (dto.medicionId !== undefined) {
         data.medicion = dto.medicionId
           ? { connect: { id: dto.medicionId } }
           : { disconnect: true };
       }
 
-      // Unidad
       if (dto.unidadId !== undefined) {
         data.unidadRel = dto.unidadId
           ? { connect: { id: dto.unidadId } }
           : { disconnect: true };
       }
 
-      // 1) Actualizar la bitácora
+      // === ACTUALIZA BITÁCORA ===
       await this.prisma.bitacora.update({
         where: { id },
         data,
       });
 
-      // 2) Agregar nuevas evidencias (NORMAL)
-      if (files?.length) {
-        await this.prisma.bitacoraMedia.createMany({
-          data: files.map((f) => ({
+      // === SUBIR NUEVAS IMÁGENES A CLOUDINARY ===
+      if (files?.length > 0) {
+        const uploads = files.map((file) =>
+          this.cloudinary.uploadImage(file).catch((err) => {
+            console.error('❌ Error Cloudinary:', err);
+            return null;
+          }),
+        );
+
+        const results = await Promise.all(uploads);
+
+        const nuevas = results
+          .filter((res) => res?.secure_url)
+          .map((res) => ({
             bitacoraId: id,
-            url: `/uploads/bitacoras/${f.filename}`,
+            url: res.secure_url,
             tipo: 'NORMAL',
-          })),
-        });
+          }));
+
+        if (nuevas.length > 0) {
+          await this.prisma.bitacoraMedia.createMany({
+            data: nuevas,
+          });
+        }
       }
 
-      // 3) Devolver bitácora completa
       return this.findOne(id);
     } catch (error) {
       this.logger.error('❌ ERROR UPDATE BITÁCORA:', error);
@@ -281,12 +287,24 @@ export class BitacorasService {
     }
   }
 
-  // ============================
+  // ============================================================
   // DELETE
-  // ============================
+  // ============================================================
   async remove(id: number) {
     return this.prisma.bitacora.delete({
       where: { id },
     });
+  }
+
+  // ============================================================
+  // VALIDATE OBRA OWNER
+  // ============================================================
+  async validateObraOwner(obraId: number, directorId: number) {
+    const obra = await this.prisma.obra.findUnique({
+      where: { id: obraId },
+    });
+
+    if (!obra) return false;
+    return obra.directorId === directorId;
   }
 }
