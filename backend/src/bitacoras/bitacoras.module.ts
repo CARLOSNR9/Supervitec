@@ -1,26 +1,15 @@
 import { Module } from '@nestjs/common';
-import { MulterModule } from '@nestjs/platform-express';
-import { diskStorage } from 'multer';
-import { join } from 'path';
-
-import { PrismaService } from '../prisma/prisma.service';
 import { BitacorasService } from './bitacoras.service';
 import { BitacorasController } from './bitacoras.controller';
+import { PrismaModule } from '../prisma/prisma.module';
+import { CloudinaryModule } from '../common/cloudinary/cloudinary.module'; // 👈 IMPORTANTE
 
 @Module({
   imports: [
-    MulterModule.register({
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', 'uploads', 'bitacoras'),
-        filename: (req, file, cb) => {
-          const unique = Date.now() + '-' + file.originalname.replace(/\s+/g, '_');
-          cb(null, unique);
-        },
-      }),
-    }),
+    PrismaModule,
+    CloudinaryModule, // 👈 AGREGAR ESTA LÍNEA
   ],
   controllers: [BitacorasController],
-  providers: [BitacorasService, PrismaService],
-  exports: [BitacorasService],
+  providers: [BitacorasService],
 })
 export class BitacorasModule {}
