@@ -61,27 +61,37 @@ export class BitacorasService {
       // ============================================================
       // SUBIR ARCHIVOS A CLOUDINARY
       // ============================================================
-      const evidenciasCloud: any[] = [];
+      
+const evidenciasCloud: any[] = [];
 
-      if (files?.length > 0) {
-        const uploads = files.map((file) =>
-          this.cloudinary.uploadImage(file).catch((err) => {
-            console.error('❌ Error Cloudinary:', err);
-            return null;
-          }),
-        );
+this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
 
-        const results = await Promise.all(uploads);
+if (files?.length > 0) {
+  // Log mínimo por archivo (para confirmar buffer)
+  files.forEach((f, i) => {
+    this.logger.log(
+      `🖼️ [${i}] ${f.originalname} | mimetype=${f.mimetype} | size=${f.size} | buffer=${f.buffer?.length ?? 0}`,
+    );
+  });
 
-        results.forEach((res) => {
-          if (res?.secure_url) {
-            evidenciasCloud.push({
-              url: res.secure_url,
-              tipo: 'NORMAL', // se mantiene tu tipo
-            });
-          }
-        });
-      }
+  // Subida estricta: si Cloudinary falla, que falle la request (así vemos el error real)
+  const results = await Promise.all(files.map((f) => this.cloudinary.uploadImage(f)));
+
+  const ok = results.filter((r) => r?.secure_url);
+
+  if (ok.length === 0) {
+    throw new InternalServerErrorException(
+      'No se pudo subir ninguna imagen a Cloudinary (resultados sin secure_url).',
+    );
+  }
+
+  ok.forEach((res) => {
+    evidenciasCloud.push({
+      url: res.secure_url,
+      tipo: 'NORMAL',
+    });
+  });
+}
 
       // Crear bitácora
       const bit = await this.prisma.bitacora.create({
