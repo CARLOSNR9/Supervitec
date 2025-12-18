@@ -182,124 +182,95 @@ export default function BitacorasPage() {
   // SUBMIT
   // ===============================
 
-  const handleSubmit = async () => {
-    if (!validateForm()) return;
+ // En src/app/(main)/bitacoras/page.tsx
 
-    setLoading(true);
+const handleSubmit = async () => {
+  if (!validateForm()) return;
+  setLoading(true);
 
-    try {
-      const token = Cookies.get("svtec_token");
-      if (!token) {
-        toast.error("No hay token.");
-        setLoading(false);
-        return;
-      }
-
-      // ==========================
-      // 🟩 FORM DATA
-      // ==========================
-      const fd = new FormData();
-
-      // IDs numéricos
-      if (form.obraId) fd.append("obraId", form.obraId);
-      if (form.contratistaId) fd.append("contratistaId", form.contratistaId);
-      if (form.variableId) fd.append("variableId", form.variableId);
-      if (form.medicionId) fd.append("medicionId", form.medicionId);
-      if (form.unidadId) fd.append("unidadId", form.unidadId);
-
-      // Estado
-      fd.append("estado", form.estado);
-
-      // Fechas obligatorias / opcionales
-      fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
-
-      if (form.fechaMejora) {
-        fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
-      }
-
-      if (form.fechaEjecucion) {
-        fd.append("fechaEjecucion", new Date(form.fechaEjecucion).toISOString());
-      }
-
-      // Strings
-      if (form.ubicacion?.trim()) fd.append("ubicacion", form.ubicacion.trim());
-      if (form.observaciones?.trim())
-        fd.append("observaciones", form.observaciones.trim());
-      if (form.seguimiento?.trim())
-        fd.append("seguimiento", form.seguimiento.trim());
-
-      // GPS
-      if (form.latitud) fd.append("latitud", form.latitud);
-      if (form.longitud) fd.append("longitud", form.longitud);
-
-      // ==========================
-      // 🟦 FOTOS NUEVAS (NORMALES)
-      // backend: FilesInterceptor('files')
-      // ==========================
-      if (form.fotoFiles && form.fotoFiles.length > 0) {
-        form.fotoFiles.forEach((file) => {
-          fd.append("files", file); // 🔥 ESTE NOMBRE DEBE SER EXACTO
-        });
-      }
-
-      // ==========================
-      // 🟧 FOTOS DE SEGUIMIENTO NUEVAS
-      // ==========================
-      if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
-        form.fotosSeguimiento.forEach((file) => {
-          fd.append("files", file); // se envían igual por ahora
-        });
-      }
-
-      // ==========================
-      // 🌟 FOTOS EXISTENTES (NO SE BORRAN)
-      // ==========================
-      if (form.fotosExistentes && form.fotosExistentes.length > 0) {
-        fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
-      }
-
-      if (
-        form.fotosSeguimientoExistentes &&
-        form.fotosSeguimientoExistentes.length > 0
-      ) {
-        fd.append(
-          "fotosSeguimientoExistentes",
-          JSON.stringify(form.fotosSeguimientoExistentes)
-        );
-      }
-
-      // =======================================
-      // 🟩 ENVIAR AL BACKEND
-      //   SI HAY editingId → PATCH
-      //   Si no → POST
-      // =======================================
-      const url = editingId ? `/bitacoras/${editingId}` : `/bitacoras`;
-      const method = editingId ? apiPatch : apiPost;
-
-      await method(url, fd); // axios manda FormData automáticamente
-
-      toast.success(
-        editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada"
-      );
-
-      // ==========================
-      // RESET + RELOAD
-      // ==========================
-      setForm(createInitialFormState());
-      setEditingId(null);
-      setOpen(false);
-
-      await fetchData();
-    } catch (error: any) {
-      console.error("❌ ERROR SUBMIT:", error);
-      toast.error(
-        error?.response?.data?.message ?? "Error al guardar la bitácora."
-      );
-    } finally {
+  try {
+    const token = Cookies.get("svtec_token");
+    if (!token) {
+      toast.error("No hay token.");
       setLoading(false);
+      return;
     }
-  };
 
+    // 1. Crear el objeto de transporte
+    const fd = new FormData();
+
+    // 2. Agregar datos de texto
+    if (form.obraId) fd.append("obraId", form.obraId);
+    if (form.contratistaId) fd.append("contratistaId", form.contratistaId);
+    if (form.variableId) fd.append("variableId", form.variableId);
+    if (form.medicionId) fd.append("medicionId", form.medicionId);
+    if (form.unidadId) fd.append("unidadId", form.unidadId);
+    fd.append("estado", form.estado);
+    fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
+
+    if (form.fechaMejora) {
+      fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
+    }
+    if (form.fechaEjecucion) {
+      fd.append("fechaEjecucion", new Date(form.fechaEjecucion).toISOString());
+    }
+    if (form.ubicacion?.trim()) fd.append("ubicacion", form.ubicacion.trim());
+    if (form.observaciones?.trim()) fd.append("observaciones", form.observaciones.trim());
+    if (form.seguimiento?.trim()) fd.append("seguimiento", form.seguimiento.trim());
+    if (form.latitud) fd.append("latitud", form.latitud);
+    if (form.longitud) fd.append("longitud", form.longitud);
+
+    // ============================================================
+    // 🚨 AQUÍ ESTABA EL PROBLEMA (FALTABA ESTO O ESTABA MAL)
+    // ============================================================
+    
+    // 3. Agregar FOTOS NUEVAS (Bitácora)
+    if (form.fotoFiles && form.fotoFiles.length > 0) {
+      form.fotoFiles.forEach((file) => {
+        // "files" debe coincidir con el backend @UseInterceptors(FilesInterceptor('files'))
+        fd.append("files", file); 
+      });
+    }
+
+    // 4. Agregar FOTOS NUEVAS (Seguimiento)
+    if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
+      form.fotosSeguimiento.forEach((file) => {
+        // Usamos el mismo nombre 'files' porque el backend procesa todo junto
+        // O si tu backend distingue, revisa el nombre. 
+        // Por defecto en tu código actual todo entra por "files".
+        fd.append("files", file);
+      });
+    }
+    
+    // 5. Manejar fotos EXISTENTES (para no borrarlas al editar)
+    if (form.fotosExistentes && form.fotosExistentes.length > 0) {
+      fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
+    }
+    if (form.fotosSeguimientoExistentes && form.fotosSeguimientoExistentes.length > 0) {
+      fd.append("fotosSeguimientoExistentes", JSON.stringify(form.fotosSeguimientoExistentes));
+    }
+
+    // ============================================================
+
+    const url = editingId ? `/bitacoras/${editingId}` : `/bitacoras`;
+    const method = editingId ? apiPatch : apiPost;
+
+    // Axios detectará FormData y api.ts pondrá el header correcto
+    await method(url, fd);
+
+    toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
+
+    setForm(createInitialFormState());
+    setEditingId(null);
+    setOpen(false);
+    await fetchData();
+  } catch (error: any) {
+    console.error("❌ ERROR SUBMIT:", error);
+    toast.error(error?.response?.data?.message ?? "Error al guardar la bitácora.");
+  } finally {
+    setLoading(false);
+  }
+};
   // ===============================
   // EDITAR
   // ===============================
