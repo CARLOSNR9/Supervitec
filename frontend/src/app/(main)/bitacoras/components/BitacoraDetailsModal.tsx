@@ -25,9 +25,16 @@ export default function BitacoraDetailsModal({
 }: BitacoraDetailsModalProps) {
   if (!data) return null;
 
-  const getImageUrl = (path: string) => {
-    return `${process.env.NEXT_PUBLIC_API_URL}${path}`;
-  };
+const getImageUrl = (path: string) => {
+  if (!path) return "";
+  return path.startsWith("http")
+    ? path
+    : `${process.env.NEXT_PUBLIC_API_URL}${path}`;
+};
+
+
+
+
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>

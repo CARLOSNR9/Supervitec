@@ -317,7 +317,14 @@ const handleSubmit = async () => {
       fotosExistentes:
         bitacora.evidencias?.map((f) => ({
           id: f.id,
-          url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+         
+url: f.url.startsWith("http")
+  ? f.url
+  : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+
+
+
+
         })) ?? [],
 
       fotosSeguimientoExistentes:
