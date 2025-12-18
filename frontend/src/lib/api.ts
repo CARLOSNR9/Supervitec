@@ -8,16 +8,17 @@ import Cookies from "js-cookie";
 // ---------------------------------------------------------------------
 
 const BASE =
-  process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") || "http://localhost:3001";
+  process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, "") ||
+  "http://localhost:3001";
 
-const TOKEN_KEY = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "svtec_token";
+const TOKEN_KEY =
+  process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "svtec_token";
 
 // Instancia Axios base
 const api: AxiosInstance = axios.create({
   baseURL: BASE,
-  timeout: 60000, // 60s para dar tiempo a Render
-  // ❌ ELIMINADO: headers: { "Content-Type": "application/json" }
-  // Dejamos que Axios decida el Content-Type automáticamente
+  timeout: 60000, // 60s para Render
+  // ⚠️ NO definir Content-Type aquí
 });
 
 // ---------------------------------------------------------------------
@@ -65,7 +66,7 @@ export const apiGet = <T>(url: string, params?: any): Promise<T> =>
   api.get<T>(url, { params }).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPost — CORREGIDO PARA SOPORTAR FORMDATA
+// ✅ apiPost — CORREGIDO (FormData SAFE)
 // ---------------------------------------------------------------------
 
 export async function apiPost<T>(
@@ -81,9 +82,9 @@ export async function apiPost<T>(
     ...config.headers,
   };
 
-  // Si es FormData, le decimos a Axios que use multipart/form-data
+  // 🚨 CLAVE: si es FormData, NO tocar Content-Type
   if (isFormData) {
-    headers["Content-Type"] = "multipart/form-data";
+    delete headers["Content-Type"];
   }
 
   const res = await api.post(url, data, {
@@ -95,14 +96,14 @@ export async function apiPost<T>(
 }
 
 // ---------------------------------------------------------------------
-// ❗ apiPut
+// ❗ apiPut (no usado para FormData en tu flujo actual)
 // ---------------------------------------------------------------------
 
 export const apiPut = <T>(url: string, data?: any): Promise<T> =>
   api.put<T>(url, data).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPatch — CORREGIDO PARA SOPORTAR FORMDATA
+// ✅ apiPatch — CORREGIDO (FormData SAFE)
 // ---------------------------------------------------------------------
 
 export async function apiPatch<T>(
@@ -118,9 +119,9 @@ export async function apiPatch<T>(
     ...config.headers,
   };
 
-  // Si es FormData, le decimos a Axios que use multipart/form-data
+  // 🚨 MISMA REGLA AQUÍ
   if (isFormData) {
-    headers["Content-Type"] = "multipart/form-data";
+    delete headers["Content-Type"];
   }
 
   const res = await api.patch(url, data, {
@@ -137,7 +138,7 @@ export const apiDelete = <T>(url: string): Promise<T> =>
   api.delete<T>(url).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// UPLOAD (Helpers específicos si se necesitan)
+// UPLOAD (helper opcional)
 // ---------------------------------------------------------------------
 
 export const apiUpload = <T>(
@@ -148,11 +149,7 @@ export const apiUpload = <T>(
   const form = new FormData();
   files.forEach((f) => form.append(fieldName, f));
 
-  return api
-    .post<T>(url, form, {
-      headers: { "Content-Type": "multipart/form-data" },
-    })
-    .then((r) => r.data);
+  return api.post<T>(url, form).then((r) => r.data);
 };
 
 export default api;
