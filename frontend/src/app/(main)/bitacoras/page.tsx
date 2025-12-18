@@ -5,7 +5,7 @@ import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
 // ⬅️ CAMBIO: apiPut eliminado, apiPatch agregado
-import { apiGet, apiPost, apiPatch } from "@/lib/api";
+import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api"; // <--- Agrega apiPostForm
 
 import { toast } from "sonner";
 
@@ -187,7 +187,8 @@ export default function BitacorasPage() {
 
 // En src/app/(main)/bitacoras/page.tsx
 
-  const handleSubmit = async () => {
+
+const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
@@ -212,7 +213,7 @@ export default function BitacorasPage() {
       if (form.latitud) fd.append("latitud", form.latitud);
       if (form.longitud) fd.append("longitud", form.longitud);
 
-      // 3. 📸 FOTOS BITÁCORA (Aquí está la clave)
+      // 3. 📸 FOTOS BITÁCORA
       // DEBUG: Ver en consola cuántas fotos hay antes de enviar
       console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
       
@@ -238,11 +239,19 @@ export default function BitacorasPage() {
         fd.append("fotosSeguimientoExistentes", JSON.stringify(form.fotosSeguimientoExistentes));
       }
 
-      const url = editingId ? `/bitacoras/${editingId}` : `/bitacoras`;
-      const method = editingId ? apiPatch : apiPost;
+      // =====================================================================
+      // 🚨 CAMBIO CLAVE AQUÍ: Usamos apiPostForm para crear
+      // =====================================================================
+      
+      if (editingId) {
+        // Si estamos editando, usamos PATCH
+        await apiPatch(`/bitacoras/${editingId}`, fd);
+      } else {
+        // Si estamos creando (NUEVA), usamos la función especial que ignora JSON
+        await apiPostForm(`/bitacoras`, fd);
+      }
 
-      // Enviamos el FormData (fd), NO el objeto form
-      await method(url, fd);
+      // =====================================================================
 
       toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
       
@@ -254,12 +263,11 @@ export default function BitacorasPage() {
       
     } catch (error: any) {
       console.error("❌ ERROR:", error);
-      toast.error("Error al guardar.");
+      toast.error(error?.response?.data?.message ?? "Error al guardar.");
     } finally {
       setLoading(false);
     }
   };
-
 
 
 
