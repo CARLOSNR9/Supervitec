@@ -11,34 +11,15 @@ export class CloudinaryService {
   private readonly logger = new Logger(CloudinaryService.name);
 
   constructor() {
-    // 👇 TRIM para eliminar espacios / saltos de línea de Render
-    const cloudName = (process.env.CLOUDINARY_CLOUD_NAME || '').trim();
-    const apiKey = (process.env.CLOUDINARY_API_KEY || '').trim();
-    const apiSecret = (process.env.CLOUDINARY_API_SECRET || '').trim();
-
-    // Log seguro (sin exponer secretos)
-    this.logger.log(
-      `Cloudinary ENV -> cloud_name=${cloudName ? cloudName : 'missing'} api_key_last4=${
-        apiKey ? apiKey.slice(-4) : 'missing'
-      } api_secret_len=${apiSecret ? apiSecret.length : 0} CLOUDINARY_URL=${
-        process.env.CLOUDINARY_URL ? 'set' : 'missing'
-      }`,
-    );
-
-    if (!cloudName || !apiKey || !apiSecret) {
-      // Importante: si falta algo, que falle claramente.
-      throw new Error(
-        'Missing Cloudinary env vars: CLOUDINARY_CLOUD_NAME / CLOUDINARY_API_KEY / CLOUDINARY_API_SECRET',
-      );
+    const url = (process.env.CLOUDINARY_URL || '').trim();
+    if (!url) {
+      throw new Error('Missing CLOUDINARY_URL in environment');
     }
 
-    // ✅ Forzar config explícita (evita configs “fantasma” por CLOUDINARY_URL)
-    cloudinary.config({
-      cloud_name: cloudName,
-      api_key: apiKey,
-      api_secret: apiSecret,
-      secure: true,
-    });
+    // Cloudinary leerá credenciales desde CLOUDINARY_URL
+    cloudinary.config({ secure: true });
+
+    this.logger.log('✅ Cloudinary configured via CLOUDINARY_URL');
   }
 
   async uploadImage(file: Express.Multer.File): Promise<any> {
