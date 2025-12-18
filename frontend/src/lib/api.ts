@@ -18,7 +18,7 @@ const TOKEN_KEY =
 const api: AxiosInstance = axios.create({
   baseURL: BASE,
   timeout: 60000, // 60s para Render
-  // ⚠️ NO definir Content-Type aquí
+  // 🚫 NO definir Content-Type aquí
 });
 
 // ---------------------------------------------------------------------
@@ -66,7 +66,7 @@ export const apiGet = <T>(url: string, params?: any): Promise<T> =>
   api.get<T>(url, { params }).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPost — CORREGIDO (FormData SAFE)
+// ✅ apiPost — SOLUCIÓN DEFINITIVA (FormData SAFE)
 // ---------------------------------------------------------------------
 
 export async function apiPost<T>(
@@ -82,9 +82,10 @@ export async function apiPost<T>(
     ...config.headers,
   };
 
-  // 🚨 CLAVE: si es FormData, NO tocar Content-Type
   if (isFormData) {
-    delete headers["Content-Type"];
+    // 🛑 CLAVE ABSOLUTA:
+    // Forzamos a Axios/Navegador a generar el boundary correcto
+    headers["Content-Type"] = undefined;
   }
 
   const res = await api.post(url, data, {
@@ -96,14 +97,14 @@ export async function apiPost<T>(
 }
 
 // ---------------------------------------------------------------------
-// ❗ apiPut (no usado para FormData en tu flujo actual)
+// ❗ apiPut (NO usado con FormData en tu flujo actual)
 // ---------------------------------------------------------------------
 
 export const apiPut = <T>(url: string, data?: any): Promise<T> =>
   api.put<T>(url, data).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPatch — CORREGIDO (FormData SAFE)
+// ✅ apiPatch — SOLUCIÓN DEFINITIVA (FormData SAFE)
 // ---------------------------------------------------------------------
 
 export async function apiPatch<T>(
@@ -119,9 +120,9 @@ export async function apiPatch<T>(
     ...config.headers,
   };
 
-  // 🚨 MISMA REGLA AQUÍ
   if (isFormData) {
-    delete headers["Content-Type"];
+    // 🛑 MISMA CORRECCIÓN AQUÍ
+    headers["Content-Type"] = undefined;
   }
 
   const res = await api.patch(url, data, {
@@ -138,7 +139,7 @@ export const apiDelete = <T>(url: string): Promise<T> =>
   api.delete<T>(url).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// UPLOAD (helper opcional)
+// UPLOAD (helper opcional, sigue funcionando)
 // ---------------------------------------------------------------------
 
 export const apiUpload = <T>(
@@ -149,6 +150,7 @@ export const apiUpload = <T>(
   const form = new FormData();
   files.forEach((f) => form.append(fieldName, f));
 
+  // ⚠️ No forzamos Content-Type aquí tampoco
   return api.post<T>(url, form).then((r) => r.data);
 };
 
