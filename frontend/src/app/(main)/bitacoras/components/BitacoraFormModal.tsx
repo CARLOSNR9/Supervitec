@@ -91,50 +91,73 @@ export default function BitacoraFormModal({
     }
   }, [isProductoNoConformeOrSeRecomienda]);
 
-  const getGeoLocation = () => {
-    if (!("geolocation" in navigator)) {
-      toast.error("❌ La geolocalización no está disponible.");
-      return;
-    }
+const getGeoLocation = () => {
+  if (!("geolocation" in navigator)) {
+    toast.error("❌ La geolocalización no está disponible.");
+    return;
+  }
 
-    toast.info("Buscando ubicación GPS...");
+  toast.info("Buscando ubicación GPS...");
 
-    navigator.geolocation.getCurrentPosition(
-      (position) => {
-        const lat = position.coords.latitude.toFixed(6);
-        const long = position.coords.longitude.toFixed(6);
+  const onSuccess = (position: GeolocationPosition) => {
+    const lat = position.coords.latitude.toFixed(6);
+    const long = position.coords.longitude.toFixed(6);
 
-        setForm((prev) => ({
-          ...prev,
-          latitud: lat,
-          longitud: long,
-        }));
+    setForm((prev) => ({
+      ...prev,
+      latitud: lat,
+      longitud: long,
+    }));
 
-        toast.success(`📍 GPS Capturado: ${lat}, ${long}`);
-      },
-      
-(err) => {
-  console.error("Geolocation error:", err);
-  const code = err?.code;
-
-  // 1 = permiso denegado, 2 = posición no disponible, 3 = timeout
-  const msg =
-    code === 1
-      ? "❌ Permiso de ubicación denegado en el navegador."
-      : code === 2
-      ? "❌ Ubicación no disponible (PC sin GPS / sin Wi-Fi location)."
-      : code === 3
-      ? "❌ Tiempo de espera agotado obteniendo ubicación."
-      : `❌ No se pudo obtener la ubicación GPS. (${err?.message ?? "sin detalle"})`;
-
-  toast.error(msg);
-},
-
-
-
-      { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
-    );
+    toast.success(`📍 GPS Capturado: ${lat}, ${long}`);
   };
+
+  const tryLowAccuracy = () => {
+    navigator.geolocation.getCurrentPosition(onSuccess, (err) => {
+      console.error("Geolocation low-accuracy error:", err);
+      toast.error("❌ No se pudo obtener ubicación (modo estándar). Revisa permisos o conexión.");
+    }, {
+      enableHighAccuracy: false,
+      timeout: 20000,
+      maximumAge: 60000,
+    });
+  };
+
+  navigator.geolocation.getCurrentPosition(
+    onSuccess,
+    (err) => {
+      console.error("Geolocation high-accuracy error:", err);
+
+      // Si fue timeout, reintenta con menos precisión (más rápido en PC)
+      if (err?.code === 3) {
+        toast.info("Reintentando ubicación en modo estándar...");
+        tryLowAccuracy();
+        return;
+      }
+
+      const msg =
+        err?.code === 1
+          ? "❌ Permiso de ubicación denegado en el navegador."
+          : err?.code === 2
+          ? "❌ Ubicación no disponible (PC sin servicio de ubicación)."
+          : `❌ No se pudo obtener la ubicación GPS. (${err?.message ?? "sin detalle"})`;
+
+      toast.error(msg);
+    },
+    {
+      enableHighAccuracy: true,
+      timeout: 15000,   // antes 5000
+      maximumAge: 0,
+    }
+  );
+};
+
+
+
+
+
+
+
 
   return (
     <>
