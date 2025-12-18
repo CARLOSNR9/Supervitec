@@ -25,6 +25,9 @@ import { RolesGuard } from '../common/roles.guard';
 import { Roles } from '../common/roles.decorator';
 import { Role } from '@prisma/client';
 
+import { memoryStorage } from 'multer';
+
+
 @Controller('bitacoras')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BitacorasController {
@@ -67,7 +70,17 @@ export class BitacorasController {
   // =====================================================
   @Post()
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
-  @UseInterceptors(FilesInterceptor('files', 10))
+
+
+@UseInterceptors(
+  FilesInterceptor('files', 10, {
+    storage: memoryStorage(),
+    limits: { fileSize: 5 * 1024 * 1024 },
+  }),
+)
+
+
+
   async create(
     @Body() dto: CreateBitacoraDto,
     @UploadedFiles() files: Express.Multer.File[],
