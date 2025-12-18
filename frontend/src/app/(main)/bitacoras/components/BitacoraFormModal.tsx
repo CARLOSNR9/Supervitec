@@ -112,7 +112,26 @@ export default function BitacoraFormModal({
 
         toast.success(`📍 GPS Capturado: ${lat}, ${long}`);
       },
-      () => toast.error("❌ No se pudo obtener la ubicación GPS."),
+      
+(err) => {
+  console.error("Geolocation error:", err);
+  const code = err?.code;
+
+  // 1 = permiso denegado, 2 = posición no disponible, 3 = timeout
+  const msg =
+    code === 1
+      ? "❌ Permiso de ubicación denegado en el navegador."
+      : code === 2
+      ? "❌ Ubicación no disponible (PC sin GPS / sin Wi-Fi location)."
+      : code === 3
+      ? "❌ Tiempo de espera agotado obteniendo ubicación."
+      : `❌ No se pudo obtener la ubicación GPS. (${err?.message ?? "sin detalle"})`;
+
+  toast.error(msg);
+},
+
+
+
       { enableHighAccuracy: true, timeout: 5000, maximumAge: 0 }
     );
   };
