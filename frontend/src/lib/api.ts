@@ -15,16 +15,13 @@ const TOKEN_KEY = process.env.NEXT_PUBLIC_AUTH_COOKIE_NAME || "svtec_token";
 // Instancia Axios base
 const api: AxiosInstance = axios.create({
   baseURL: BASE,
-  // ANTES: timeout: 10000 (10 segundos)
-  // AHORA: 60s para dar tiempo a que Render “despierte” en la primera petición
-  timeout: 60000,
-  headers: {
-    "Content-Type": "application/json",
-  },
+  timeout: 60000, // 60s para dar tiempo a Render
+  // ❌ ELIMINADO: headers: { "Content-Type": "application/json" }
+  // Dejamos que Axios decida el Content-Type automáticamente
 });
 
 // ---------------------------------------------------------------------
-// 2) INTERCEPTOR (AUTENTICACIÓN + EXCLUSIONES DE RUTAS)
+// 2) INTERCEPTOR (AUTENTICACIÓN)
 // ---------------------------------------------------------------------
 
 api.interceptors.request.use(
@@ -51,7 +48,6 @@ api.interceptors.request.use(
       const token = tokenFromCookie || tokenFromStorage;
 
       if (token) {
-        // Se eliminó la directiva @ts-expect-error innecesaria para pasar el build de Vercel
         config.headers.Authorization = `Bearer ${token}`;
       }
     }
@@ -69,7 +65,7 @@ export const apiGet = <T>(url: string, params?: any): Promise<T> =>
   api.get<T>(url, { params }).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPost — AHORA ACEPTA (url, data, config)
+// ✅ apiPost — CORREGIDO PARA SOPORTAR FORMDATA
 // ---------------------------------------------------------------------
 
 export async function apiPost<T>(
@@ -78,11 +74,17 @@ export async function apiPost<T>(
   config: any = {}
 ): Promise<T> {
   const token = Cookies.get(TOKEN_KEY);
+  const isFormData = data instanceof FormData;
 
-  const headers = {
+  const headers: any = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...config.headers,
   };
+
+  // Si es FormData, le decimos a Axios que use multipart/form-data
+  if (isFormData) {
+    headers["Content-Type"] = "multipart/form-data";
+  }
 
   const res = await api.post(url, data, {
     ...config,
@@ -93,14 +95,14 @@ export async function apiPost<T>(
 }
 
 // ---------------------------------------------------------------------
-// ❗ apiPut NO necesita ser cambiado
+// ❗ apiPut
 // ---------------------------------------------------------------------
 
 export const apiPut = <T>(url: string, data?: any): Promise<T> =>
   api.put<T>(url, data).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// ✅ apiPatch — AHORA ACEPTA (url, data, config)
+// ✅ apiPatch — CORREGIDO PARA SOPORTAR FORMDATA
 // ---------------------------------------------------------------------
 
 export async function apiPatch<T>(
@@ -109,11 +111,17 @@ export async function apiPatch<T>(
   config: any = {}
 ): Promise<T> {
   const token = Cookies.get(TOKEN_KEY);
+  const isFormData = data instanceof FormData;
 
-  const headers = {
+  const headers: any = {
     ...(token ? { Authorization: `Bearer ${token}` } : {}),
     ...config.headers,
   };
+
+  // Si es FormData, le decimos a Axios que use multipart/form-data
+  if (isFormData) {
+    headers["Content-Type"] = "multipart/form-data";
+  }
 
   const res = await api.patch(url, data, {
     ...config,
@@ -129,7 +137,7 @@ export const apiDelete = <T>(url: string): Promise<T> =>
   api.delete<T>(url).then((r) => r.data);
 
 // ---------------------------------------------------------------------
-// UPLOAD (NO SE TOCA)
+// UPLOAD (Helpers específicos si se necesitan)
 // ---------------------------------------------------------------------
 
 export const apiUpload = <T>(
@@ -146,7 +154,5 @@ export const apiUpload = <T>(
     })
     .then((r) => r.data);
 };
-
-// ---------------------------------------------------------------------
 
 export default api;
