@@ -9,9 +9,10 @@ import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api"; /
 
 import { toast } from "sonner";
 
-// 📌 IMPORTS PDF
-import jsPDF from "jspdf";
-import html2canvas from "html2canvas-pro";
+// ✅ PDF (React-PDF)
+// ❌ ELIMINADOS: jsPDF y html2canvas-pro
+import { pdf } from "@react-pdf/renderer";
+import { BitacoraPDF } from "./components/BitacoraPDF";
 
 import BitacoraTable from "./components/BitacoraTable";
 import BitacoraFormModal from "./components/BitacoraFormModal";
@@ -45,7 +46,9 @@ export default function BitacorasPage() {
   const [open, setOpen] = useState(false);
   // ✅ ESTADOS PARA EL MODAL DE DETALLE (VER)
   const [viewModalOpen, setViewModalOpen] = useState(false);
-  const [selectedBitacora, setSelectedBitacora] = useState<Bitacora | null>(null);
+  const [selectedBitacora, setSelectedBitacora] = useState<Bitacora | null>(
+    null
+  );
 
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
@@ -182,13 +185,9 @@ export default function BitacorasPage() {
   // SUBMIT
   // ===============================
 
- // En src/app/(main)/bitacoras/page.tsx
+  // En src/app/(main)/bitacoras/page.tsx
 
-
-// En src/app/(main)/bitacoras/page.tsx
-
-
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
@@ -204,9 +203,14 @@ const handleSubmit = async () => {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
       fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
-      
-      if (form.fechaMejora) fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
-      if (form.fechaEjecucion) fd.append("fechaEjecucion", new Date(form.fechaEjecucion).toISOString());
+
+      if (form.fechaMejora)
+        fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
+      if (form.fechaEjecucion)
+        fd.append(
+          "fechaEjecucion",
+          new Date(form.fechaEjecucion).toISOString()
+        );
       if (form.ubicacion) fd.append("ubicacion", form.ubicacion);
       if (form.observaciones) fd.append("observaciones", form.observaciones);
       if (form.seguimiento) fd.append("seguimiento", form.seguimiento);
@@ -216,11 +220,11 @@ const handleSubmit = async () => {
       // 3. 📸 FOTOS BITÁCORA
       // DEBUG: Ver en consola cuántas fotos hay antes de enviar
       console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
-      
+
       if (form.fotoFiles && form.fotoFiles.length > 0) {
         form.fotoFiles.forEach((file) => {
           // El nombre "files" es OBLIGATORIO porque así lo espera el backend
-          fd.append("files", file); 
+          fd.append("files", file);
         });
       }
 
@@ -236,13 +240,16 @@ const handleSubmit = async () => {
         fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
       }
       if (form.fotosSeguimientoExistentes.length > 0) {
-        fd.append("fotosSeguimientoExistentes", JSON.stringify(form.fotosSeguimientoExistentes));
+        fd.append(
+          "fotosSeguimientoExistentes",
+          JSON.stringify(form.fotosSeguimientoExistentes)
+        );
       }
 
       // =====================================================================
       // 🚨 CAMBIO CLAVE AQUÍ: Usamos apiPostForm para crear
       // =====================================================================
-      
+
       if (editingId) {
         // Si estamos editando, usamos PATCH
         await apiPatch(`/bitacoras/${editingId}`, fd);
@@ -254,13 +261,12 @@ const handleSubmit = async () => {
       // =====================================================================
 
       toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
-      
+
       // Limpieza
       setForm(createInitialFormState());
       setEditingId(null);
       setOpen(false);
       await fetchData();
-      
     } catch (error: any) {
       console.error("❌ ERROR:", error);
       toast.error(error?.response?.data?.message ?? "Error al guardar.");
@@ -268,9 +274,6 @@ const handleSubmit = async () => {
       setLoading(false);
     }
   };
-
-
-
 
   // ===============================
   // EDITAR
@@ -317,14 +320,10 @@ const handleSubmit = async () => {
       fotosExistentes:
         bitacora.evidencias?.map((f) => ({
           id: f.id,
-         
-url: f.url.startsWith("http")
-  ? f.url
-  : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
 
-
-
-
+          url: f.url.startsWith("http")
+            ? f.url
+            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
         })) ?? [],
 
       fotosSeguimientoExistentes:
@@ -361,19 +360,16 @@ url: f.url.startsWith("http")
 
   const stats = useMemo(() => {
     const total = filteredBitacoras.length;
-    const abiertas = filteredBitacoras.filter(
-      (b) => b.estado === "ABIERTA"
-    ).length;
-    const cerradas = filteredBitacoras.filter(
-      (b) => b.estado === "CERRADA"
-    ).length;
+    const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA")
+      .length;
+    const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA")
+      .length;
 
     let lastTs = 0;
     for (const b of filteredBitacoras) {
       const fechas: number[] = [];
       if (b.fechaCreacion) fechas.push(new Date(b.fechaCreacion).getTime());
-      if (b.fechaEjecucion)
-        fechas.push(new Date(b.fechaEjecucion).getTime());
+      if (b.fechaEjecucion) fechas.push(new Date(b.fechaEjecucion).getTime());
       if (fechas.length) lastTs = Math.max(lastTs, ...fechas);
     }
 
@@ -435,8 +431,7 @@ url: f.url.startsWith("http")
   const handleSort = (key: string) => {
     setSortConfig((prev) => ({
       key,
-      direction:
-        prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
     }));
   };
 
@@ -465,29 +460,35 @@ url: f.url.startsWith("http")
     win!.print();
   };
 
+  // ===============================
+  // 🖨️ NUEVA FUNCIÓN PDF (REEMPLAZO)
+  // ===============================
   const handleGeneratePDF = async (bitacora: Bitacora) => {
+    const toastId = toast.loading("Generando PDF...");
     try {
-      const element = document.createElement("div");
-      element.style.padding = "20px";
-      element.style.width = "800px";
+      // 1) Generamos el documento en memoria usando el componente
+      const blob = await pdf(<BitacoraPDF data={bitacora} />).toBlob();
 
-      element.innerHTML = `
-        <h2>Informe de Bitácora #${bitacora.id}</h2>
-      `;
+      // 2) Creamos una URL para descargar
+      const url = URL.createObjectURL(blob);
 
-      document.body.appendChild(element);
+      // 3) Forzamos la descarga
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Bitacora_${bitacora.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
 
-      const canvas = await html2canvas(element, { scale: 2 });
-      const img = canvas.toDataURL("image/png");
+      // 4) Limpieza
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-      const pdf = new jsPDF();
-      pdf.addImage(img, "PNG", 10, 10, 190, 0);
-      pdf.save(`bitacora_${bitacora.id}.pdf`);
-
-      document.body.removeChild(element);
+      toast.dismiss(toastId);
+      toast.success("PDF descargado correctamente");
     } catch (err) {
       console.error(err);
-      toast.error("Error generando PDF.");
+      toast.dismiss(toastId);
+      toast.error("Error generando PDF. Intenta de nuevo.");
     }
   };
 
