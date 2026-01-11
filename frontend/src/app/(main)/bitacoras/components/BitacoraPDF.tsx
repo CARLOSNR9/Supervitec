@@ -1,3 +1,5 @@
+/* src/app/(main)/bitacoras/components/BitacoraPDF.tsx */
+
 import React from "react";
 import {
   Page,
@@ -9,7 +11,7 @@ import {
 } from "@react-pdf/renderer";
 import { Bitacora } from "../types/bitacora";
 
-// Estilos profesionales
+// Estilos profesionales (se mantienen igual)
 const styles = StyleSheet.create({
   page: { padding: 40, fontFamily: "Helvetica", fontSize: 10, color: "#333" },
   // Cabecera
@@ -69,132 +71,150 @@ const styles = StyleSheet.create({
   },
 });
 
+// ✅ CAMBIO 1: La interfaz ahora espera un ARRAY
 interface Props {
-  data: Bitacora;
+  data: Bitacora[]; 
 }
 
-export const BitacoraPDF = ({ data }: Props) => {
-  const responsableNombre =
-    data.responsable?.nombreCompleto?.trim() ? data.responsable.nombreCompleto : "N/A";
-
+// ✅ CAMBIO 2: El componente ahora itera sobre el array
+export const BitacoraReportePDF = ({ data }: Props) => {
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
-        {/* CABECERA */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.companyName}>SUPERVITEC</Text>
-            <Text style={styles.reportTitle}>Reporte de Bitácora</Text>
-          </View>
-          <View style={styles.headerRight}>
-            <Text>Folio: #{data.id}</Text>
-            <Text>
-              Fecha:{" "}
-              {data.fechaCreacion
-                ? new Date(data.fechaCreacion).toLocaleDateString()
-                : "N/A"}
-            </Text>
-            <Text>Estado: {data.estado ?? "N/A"}</Text>
-          </View>
-        </View>
+      {/* Generamos una página por cada bitácora en el array */}
+      {data.map((bitacora, index) => {
+        
+        const responsableNombre =
+          bitacora.responsable?.nombreCompleto?.trim()
+            ? bitacora.responsable.nombreCompleto
+            : "N/A";
 
-        {/* DATOS GENERALES */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>INFORMACIÓN DE OBRA</Text>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Obra:</Text>
-            <Text style={styles.value}>{data.obra?.nombre ?? "N/A"}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Responsable:</Text>
-            {/* ✅ Opción recomendada: eliminar username */}
-            <Text style={styles.value}>{responsableNombre}</Text>
-          </View>
-
-          <View style={styles.row}>
-            <Text style={styles.label}>Ubicación:</Text>
-            <Text style={styles.value}>{data.ubicacion || "No registrada"}</Text>
-          </View>
-
-          {data.contratista && (
-            <View style={styles.row}>
-              <Text style={styles.label}>Contratista:</Text>
-              <Text style={styles.value}>{data.contratista.nombre}</Text>
+        return (
+          <Page key={bitacora.id} size="A4" style={styles.page}>
+            {/* CABECERA */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.companyName}>SUPERVITEC</Text>
+                <Text style={styles.reportTitle}>Reporte de Bitácora</Text>
+              </View>
+              <View style={styles.headerRight}>
+                <Text>Folio: #{bitacora.id}</Text>
+                <Text>
+                  Fecha:{" "}
+                  {bitacora.fechaCreacion
+                    ? new Date(bitacora.fechaCreacion).toLocaleDateString()
+                    : "N/A"}
+                </Text>
+                <Text>Estado: {bitacora.estado ?? "N/A"}</Text>
+              </View>
             </View>
-          )}
-        </View>
 
-        {/* DATOS TÉCNICOS */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>DETALLES TÉCNICOS</Text>
+            {/* DATOS GENERALES */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>INFORMACIÓN DE OBRA</Text>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Variable:</Text>
-            <Text style={styles.value}>{data.variable?.nombre ?? "N/A"}</Text>
-          </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Obra:</Text>
+                <Text style={styles.value}>{bitacora.obra?.nombre ?? "N/A"}</Text>
+              </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Medición:</Text>
-            <Text style={styles.value}>{data.medicion?.nombre ?? "N/A"}</Text>
-          </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Responsable:</Text>
+                <Text style={styles.value}>{responsableNombre}</Text>
+              </View>
 
-          <View style={styles.row}>
-            <Text style={styles.label}>Unidad:</Text>
-            <Text style={styles.value}>{data.unidadRel?.nombre ?? "N/A"}</Text>
-          </View>
-        </View>
+              <View style={styles.row}>
+                <Text style={styles.label}>Ubicación:</Text>
+                <Text style={styles.value}>
+                  {bitacora.ubicacion || "No registrada"}
+                </Text>
+              </View>
 
-        {/* OBSERVACIONES */}
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
-          <View style={styles.box}>
-            <Text>{data.observaciones || "Sin observaciones."}</Text>
-          </View>
-        </View>
-
-        {/* FOTOS */}
-        {data.evidencias && data.evidencias.length > 0 && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>EVIDENCIA FOTOGRÁFICA</Text>
-            <View style={styles.gallery}>
-              {data.evidencias.map((foto, i) => (
-                <View key={i} style={styles.imageContainer}>
-                  {/* React-PDF maneja URLs directo */}
-                  <Image src={foto.url} style={styles.image} />
+              {bitacora.contratista && (
+                <View style={styles.row}>
+                  <Text style={styles.label}>Contratista:</Text>
+                  <Text style={styles.value}>{bitacora.contratista.nombre}</Text>
                 </View>
-              ))}
-            </View>
-          </View>
-        )}
-
-        {/* SEGUIMIENTO (Si aplica) */}
-        {data.seguimiento && (
-          <View style={styles.section}>
-            <Text style={styles.sectionTitle}>SEGUIMIENTO / CIERRE</Text>
-
-            <View style={styles.box}>
-              <Text>{data.seguimiento}</Text>
+              )}
             </View>
 
-            {data.evidenciasSeguimiento && data.evidenciasSeguimiento.length > 0 && (
-              <View style={{ ...styles.gallery, marginTop: 10 }}>
-                {data.evidenciasSeguimiento.map((foto, i) => (
-                  <View key={i} style={styles.imageContainer}>
-                    <Image src={foto.url} style={styles.image} />
-                  </View>
-                ))}
+            {/* DATOS TÉCNICOS */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>DETALLES TÉCNICOS</Text>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Variable:</Text>
+                <Text style={styles.value}>
+                  {bitacora.variable?.nombre ?? "N/A"}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Medición:</Text>
+                <Text style={styles.value}>
+                  {bitacora.medicion?.nombre ?? "N/A"}
+                </Text>
+              </View>
+
+              <View style={styles.row}>
+                <Text style={styles.label}>Unidad:</Text>
+                <Text style={styles.value}>
+                  {bitacora.unidadRel?.nombre ?? "N/A"}
+                </Text>
+              </View>
+            </View>
+
+            {/* OBSERVACIONES */}
+            <View style={styles.section}>
+              <Text style={styles.sectionTitle}>OBSERVACIONES</Text>
+              <View style={styles.box}>
+                <Text>{bitacora.observaciones || "Sin observaciones."}</Text>
+              </View>
+            </View>
+
+            {/* FOTOS */}
+            {bitacora.evidencias && bitacora.evidencias.length > 0 && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>EVIDENCIA FOTOGRÁFICA</Text>
+                <View style={styles.gallery}>
+                  {bitacora.evidencias.map((foto, i) => (
+                    <View key={i} style={styles.imageContainer}>
+                      <Image src={foto.url} style={styles.image} />
+                    </View>
+                  ))}
+                </View>
               </View>
             )}
-          </View>
-        )}
 
-        {/* PIE DE PÁGINA */}
-        <Text style={styles.footer}>
-          Generado por Plataforma SuperviTEC - {new Date().toLocaleString()}
-        </Text>
-      </Page>
+            {/* SEGUIMIENTO (Si aplica) */}
+            {bitacora.seguimiento && (
+              <View style={styles.section}>
+                <Text style={styles.sectionTitle}>SEGUIMIENTO / CIERRE</Text>
+
+                <View style={styles.box}>
+                  <Text>{bitacora.seguimiento}</Text>
+                </View>
+
+                {bitacora.evidenciasSeguimiento &&
+                  bitacora.evidenciasSeguimiento.length > 0 && (
+                    <View style={{ ...styles.gallery, marginTop: 10 }}>
+                      {bitacora.evidenciasSeguimiento.map((foto, i) => (
+                        <View key={i} style={styles.imageContainer}>
+                          <Image src={foto.url} style={styles.image} />
+                        </View>
+                      ))}
+                    </View>
+                  )}
+              </View>
+            )}
+
+            {/* PIE DE PÁGINA (Con numeración) */}
+            <Text style={styles.footer}>
+              Generado por Plataforma SuperviTEC - {new Date().toLocaleString()} •
+              Página {index + 1} de {data.length}
+            </Text>
+          </Page>
+        );
+      })}
     </Document>
   );
 };
