@@ -19,7 +19,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, RefreshCw, Pencil, Trash2, Construction, Bug } from "lucide-react"; // Bug icon added
+// Usamos solo iconos estándar para evitar crashes
+import { Search, RefreshCw, Pencil, Trash2, Construction, User } from "lucide-react";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -67,158 +68,162 @@ const initialFormState: FormState = {
 
 export default function ObrasPage() {
   const [obras, setObras] = useState<Obra[]>([]);
-  const [users, setUsers] = useState<Responsable[]>([]);
+  const [users, setUsers] = useState<Responsable[]>([]); // Aquí guardaremos la lista fusionada
+  const [loading, setLoading] = useState(false);
   
-  // ESTADOS DE DEPURACIÓN (DEBUG)
-  const [debugLog, setDebugLog] = useState<string[]>([]);
-  const [rawData, setRawData] = useState<any>(null);
-
+  // Estados para el Modal
   const [open, setOpen] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState("");
   const [form, setForm] = useState<FormState>(initialFormState);
-  
+  const [errorMsg, setErrorMsg] = useState("");
+
+  // Usuario actual
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
   const [searchTerm, setSearchTerm] = useState("");
 
-  const addLog = (msg: string) => setDebugLog(prev => [...prev, `${new Date().toLocaleTimeString()} - ${msg}`]);
-
   // ---------------------------------------------------------------------
-  // CARGA INICIAL
+  // 1. CARGA INICIAL
   // ---------------------------------------------------------------------
 
   useEffect(() => {
+    // Decodificar token de forma segura
     const token = Cookies.get("svtec_token");
     if (token) {
       try {
         const decoded: any = jwtDecode(token);
         setCurrentUserId(decoded.sub || decoded.id);
         setCurrentUserRole(decoded.role);
-        addLog(`Token decodificado. Rol: ${decoded.role}, ID: ${decoded.sub || decoded.id}`);
       } catch (e) {
-        addLog("Error al decodificar token.");
+        console.error("Error al leer token:", e);
       }
-    } else {
-      addLog("No se encontró token.");
     }
     fetchData();
   }, []);
 
   const fetchData = async () => {
     setLoading(true);
-    addLog("Iniciando fetchData...");
     try {
-      // 1. Cargar Obras
+      // A) Cargar Obras
       const obrasRes = await apiGet<Obra[]>("/obras");
       setObras(obrasRes);
-      addLog(`Obras cargadas: ${obrasRes.length}`);
 
-      // 2. Cargar Usuarios
+      // B) Cargar Usuarios (Fusión: YO + MIS EMPLEADOS)
+      // Solo si soy ADMIN o DIRECTOR intentamos cargar lista de usuarios
       const token = Cookies.get("svtec_token");
       let role = "";
       if (token) {
-         const decoded: any = jwtDecode(token);
-         role = decoded.role;
+         try {
+             const d: any = jwtDecode(token);
+             role = d.role;
+         } catch(e) {}
       }
 
       if (role === "ADMIN" || role === "DIRECTOR") {
-        addLog("Rol permite cargar usuarios. Intentando GET /users...");
-        let empleados: any[] = [];
-        try {
-          empleados = await apiGet<any[]>("/users");
-          addLog(`GET /users respondió con ${empleados.length} registros.`);
-          setRawData(empleados); // Guardamos la data cruda para verla en pantalla
-        } catch (error: any) {
-          addLog(`Error GET /users: ${error.message}`);
-          console.error(error);
-        }
+          // 1. Traer empleados (apiGet puede fallar si no hay, por eso try/catch)
+          let listaEmpleados: any[] = [];
+          try {
+             listaEmpleados = await apiGet<any[]>("/users");
+          } catch (error) {
+             console.log("No se pudieron cargar empleados o lista vacía", error);
+          }
 
-        // Obtener datos propios
-        let yo: any = null;
-        try {
-          yo = await apiGet<any>("/auth/me");
-          addLog(`GET /auth/me OK. Usuario: ${yo?.username}`);
-        } catch (error) {
-           addLog("Error GET /auth/me");
-        }
+          // 2. Traerme a MÍ MISMO (apiGet /auth/me)
+          let yoMismo: any = null;
+          try {
+             yoMismo = await apiGet<any>("/auth/me");
+          } catch (error) {
+             console.log("Error cargando perfil propio", error);
+          }
 
-        // Unificar
-        const mapa = new Map();
-        if (yo) mapa.set(yo.id, yo);
-        if (Array.isArray(empleados)) {
-          empleados.forEach(emp => mapa.set(emp.id, emp));
-        }
+          // 3. FUSIONAR LISTAS (Usando un Map para evitar duplicados por ID)
+          const mapaUsuarios = new Map();
 
-        const todos = Array.from(mapa.values());
-        addLog(`Total usuarios únicos (yo + empleados): ${todos.length}`);
+          // Prioridad: Yo mismo
+          if (yoMismo && yoMismo.id) {
+              mapaUsuarios.set(yoMismo.id, {
+                  id: yoMismo.id,
+                  nombreCompleto: yoMismo.nombreCompleto || yoMismo.username,
+                  username: yoMismo.username,
+                  role: yoMismo.role
+              });
+          }
 
-        // Filtrar
-        const rolesPermitidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
-        // Normalizamos a mayúsculas por si acaso viene 'Supervisor'
-        const filtrados = todos.filter(u => {
-            const r = u.role ? u.role.toUpperCase() : "";
-            return rolesPermitidos.includes(r);
-        }).map(u => ({
-            id: u.id,
-            nombreCompleto: u.nombreCompleto || u.username,
-            username: u.username,
-            role: u.role
-        }));
+          // Agregar empleados
+          if (Array.isArray(listaEmpleados)) {
+              listaEmpleados.forEach(emp => {
+                  if (emp.active) { // Solo activos
+                      mapaUsuarios.set(emp.id, {
+                          id: emp.id,
+                          nombreCompleto: emp.nombreCompleto || emp.username,
+                          username: emp.username,
+                          role: emp.role
+                      });
+                  }
+              });
+          }
 
-        setUsers(filtrados);
-        addLog(`Usuarios finales en el Select: ${filtrados.length}`);
-      } else {
-          addLog("Rol no es ADMIN ni DIRECTOR. No se cargan usuarios.");
+          // 4. Convertir a array y FILTRAR roles permitidos
+          const todos = Array.from(mapaUsuarios.values());
+          const rolesValidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
+          
+          const usuariosFinales = todos.filter(u => 
+              u.role && rolesValidos.includes(u.role.toUpperCase())
+          );
+
+          setUsers(usuariosFinales);
       }
 
     } catch (err) {
       console.error(err);
-      toast.error("Error cargando datos");
-      addLog("Error general en fetchData");
+      toast.error("Error de conexión al cargar datos.");
     } finally {
       setLoading(false);
     }
   };
 
   // ---------------------------------------------------------------------
-  // FILTRADO VISUAL
+  // 2. FILTROS VISUALES (Tabla)
   // ---------------------------------------------------------------------
   const filteredObras = useMemo(() => {
-    let filtered = obras;
+    let list = obras;
+    
+    // Buscador
     if (searchTerm) {
-      const lower = searchTerm.toLowerCase();
-      filtered = filtered.filter(
-        (o) => o.nombre.toLowerCase().includes(lower) || o.prefijo.toLowerCase().includes(lower)
+      const s = searchTerm.toLowerCase();
+      list = list.filter(o => 
+        o.nombre.toLowerCase().includes(s) || o.prefijo.toLowerCase().includes(s)
       );
     }
-    // Si no es admin, ver solo lo propio
+
+    // Permisos: Si no soy admin, solo veo lo mío
     if (currentUserRole !== "ADMIN" && currentUserId) {
-       filtered = filtered.filter(o => 
-          o.creatorId === currentUserId || o.responsables.some(r => r.id === currentUserId)
-       );
+        list = list.filter(o => 
+            o.creatorId === currentUserId || 
+            o.responsables.some(r => r.id === currentUserId)
+        );
     }
-    return filtered;
+    return list;
   }, [obras, currentUserRole, currentUserId, searchTerm]);
 
   // ---------------------------------------------------------------------
-  // HANDLERS
+  // 3. MANEJO DEL FORMULARIO
   // ---------------------------------------------------------------------
   const handleOpenRegister = () => {
     setErrorMsg("");
     setEditingId(null);
-    if (currentUserId && users.find(u => u.id === currentUserId)) {
-      setForm({ ...initialFormState, responsablesId: [currentUserId] });
+    // Pre-seleccionar al usuario actual si está en la lista válida
+    if (currentUserId && users.some(u => u.id === currentUserId)) {
+        setForm({ ...initialFormState, responsablesId: [currentUserId] });
     } else {
-      setForm(initialFormState);
+        setForm(initialFormState);
     }
     setOpen(true);
   };
 
   const handleOpenEdit = async (obra: Obra) => {
+    setErrorMsg("");
     setEditingId(obra.id);
-    // Cargar datos fresh
     try {
         const res = await apiGet<Obra>(`/obras/${obra.id}`);
         setForm({
@@ -228,147 +233,256 @@ export default function ObrasPage() {
             responsablesId: res.responsables.map(r => r.id)
         });
         setOpen(true);
-    } catch(e) { toast.error("Error al abrir edición"); }
+    } catch (e) {
+        toast.error("No se pudo cargar la información de la obra.");
+    }
   };
 
   const handleSubmit = async () => {
     setErrorMsg("");
-    if (!form.prefijo || !form.nombre || form.responsablesId.length === 0) {
-      setErrorMsg("Faltan campos obligatorios (Prefijo, Nombre, Responsables).");
-      return;
+    // Validaciones
+    if (!form.prefijo || !form.nombre) {
+        setErrorMsg("El Prefijo y el Nombre son obligatorios.");
+        return;
     }
-    const payload = { ...form, observaciones: form.observaciones || null };
+    if (form.responsablesId.length === 0) {
+        setErrorMsg("Debes asignar al menos un responsable.");
+        return;
+    }
+
+    const payload = {
+        prefijo: form.prefijo,
+        nombre: form.nombre,
+        responsablesId: form.responsablesId,
+        observaciones: form.observaciones || null
+    };
 
     try {
-      if (editingId) {
-        await apiPatch(`/obras/${editingId}`, payload);
-        toast.success("Obra actualizada");
-      } else {
-        await apiPost("/obras", payload);
-        toast.success("Obra creada");
-      }
-      setOpen(false);
-      fetchData();
+        if (editingId) {
+            await apiPatch(`/obras/${editingId}`, payload);
+            toast.success("Obra actualizada correctamente.");
+        } else {
+            await apiPost("/obras", payload);
+            toast.success("Obra creada exitosamente.");
+        }
+        setOpen(false);
+        fetchData(); // Recargar la tabla
     } catch (err: any) {
-      toast.error(err?.response?.data?.message || "Error al guardar");
+        console.error(err);
+        toast.error(err?.response?.data?.message || "Error al guardar.");
     }
   };
 
   const handleDelete = async (id: number) => {
-    if(!confirm("¿Eliminar obra?")) return;
-    try {
-        await apiDelete(`/obras/${id}`);
-        toast.success("Eliminado");
-        fetchData();
-    } catch(e) { toast.error("No se pudo eliminar"); }
-  }
+      if (!confirm("¿Seguro que deseas eliminar esta obra?")) return;
+      try {
+          await apiDelete(`/obras/${id}`);
+          toast.success("Obra eliminada.");
+          fetchData();
+      } catch (e) {
+          toast.error("Error al eliminar.");
+      }
+  };
 
-  // Helpers
-  const formatResp = (lista: Responsable[]) => {
-      if(!lista?.length) return "-";
-      return lista.map(r => r.nombreCompleto || r.username).join(", ");
+  // Utility
+  const getStatusColor = (st?: string | null) => {
+      if (st === "FINALIZADA") return "bg-green-100 text-green-700";
+      if (st === "EN_PROGRESO") return "bg-blue-100 text-blue-700";
+      return "bg-yellow-100 text-yellow-700";
   }
 
   // ---------------------------------------------------------------------
-  // RENDER
+  // 4. RENDER (HTML)
   // ---------------------------------------------------------------------
   return (
-    <main className="p-4 md:p-8 relative">
-      <div className="flex justify-between items-center mb-6">
-        <h1 className="text-2xl font-bold text-[#0C2D57]">Obras (Modo Diagnóstico)</h1>
-        <div className="flex gap-2">
-            <Button variant="outline" onClick={fetchData} disabled={loading}><RefreshCw className={loading?"animate-spin":""}/></Button>
-            {(currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") && 
-                <Button onClick={handleOpenRegister} className="bg-[#0C2D57]">+ Nueva Obra</Button>
-            }
-        </div>
+    <main className="p-4 md:p-8">
+      {/* Header */}
+      <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
+          <h1 className="text-2xl font-bold text-[#0C2D57]">Gestión de Obras</h1>
+          <div className="flex gap-2 w-full md:w-auto">
+              <Button variant="outline" onClick={fetchData} disabled={loading}>
+                  <RefreshCw className={loading ? "animate-spin" : ""} />
+              </Button>
+              {(currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") && (
+                  <Button className="bg-[#0C2D57] flex-1 md:flex-none" onClick={handleOpenRegister}>
+                      + Nueva Obra
+                  </Button>
+              )}
+          </div>
       </div>
 
-      {/* INPUT BUSQUEDA */}
-      <div className="mb-4 relative max-w-md">
-         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400"/>
-         <Input className="pl-9" placeholder="Buscar..." value={searchTerm} onChange={e=>setSearchTerm(e.target.value)}/>
+      {/* Buscador */}
+      <div className="relative mb-6 max-w-md">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+          <Input 
+            className="pl-9" 
+            placeholder="Buscar obra..." 
+            value={searchTerm}
+            onChange={e => setSearchTerm(e.target.value)}
+          />
       </div>
 
-      {/* TABLA SIMPLE */}
-      <div className="hidden md:block bg-white shadow rounded overflow-hidden">
-         <table className="w-full text-sm">
-            <thead className="bg-gray-100 text-left">
-                <tr><th className="p-3">ID</th><th className="p-3">Obra</th><th className="p-3">Resp</th><th className="p-3 text-right">Acción</th></tr>
-            </thead>
-            <tbody>
-                {filteredObras.length===0 && <tr><td colSpan={4} className="p-4 text-center">Sin datos</td></tr>}
-                {filteredObras.map(o => (
-                    <tr key={o.id} className="border-t">
-                        <td className="p-3">#{o.id}</td>
-                        <td className="p-3 font-bold">{o.nombre} <span className="text-xs font-normal text-gray-500">({o.prefijo})</span></td>
-                        <td className="p-3">{formatResp(o.responsables)}</td>
-                        <td className="p-3 text-right">
-                            <Button size="icon" variant="ghost" onClick={()=>handleOpenEdit(o)}><Pencil className="h-4 w-4"/></Button>
-                            <Button size="icon" variant="ghost" className="text-red-500" onClick={()=>handleDelete(o.id)}><Trash2 className="h-4 w-4"/></Button>
-                        </td>
-                    </tr>
-                ))}
-            </tbody>
-         </table>
+      {/* Tabla */}
+      <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hidden md:block">
+          <table className="w-full text-sm">
+              <thead className="bg-gray-50 text-gray-700 text-left">
+                  <tr>
+                      <th className="p-3 w-16">ID</th>
+                      <th className="p-3 w-32">Prefijo</th>
+                      <th className="p-3">Nombre</th>
+                      <th className="p-3 w-32">Estado</th>
+                      <th className="p-3">Responsables</th>
+                      <th className="p-3 text-right">Acciones</th>
+                  </tr>
+              </thead>
+              <tbody>
+                  {filteredObras.length === 0 ? (
+                      <tr><td colSpan={6} className="p-8 text-center text-gray-500">No hay obras registradas.</td></tr>
+                  ) : (
+                      filteredObras.map(o => (
+                          <tr key={o.id} className="border-t hover:bg-gray-50">
+                              <td className="p-3 text-gray-500 font-mono">#{o.id}</td>
+                              <td className="p-3"><Badge variant="outline">{o.prefijo}</Badge></td>
+                              <td className="p-3 font-semibold text-gray-800">{o.nombre}</td>
+                              <td className="p-3">
+                                  <span className={`px-2 py-1 rounded-full text-[10px] font-bold ${getStatusColor(o.estado)}`}>
+                                      {o.estado?.replace("_", " ") || "PENDIENTE"}
+                                  </span>
+                              </td>
+                              <td className="p-3 text-gray-600 text-xs">
+                                  {o.responsables?.map(r => r.nombreCompleto).join(", ") || "-"}
+                              </td>
+                              <td className="p-3 text-right">
+                                  <div className="flex justify-end gap-2">
+                                      <Button size="icon" variant="ghost" onClick={() => handleOpenEdit(o)}>
+                                          <Pencil className="h-4 w-4 text-blue-600"/>
+                                      </Button>
+                                      <Button size="icon" variant="ghost" onClick={() => handleDelete(o.id)}>
+                                          <Trash2 className="h-4 w-4 text-red-600"/>
+                                      </Button>
+                                  </div>
+                              </td>
+                          </tr>
+                      ))
+                  )}
+              </tbody>
+          </table>
+      </div>
+
+      {/* Mobile Card View */}
+      <div className="md:hidden space-y-3">
+         {filteredObras.map(o => (
+             <Card key={o.id} className="border border-gray-200">
+                 <CardHeader className="pb-2 pt-4 px-4 flex flex-row justify-between">
+                     <div>
+                         <div className="flex gap-2 mb-1">
+                             <Badge variant="outline">{o.prefijo}</Badge>
+                             <span className={`text-[10px] px-2 rounded-full flex items-center ${getStatusColor(o.estado)}`}>
+                                 {o.estado?.replace("_", " ")}
+                             </span>
+                         </div>
+                         <h3 className="font-bold text-lg">{o.nombre}</h3>
+                     </div>
+                 </CardHeader>
+                 <CardContent className="px-4 pb-4 text-sm text-gray-600">
+                     <div className="mb-2 flex items-start gap-2">
+                         <User className="h-4 w-4 mt-0.5"/> 
+                         <span>{o.responsables?.map(r=>r.nombreCompleto).join(", ")}</span>
+                     </div>
+                     <div className="flex gap-2 mt-4">
+                         <Button variant="outline" size="sm" className="flex-1" onClick={()=>handleOpenEdit(o)}>Editar</Button>
+                         <Button variant="destructive" size="sm" className="flex-1" onClick={()=>handleDelete(o.id)}>Eliminar</Button>
+                     </div>
+                 </CardContent>
+             </Card>
+         ))}
       </div>
 
       {/* MODAL */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent>
-            <DialogHeader><DialogTitle>{editingId?"Editar":"Crear"} Obra</DialogTitle></DialogHeader>
-            <div className="space-y-4">
-                <Input placeholder="Prefijo" value={form.prefijo} onChange={e=>setForm({...form, prefijo:e.target.value.toUpperCase()})}/>
-                <Input placeholder="Nombre" value={form.nombre} onChange={e=>setForm({...form, nombre:e.target.value})}/>
-                
-                <div>
-                    <label className="text-sm font-bold">Responsables ({users.length} cargados)</label>
-                    <Select onValueChange={(v) => {
-                        const id = Number(v);
-                        if(!form.responsablesId.includes(id)) setForm({...form, responsablesId:[...form.responsablesId, id]});
-                    }}>
-                        <SelectTrigger><SelectValue placeholder="Seleccionar..."/></SelectTrigger>
-                        <SelectContent>
-                            {users.map(u => (
-                                <SelectItem key={u.id} value={u.id.toString()}>{u.nombreCompleto} - {u.role}</SelectItem>
-                            ))}
-                        </SelectContent>
-                    </Select>
-                    <div className="flex flex-wrap gap-2 mt-2">
-                        {form.responsablesId.map(id => {
-                            const u = users.find(x=>x.id===id);
-                            return u ? <span key={id} className="bg-blue-100 text-blue-800 text-xs px-2 py-1 rounded">{u.nombreCompleto}</span> : null
-                        })}
-                    </div>
-                </div>
+          <DialogContent>
+              <DialogHeader>
+                  <DialogTitle>{editingId ? "Editar Obra" : "Nueva Obra"}</DialogTitle>
+              </DialogHeader>
+              <div className="space-y-4 py-2">
+                  <div className="grid grid-cols-2 gap-4">
+                      <div>
+                          <label className="text-xs font-semibold text-gray-500 mb-1 block">Prefijo</label>
+                          <Input 
+                              placeholder="Ej: ED-001" 
+                              value={form.prefijo} 
+                              onChange={e => setForm({...form, prefijo: e.target.value.toUpperCase()})}
+                          />
+                      </div>
+                      <div>
+                          <label className="text-xs font-semibold text-gray-500 mb-1 block">Nombre</label>
+                          <Input 
+                              placeholder="Nombre de la obra" 
+                              value={form.nombre} 
+                              onChange={e => setForm({...form, nombre: e.target.value})}
+                          />
+                      </div>
+                  </div>
 
-                <Textarea placeholder="Obs..." value={form.observaciones} onChange={e=>setForm({...form, observaciones:e.target.value})}/>
-                {errorMsg && <p className="text-red-500 text-sm">{errorMsg}</p>}
-                <Button onClick={handleSubmit} className="w-full bg-[#0C2D57]">Guardar</Button>
-            </div>
-        </DialogContent>
+                  <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1 block">
+                          Responsables ({users.length} disponibles)
+                      </label>
+                      <Select onValueChange={(v) => {
+                          const id = Number(v);
+                          if (!form.responsablesId.includes(id)) {
+                              setForm({ ...form, responsablesId: [...form.responsablesId, id] });
+                          }
+                      }}>
+                          <SelectTrigger>
+                              <SelectValue placeholder="Seleccionar usuario..." />
+                          </SelectTrigger>
+                          <SelectContent>
+                              {users.map(u => (
+                                  <SelectItem key={u.id} value={u.id.toString()} disabled={form.responsablesId.includes(u.id)}>
+                                      {u.nombreCompleto} <span className="text-xs text-gray-400">({u.role})</span>
+                                  </SelectItem>
+                              ))}
+                          </SelectContent>
+                      </Select>
+                      
+                      {/* Chips de seleccionados */}
+                      <div className="flex flex-wrap gap-2 mt-2">
+                          {form.responsablesId.map(id => {
+                              const u = users.find(x => x.id === id);
+                              if (!u) return null;
+                              return (
+                                  <Badge key={id} variant="secondary" className="flex items-center gap-1 pr-1">
+                                      {u.nombreCompleto}
+                                      <button 
+                                          onClick={() => setForm({...form, responsablesId: form.responsablesId.filter(x => x !== id)})}
+                                          className="hover:bg-gray-300 rounded-full p-0.5"
+                                      >
+                                          <Trash2 className="h-3 w-3 text-gray-600"/>
+                                      </button>
+                                  </Badge>
+                              )
+                          })}
+                      </div>
+                  </div>
+
+                  <div>
+                      <label className="text-xs font-semibold text-gray-500 mb-1 block">Observaciones</label>
+                      <Textarea 
+                          placeholder="Detalles adicionales..." 
+                          value={form.observaciones}
+                          onChange={e => setForm({...form, observaciones: e.target.value})}
+                      />
+                  </div>
+
+                  {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
+
+                  <Button onClick={handleSubmit} className="w-full bg-[#0C2D57] hover:bg-[#1e457a]">
+                      {editingId ? "Guardar Cambios" : "Crear Obra"}
+                  </Button>
+              </div>
+          </DialogContent>
       </Dialog>
-
-      {/* ================================================================================= */}
-      {/* 🛠️ ÁREA DE DIAGNÓSTICO (ESTO TE DIRÁ QUÉ ESTÁ PASANDO) */}
-      {/* ================================================================================= */}
-      <div className="mt-8 p-4 bg-slate-900 text-green-400 font-mono text-xs rounded-lg shadow-xl overflow-x-auto">
-          <h3 className="text-white font-bold text-lg mb-2 flex items-center gap-2"><Bug/> Consola de Diagnóstico</h3>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
-                  <strong className="text-white block mb-1">LOG DE EVENTOS:</strong>
-                  <div className="h-40 overflow-y-auto border border-slate-700 p-2 bg-slate-950">
-                      {debugLog.map((l,i) => <div key={i}>{l}</div>)}
-                  </div>
-              </div>
-              <div>
-                  <strong className="text-white block mb-1">DATA CRUDA DEL BACKEND (/users):</strong>
-                  <div className="h-40 overflow-y-auto border border-slate-700 p-2 bg-slate-950 whitespace-pre">
-                      {JSON.stringify(rawData, null, 2) || "Esperando data..."}
-                  </div>
-              </div>
-          </div>
-      </div>
     </main>
   );
 }
