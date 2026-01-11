@@ -20,7 +20,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Agregamos 'Construction' para el icono de obra
 import { Search, RefreshCw, Pencil, Trash2, Construction, Users } from "lucide-react";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
@@ -35,6 +34,7 @@ interface Responsable {
   id: number;
   nombreCompleto: string;
   username: string;
+  role: string; // ✅ Agregamos el rol para mostrarlo en el select
 }
 
 interface Obra {
@@ -96,14 +96,22 @@ export default function ObrasPage() {
     setLoading(true);
     try {
       if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
-        const usersRes = await apiGet<User[]>("/users");
+        // Obtenemos usuarios del backend (User[] debe tener la propiedad 'role')
+        const usersRes = await apiGet<any[]>("/users"); // Usamos any por si tu tipo User no tiene 'role' definido en el frontend aun
+        
+        // ✅ FILTRO DE ROLES PERMITIDOS
+        // Excluimos 'VISITANTE' y 'ADMIN' (a menos que quieras admin, agrégalo aquí)
+        const rolesPermitidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
+
         setUsers(
           usersRes
-            .filter((u) => u.active)
+            .filter((u) => u.active && rolesPermitidos.includes(u.role))
             .map((u) => ({
               id: u.id,
-              nombreCompleto: u.username,
+              // ✅ Usamos nombreCompleto real, o username si no tiene
+              nombreCompleto: u.nombreCompleto || u.username, 
               username: u.username,
+              role: u.role
             }))
         );
       }
@@ -155,6 +163,7 @@ export default function ObrasPage() {
     setErrorMsg("");
     setEditingId(null);
 
+    // Al crear, pre-seleccionamos al usuario actual si es un rol válido
     if (currentUserId !== null) {
       setForm({ ...initialFormState, responsablesId: [currentUserId] });
     } else {
@@ -256,6 +265,7 @@ export default function ObrasPage() {
 
   const formatResponsables = (responsables: Responsable[]) => {
     if (!responsables || responsables.length === 0) return "-";
+    // Muestra Nombre Completo si existe, si no el username
     const names = responsables.map((r) => r.nombreCompleto || r.username);
     if (names.length > 3) {
       return `${names.slice(0, 3).join(", ")} (+${names.length - 3} más)`;
@@ -525,13 +535,15 @@ export default function ObrasPage() {
                   <SelectValue placeholder="Seleccione responsables..." />
                 </SelectTrigger>
                 <SelectContent>
+                  {/* ✅ AQUÍ SE MUESTRAN LOS USUARIOS FILTRADOS */}
                   {users.map((user) => (
                     <SelectItem
                       key={user.id}
                       value={user.id.toString()}
                       disabled={form.responsablesId.includes(user.id)}
                     >
-                      {user.nombreCompleto} ({user.username})
+                      {/* EJ: Juan Perez (Residente) */}
+                      {user.nombreCompleto} ({user.role}) 
                     </SelectItem>
                   ))}
                 </SelectContent>
