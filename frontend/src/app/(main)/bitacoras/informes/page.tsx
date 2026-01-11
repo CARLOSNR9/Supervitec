@@ -2,16 +2,16 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { apiGet } from "@/lib/api"; 
-import { Bitacora } from "../types/bitacora"; // ✅ Ruta corregida
+import { Bitacora } from "../types/bitacora";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-// ❌ ELIMINADO: import { DatePickerWithRange } ... (Esto causaba el error)
+import { Input } from "@/components/ui/input";
 import { pdf } from "@react-pdf/renderer";
-import { BitacoraReportePDF } from "../components/BitacoraPDF"; // ✅ Ruta y nombre corregidos
+import { BitacoraReportePDF } from "../components/BitacoraPDF";
 import { toast } from "sonner";
-import { FileDown, Filter } from "lucide-react";
-import { Input } from "@/components/ui/input"; // ✅ Usaremos Input normal para fechas
+import { FileDown, Filter, Image as ImageIcon, MapPin, AlertCircle } from "lucide-react"; // Nuevos iconos
+import { Badge } from "@/components/ui/badge";
 
 export default function InformesPage() {
   const [data, setData] = useState<Bitacora[]>([]);
@@ -21,12 +21,10 @@ export default function InformesPage() {
   const [filtroObra, setFiltroObra] = useState("todos");
   const [filtroResponsable, setFiltroResponsable] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
-  
-  // ✅ Nuevos estados para fechas simples
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
 
-  // --- LISTAS PARA LOS DROPDOWNS ---
+  // --- LISTAS ---
   const [obrasList, setObrasList] = useState<string[]>([]);
   const [respList, setRespList] = useState<string[]>([]);
 
@@ -36,8 +34,6 @@ export default function InformesPage() {
       try {
         const res: Bitacora[] = await apiGet("/bitacoras");
         setData(res);
-        
-        // Extraer listas únicas
         const obras = Array.from(new Set(res.map(b => b.obra?.nombre).filter(Boolean)));
         const resps = Array.from(new Set(res.map(b => b.responsable?.nombreCompleto).filter(Boolean)));
         setObrasList(obras);
@@ -51,55 +47,39 @@ export default function InformesPage() {
     loadData();
   }, []);
 
-  // 2. FILTRADO EN TIEMPO REAL
+  // 2. FILTRADO
   const datosFiltrados = useMemo(() => {
     return data.filter(item => {
-      // Filtro Obra
       if (filtroObra !== "todos" && item.obra?.nombre !== filtroObra) return false;
-      // Filtro Responsable
       if (filtroResponsable !== "todos" && item.responsable?.nombreCompleto !== filtroResponsable) return false;
-      // Filtro Estado
       if (filtroEstado !== "todos" && item.estado !== filtroEstado) return false;
       
-      // ✅ Filtro Fechas (Simple)
       if (fechaInicio) {
-        const fechaItem = new Date(item.fechaCreacion).getTime();
-        const inicio = new Date(fechaInicio).getTime();
-        if (fechaItem < inicio) return false;
+        if (new Date(item.fechaCreacion).getTime() < new Date(fechaInicio).getTime()) return false;
       }
       if (fechaFin) {
-        const fechaItem = new Date(item.fechaCreacion).getTime();
-        // Sumamos un día (86400000ms) para incluir el día final completo o ajustamos lógica
-        const fin = new Date(fechaFin).getTime() + 86400000; 
-        if (fechaItem > fin) return false;
+        if (new Date(item.fechaCreacion).getTime() > new Date(fechaFin).getTime() + 86400000) return false;
       }
-      
       return true;
     });
   }, [data, filtroObra, filtroResponsable, filtroEstado, fechaInicio, fechaFin]);
 
-  // 3. GENERAR EL PDF MASIVO
+  // 3. GENERAR PDF
   const handleDownloadReport = async () => {
-    if (datosFiltrados.length === 0) {
-      toast.warning("No hay datos para generar el reporte");
-      return;
-    }
-
-    const toastId = toast.loading(`Generando reporte de ${datosFiltrados.length} bitácoras...`);
+    if (datosFiltrados.length === 0) return;
+    const toastId = toast.loading(`Generando reporte...`);
     try {
-      // ✅ Pasamos el ARRAY COMPLETO filtrado al PDF
       const blob = await pdf(<BitacoraReportePDF data={datosFiltrados} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.download = `Reporte_Bitacoras_${new Date().toISOString().slice(0,10)}.pdf`;
+      link.download = `Reporte_${new Date().toISOString().slice(0,10)}.pdf`;
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
-      toast.success("¡Reporte generado con éxito!");
+      toast.success("Reporte descargado");
     } catch (error) {
-      console.error(error);
-      toast.error("Error al generar el PDF");
+      toast.error("Error al generar PDF");
     } finally {
       toast.dismiss(toastId);
     }
@@ -112,7 +92,7 @@ export default function InformesPage() {
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
         <div>
           <h1 className="text-3xl font-bold text-[#0C2D57]">Centro de Informes</h1>
-          <p className="text-gray-500">Construye tu reporte usando los filtros a continuación</p>
+          <p className="text-gray-500">Filtra y valida la información antes de exportar</p>
         </div>
         
         <Button 
@@ -122,58 +102,42 @@ export default function InformesPage() {
           disabled={datosFiltrados.length === 0}
         >
           <FileDown className="mr-2 h-5 w-5" />
-          Descargar PDF ({datosFiltrados.length} Registros)
+          Descargar PDF ({datosFiltrados.length})
         </Button>
       </div>
 
-      {/* ZONA DE FILTROS */}
-      <Card className="border-t-4 border-t-[#0C2D57]">
+      {/* FILTROS */}
+      <Card className="border-t-4 border-t-[#0C2D57] shadow-sm">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4 text-[#0C2D57] font-semibold">
-            <Filter className="h-5 w-5" /> Filtros de Reporte
+            <Filter className="h-5 w-5" /> Filtros de Auditoría
           </div>
-          
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            
-            {/* FILTRO OBRA */}
+            {/* ... (Tus filtros de Obra, Responsable, Estado y Fechas se mantienen igual) ... */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Obra</label>
+              <label className="text-xs font-medium uppercase text-gray-500">Obra</label>
               <Select value={filtroObra} onValueChange={setFiltroObra}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todas las obras" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-gray-50"><SelectValue placeholder="Todas" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todas las obras</SelectItem>
-                  {obrasList.map(obra => (
-                    <SelectItem key={obra} value={obra}>{obra}</SelectItem>
-                  ))}
+                  {obrasList.map(o => <SelectItem key={o} value={o}>{o}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* FILTRO RESPONSABLE */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Responsable</label>
+              <label className="text-xs font-medium uppercase text-gray-500">Responsable</label>
               <Select value={filtroResponsable} onValueChange={setFiltroResponsable}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los responsables" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-gray-50"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
-                  {respList.map(resp => (
-                    <SelectItem key={resp} value={resp}>{resp}</SelectItem>
-                  ))}
+                  {respList.map(r => <SelectItem key={r} value={r}>{r}</SelectItem>)}
                 </SelectContent>
               </Select>
             </div>
-
-            {/* FILTRO ESTADO */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Estado</label>
+              <label className="text-xs font-medium uppercase text-gray-500">Estado</label>
               <Select value={filtroEstado} onValueChange={setFiltroEstado}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Todos los estados" />
-                </SelectTrigger>
+                <SelectTrigger className="bg-gray-50"><SelectValue placeholder="Todos" /></SelectTrigger>
                 <SelectContent>
                   <SelectItem value="todos">Todos</SelectItem>
                   <SelectItem value="ABIERTA">Abiertas</SelectItem>
@@ -181,71 +145,111 @@ export default function InformesPage() {
                 </SelectContent>
               </Select>
             </div>
-
-            {/* ✅ FILTRO FECHAS (SIMPLE) */}
             <div className="space-y-2">
-              <label className="text-sm font-medium">Rango de Fechas</label>
+              <label className="text-xs font-medium uppercase text-gray-500">Fecha Creación</label>
               <div className="flex gap-2">
-                <Input 
-                  type="date" 
-                  value={fechaInicio} 
-                  onChange={(e) => setFechaInicio(e.target.value)}
-                  className="bg-white"
-                />
-                <Input 
-                  type="date" 
-                  value={fechaFin} 
-                  onChange={(e) => setFechaFin(e.target.value)}
-                  className="bg-white"
-                />
+                <Input type="date" value={fechaInicio} onChange={e => setFechaInicio(e.target.value)} className="bg-gray-50"/>
+                <Input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-gray-50"/>
               </div>
             </div>
-
           </div>
         </CardContent>
       </Card>
 
-      {/* PREVISUALIZACIÓN */}
-      <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
-        <div className="p-4 border-b bg-gray-100 flex justify-between items-center">
-          <h2 className="font-semibold text-gray-700">Previsualización del Informe</h2>
-          <span className="text-xs bg-blue-100 text-blue-800 px-2 py-1 rounded-full">
-            {datosFiltrados.length} Resultados encontrados
-          </span>
+      {/* ✅ PREVISUALIZACIÓN DETALLADA (LO QUE PIDE EL CEO) */}
+      <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
+        <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
+          <h2 className="font-semibold text-[#0C2D57] flex items-center gap-2">
+            <FileDown className="h-4 w-4" />
+            Vista Previa del Contenido
+          </h2>
+          <Badge variant="outline" className="bg-blue-50 text-blue-700">
+            {datosFiltrados.length} Registros encontrados
+          </Badge>
         </div>
         
         <div className="overflow-x-auto">
           <table className="w-full text-sm text-left">
-            <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
+            <thead className="text-xs text-gray-500 uppercase bg-gray-100 border-b">
               <tr>
-                <th className="px-6 py-3">ID</th>
-                <th className="px-6 py-3">Fecha</th>
-                <th className="px-6 py-3">Obra</th>
-                <th className="px-6 py-3">Responsable</th>
-                <th className="px-6 py-3">Variable</th>
-                <th className="px-6 py-3">Estado</th>
+                <th className="px-4 py-3 w-[50px]">ID</th>
+                <th className="px-4 py-3 w-[100px]">Fecha</th>
+                <th className="px-4 py-3 w-[150px]">Datos Clave</th>
+                <th className="px-4 py-3 w-[30%]">Observación (Contenido)</th>
+                <th className="px-4 py-3 w-[150px]">Evidencias</th>
+                <th className="px-4 py-3 w-[100px]">Estado</th>
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-100">
               {datosFiltrados.length > 0 ? (
-                datosFiltrados.map((bit) => (
-                  <tr key={bit.id} className="bg-white border-b hover:bg-gray-50">
-                    <td className="px-6 py-4 font-medium">#{bit.id}</td>
-                    <td className="px-6 py-4">{new Date(bit.fechaCreacion).toLocaleDateString()}</td>
-                    <td className="px-6 py-4">{bit.obra?.nombre}</td>
-                    <td className="px-6 py-4">{bit.responsable?.nombreCompleto}</td>
-                    <td className="px-6 py-4">{bit.variable?.nombre}</td>
-                    <td className="px-6 py-4">
-                      <span className={`px-2 py-1 rounded-full text-xs font-semibold ${bit.estado === 'ABIERTA' ? 'bg-green-100 text-green-800' : 'bg-red-100 text-red-800'}`}>
-                        {bit.estado}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+                datosFiltrados.map((bit) => {
+                  // Calculamos cuántas fotos tiene
+                  const numFotos = (bit.evidencias?.length || 0) + (bit.evidenciasSeguimiento?.length || 0);
+                  
+                  return (
+                    <tr key={bit.id} className="hover:bg-blue-50/50 transition-colors">
+                      {/* ID */}
+                      <td className="px-4 py-4 font-bold text-gray-700">#{bit.id}</td>
+                      
+                      {/* FECHA */}
+                      <td className="px-4 py-4 text-gray-600">
+                        {new Date(bit.fechaCreacion).toLocaleDateString()}
+                      </td>
+
+                      {/* DATOS CLAVE (Variable y Ubicación) */}
+                      <td className="px-4 py-4">
+                        <div className="flex flex-col gap-1">
+                          <span className="font-medium text-[#0C2D57]">{bit.variable?.nombre}</span>
+                          <div className="flex items-center text-xs text-gray-500">
+                            <MapPin className="h-3 w-3 mr-1" />
+                            <span className="truncate max-w-[120px]" title={bit.ubicacion}>
+                              {bit.ubicacion || "Sin ubicación"}
+                            </span>
+                          </div>
+                          <span className="text-xs text-gray-400">{bit.responsable?.nombreCompleto}</span>
+                        </div>
+                      </td>
+
+                      {/* OBSERVACIÓN (EL CONTENIDO REAL) */}
+                      <td className="px-4 py-4">
+                        <p className="text-gray-700 text-sm line-clamp-3" title={bit.observaciones}>
+                          {bit.observaciones || <span className="italic text-gray-400">Sin observaciones registradas...</span>}
+                        </p>
+                      </td>
+
+                      {/* EVIDENCIAS (FOTOS) */}
+                      <td className="px-4 py-4">
+                        <div className="flex items-center gap-2">
+                          {numFotos > 0 ? (
+                            <Badge variant="secondary" className="bg-green-100 text-green-700 hover:bg-green-200 gap-1">
+                              <ImageIcon className="h-3 w-3" />
+                              {numFotos} Fotos
+                            </Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-gray-400 border-gray-200 gap-1">
+                              <AlertCircle className="h-3 w-3" />
+                              Sin Fotos
+                            </Badge>
+                          )}
+                        </div>
+                      </td>
+
+                      {/* ESTADO */}
+                      <td className="px-4 py-4">
+                        <Badge className={bit.estado === 'ABIERTA' ? 'bg-green-500' : 'bg-red-500'}>
+                          {bit.estado}
+                        </Badge>
+                      </td>
+                    </tr>
+                  );
+                })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-8 text-center text-gray-500">
-                    No hay datos que coincidan con los filtros seleccionados.
+                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                    <div className="flex flex-col items-center gap-2">
+                      <Filter className="h-8 w-8 text-gray-300" />
+                      <p>No hay datos que coincidan con los filtros.</p>
+                    </div>
                   </td>
                 </tr>
               )}
@@ -253,7 +257,6 @@ export default function InformesPage() {
           </table>
         </div>
       </div>
-
     </div>
   );
 }
