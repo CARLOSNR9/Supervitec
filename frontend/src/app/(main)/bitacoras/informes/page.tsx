@@ -2,7 +2,13 @@
 
 import { useState, useEffect, useMemo } from "react";
 import { apiGet } from "@/lib/api"; // Tu cliente API
-import { Bitacora } from "../../types/bitacora";
+
+
+
+import { Bitacora } from "../types/bitacora";
+
+
+
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
