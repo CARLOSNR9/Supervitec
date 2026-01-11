@@ -21,12 +21,21 @@ export default function InformesPage() {
   const [filtroObra, setFiltroObra] = useState("todos");
   const [filtroResponsable, setFiltroResponsable] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
+  
+  // ✅ NUEVOS FILTROS
+  const [filtroVariable, setFiltroVariable] = useState("todos");
+  const [filtroContratista, setFiltroContratista] = useState("todos");
+
   const [fechaInicio, setFechaInicio] = useState("");
   const [fechaFin, setFechaFin] = useState("");
 
-  // --- LISTAS ---
+  // --- LISTAS PARA LOS DROPDOWNS ---
   const [obrasList, setObrasList] = useState<string[]>([]);
   const [respList, setRespList] = useState<string[]>([]);
+  
+  // ✅ NUEVAS LISTAS
+  const [variablesList, setVariablesList] = useState<string[]>([]);
+  const [contratistasList, setContratistasList] = useState<string[]>([]);
 
   // 1. CARGAR DATOS
   useEffect(() => {
@@ -34,10 +43,20 @@ export default function InformesPage() {
       try {
         const res: Bitacora[] = await apiGet("/bitacoras");
         setData(res);
+        
+        // Extraer listas únicas
         const obras = Array.from(new Set(res.map(b => b.obra?.nombre).filter(Boolean)));
         const resps = Array.from(new Set(res.map(b => b.responsable?.nombreCompleto).filter(Boolean)));
+        
+        // ✅ Extraer Variables y Contratistas únicos
+        const vars = Array.from(new Set(res.map(b => b.variable?.nombre).filter(Boolean)));
+        const contras = Array.from(new Set(res.map(b => b.contratista?.nombre).filter(Boolean)));
+
         setObrasList(obras);
         setRespList(resps);
+        setVariablesList(vars);
+        setContratistasList(contras);
+
       } catch (e) {
         toast.error("Error cargando datos");
       } finally {
@@ -47,22 +66,31 @@ export default function InformesPage() {
     loadData();
   }, []);
 
-  // 2. FILTRADO
+  // 2. FILTRADO EN TIEMPO REAL
   const datosFiltrados = useMemo(() => {
     return data.filter(item => {
+      // Filtros existentes
       if (filtroObra !== "todos" && item.obra?.nombre !== filtroObra) return false;
       if (filtroResponsable !== "todos" && item.responsable?.nombreCompleto !== filtroResponsable) return false;
       if (filtroEstado !== "todos" && item.estado !== filtroEstado) return false;
       
+      // ✅ Lógica nuevos filtros
+      if (filtroVariable !== "todos" && item.variable?.nombre !== filtroVariable) return false;
+      if (filtroContratista !== "todos" && item.contratista?.nombre !== filtroContratista) return false;
+
+      // Filtro Fechas
       if (fechaInicio) {
+        // Normalizamos horas para comparar solo fechas si es necesario, 
+        // o comparamos timestamps directos (inicio del día)
         if (new Date(item.fechaCreacion).getTime() < new Date(fechaInicio).getTime()) return false;
       }
       if (fechaFin) {
+        // Sumamos 1 día para incluir el día final completo
         if (new Date(item.fechaCreacion).getTime() > new Date(fechaFin).getTime() + 86400000) return false;
       }
       return true;
     });
-  }, [data, filtroObra, filtroResponsable, filtroEstado, fechaInicio, fechaFin]);
+  }, [data, filtroObra, filtroResponsable, filtroEstado, filtroVariable, filtroContratista, fechaInicio, fechaFin]);
 
   // 3. GENERAR PDF
   const handleDownloadReport = async () => {
@@ -112,7 +140,11 @@ export default function InformesPage() {
           <div className="flex items-center gap-2 mb-4 text-[#0C2D57] font-semibold">
             <Filter className="h-5 w-5" /> Filtros de Auditoría
           </div>
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          
+          {/* ✅ CAMBIO: Usamos grid-cols-3 para organizar mejor los 6 filtros */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            
+            {/* 1. OBRA */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Obra</label>
               <Select value={filtroObra} onValueChange={setFiltroObra}>
@@ -123,6 +155,8 @@ export default function InformesPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* 2. RESPONSABLE */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Responsable</label>
               <Select value={filtroResponsable} onValueChange={setFiltroResponsable}>
@@ -133,6 +167,8 @@ export default function InformesPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* 3. ESTADO */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Estado</label>
               <Select value={filtroEstado} onValueChange={setFiltroEstado}>
@@ -144,6 +180,32 @@ export default function InformesPage() {
                 </SelectContent>
               </Select>
             </div>
+
+            {/* ✅ 4. VARIABLE (NUEVO) */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase text-gray-500">Variable de Control</label>
+              <Select value={filtroVariable} onValueChange={setFiltroVariable}>
+                <SelectTrigger className="bg-gray-50"><SelectValue placeholder="Todas" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todas</SelectItem>
+                  {variablesList.map(v => <SelectItem key={v} value={v}>{v}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* ✅ 5. CONTRATISTA (NUEVO) */}
+            <div className="space-y-2">
+              <label className="text-xs font-medium uppercase text-gray-500">Contratista</label>
+              <Select value={filtroContratista} onValueChange={setFiltroContratista}>
+                <SelectTrigger className="bg-gray-50"><SelectValue placeholder="Todos" /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="todos">Todos</SelectItem>
+                  {contratistasList.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
+                </SelectContent>
+              </Select>
+            </div>
+
+            {/* 6. FECHAS */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Fecha Creación</label>
               <div className="flex gap-2">
@@ -151,11 +213,12 @@ export default function InformesPage() {
                 <Input type="date" value={fechaFin} onChange={e => setFechaFin(e.target.value)} className="bg-gray-50"/>
               </div>
             </div>
+
           </div>
         </CardContent>
       </Card>
 
-      {/* ✅ PREVISUALIZACIÓN DETALLADA */}
+      {/* PREVISUALIZACIÓN DETALLADA */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
           <h2 className="font-semibold text-[#0C2D57] flex items-center gap-2">
@@ -173,7 +236,7 @@ export default function InformesPage() {
               <tr>
                 <th className="px-4 py-3 w-[50px]">ID</th>
                 <th className="px-4 py-3 w-[100px]">Fecha</th>
-                <th className="px-4 py-3 w-[150px]">Datos Clave</th>
+                <th className="px-4 py-3 w-[200px]">Datos Clave</th>
                 <th className="px-4 py-3 w-[30%]">Observación (Contenido)</th>
                 <th className="px-4 py-3 w-[150px]">Evidencias</th>
                 <th className="px-4 py-3 w-[100px]">Estado</th>
@@ -194,21 +257,29 @@ export default function InformesPage() {
                         {new Date(bit.fechaCreacion).toLocaleDateString()}
                       </td>
 
-                      {/* DATOS CLAVE */}
+                      {/* DATOS CLAVE (Ahora incluye Variable y Contratista visualmente) */}
                       <td className="px-4 py-4">
                         <div className="flex flex-col gap-1">
-                          <span className="font-medium text-[#0C2D57]">{bit.variable?.nombre}</span>
+                          <span className="font-bold text-[#0C2D57] text-xs">{bit.variable?.nombre}</span>
                           <div className="flex items-center text-xs text-gray-500">
                             <MapPin className="h-3 w-3 mr-1" />
-                            <span className="truncate max-w-[120px]" title={bit.ubicacion || ""}>
+                            <span className="truncate max-w-[150px]" title={bit.ubicacion || ""}>
                               {bit.ubicacion || "Sin ubicación"}
                             </span>
                           </div>
-                          <span className="text-xs text-gray-400">{bit.responsable?.nombreCompleto}</span>
+                          <span className="text-xs font-medium text-gray-600">
+                            Resp: {bit.responsable?.nombreCompleto}
+                          </span>
+                          {/* Mostramos contratista si existe */}
+                          {bit.contratista?.nombre && (
+                             <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded w-fit">
+                               Contr: {bit.contratista.nombre}
+                             </span>
+                          )}
                         </div>
                       </td>
 
-                      {/* OBSERVACIÓN (CORREGIDO EL ERROR AQUÍ) */}
+                      {/* OBSERVACIÓN */}
                       <td className="px-4 py-4">
                         <p className="text-gray-700 text-sm line-clamp-3" title={bit.observaciones || ""}>
                           {bit.observaciones || <span className="italic text-gray-400">Sin observaciones registradas...</span>}
