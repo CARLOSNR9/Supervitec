@@ -10,7 +10,7 @@ import { Input } from "@/components/ui/input";
 import { pdf } from "@react-pdf/renderer";
 import { BitacoraReportePDF } from "../components/BitacoraPDF";
 import { toast } from "sonner";
-import { FileDown, Filter, Image as ImageIcon, MapPin, AlertCircle } from "lucide-react"; // Nuevos iconos
+import { FileDown, Filter, Image as ImageIcon, MapPin, AlertCircle } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 
 export default function InformesPage() {
@@ -113,7 +113,6 @@ export default function InformesPage() {
             <Filter className="h-5 w-5" /> Filtros de Auditoría
           </div>
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            {/* ... (Tus filtros de Obra, Responsable, Estado y Fechas se mantienen igual) ... */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Obra</label>
               <Select value={filtroObra} onValueChange={setFiltroObra}>
@@ -156,7 +155,7 @@ export default function InformesPage() {
         </CardContent>
       </Card>
 
-      {/* ✅ PREVISUALIZACIÓN DETALLADA (LO QUE PIDE EL CEO) */}
+      {/* ✅ PREVISUALIZACIÓN DETALLADA */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
           <h2 className="font-semibold text-[#0C2D57] flex items-center gap-2">
@@ -183,7 +182,6 @@ export default function InformesPage() {
             <tbody className="divide-y divide-gray-100">
               {datosFiltrados.length > 0 ? (
                 datosFiltrados.map((bit) => {
-                  // Calculamos cuántas fotos tiene
                   const numFotos = (bit.evidencias?.length || 0) + (bit.evidenciasSeguimiento?.length || 0);
                   
                   return (
@@ -196,13 +194,13 @@ export default function InformesPage() {
                         {new Date(bit.fechaCreacion).toLocaleDateString()}
                       </td>
 
-                      {/* DATOS CLAVE (Variable y Ubicación) */}
+                      {/* DATOS CLAVE */}
                       <td className="px-4 py-4">
                         <div className="flex flex-col gap-1">
                           <span className="font-medium text-[#0C2D57]">{bit.variable?.nombre}</span>
                           <div className="flex items-center text-xs text-gray-500">
                             <MapPin className="h-3 w-3 mr-1" />
-                            <span className="truncate max-w-[120px]" title={bit.ubicacion}>
+                            <span className="truncate max-w-[120px]" title={bit.ubicacion || ""}>
                               {bit.ubicacion || "Sin ubicación"}
                             </span>
                           </div>
@@ -210,14 +208,14 @@ export default function InformesPage() {
                         </div>
                       </td>
 
-                      {/* OBSERVACIÓN (EL CONTENIDO REAL) */}
+                      {/* OBSERVACIÓN (CORREGIDO EL ERROR AQUÍ) */}
                       <td className="px-4 py-4">
-                        <p className="text-gray-700 text-sm line-clamp-3" title={bit.observaciones}>
+                        <p className="text-gray-700 text-sm line-clamp-3" title={bit.observaciones || ""}>
                           {bit.observaciones || <span className="italic text-gray-400">Sin observaciones registradas...</span>}
                         </p>
                       </td>
 
-                      {/* EVIDENCIAS (FOTOS) */}
+                      {/* EVIDENCIAS */}
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           {numFotos > 0 ? (
