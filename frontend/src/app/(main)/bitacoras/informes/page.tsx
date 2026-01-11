@@ -1,31 +1,17 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { apiGet } from "@/lib/api"; // Tu cliente API
-
-
-
-import { Bitacora } from "../types/bitacora";
-
-
-
+import { apiGet } from "@/lib/api"; 
+import { Bitacora } from "../types/bitacora"; // ✅ Ruta corregida
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { DatePickerWithRange } from "@/components/ui/date-range-picker"; // Asumiendo que tienes uno o usa inputs fecha
+// ❌ ELIMINADO: import { DatePickerWithRange } ... (Esto causaba el error)
 import { pdf } from "@react-pdf/renderer";
-
-
-
-
-
-import { BitacoraReportePDF } from "../components/BitacoraPDF";
-
-
-
-
+import { BitacoraReportePDF } from "../components/BitacoraPDF"; // ✅ Ruta y nombre corregidos
 import { toast } from "sonner";
-import { FileDown, Filter, Search } from "lucide-react";
+import { FileDown, Filter } from "lucide-react";
+import { Input } from "@/components/ui/input"; // ✅ Usaremos Input normal para fechas
 
 export default function InformesPage() {
   const [data, setData] = useState<Bitacora[]>([]);
@@ -35,20 +21,23 @@ export default function InformesPage() {
   const [filtroObra, setFiltroObra] = useState("todos");
   const [filtroResponsable, setFiltroResponsable] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
-  // const [dateRange, setDateRange] = useState... (puedes agregar rango de fechas)
+  
+  // ✅ Nuevos estados para fechas simples
+  const [fechaInicio, setFechaInicio] = useState("");
+  const [fechaFin, setFechaFin] = useState("");
 
-  // --- LISTAS PARA LOS DROPDOWNS (Se llenan dinámicamente) ---
+  // --- LISTAS PARA LOS DROPDOWNS ---
   const [obrasList, setObrasList] = useState<string[]>([]);
   const [respList, setRespList] = useState<string[]>([]);
 
-  // 1. CARGAR DATOS CRUDOS
+  // 1. CARGAR DATOS
   useEffect(() => {
     const loadData = async () => {
       try {
-        const res: Bitacora[] = await apiGet("/bitacoras"); // Traemos todo (o usa endpoint con filtros si hay muchos datos)
+        const res: Bitacora[] = await apiGet("/bitacoras");
         setData(res);
         
-        // Extraer listas únicas para los filtros
+        // Extraer listas únicas
         const obras = Array.from(new Set(res.map(b => b.obra?.nombre).filter(Boolean)));
         const resps = Array.from(new Set(res.map(b => b.responsable?.nombreCompleto).filter(Boolean)));
         setObrasList(obras);
@@ -62,7 +51,7 @@ export default function InformesPage() {
     loadData();
   }, []);
 
-  // 2. EL CEREBRO: FILTRADO EN TIEMPO REAL
+  // 2. FILTRADO EN TIEMPO REAL
   const datosFiltrados = useMemo(() => {
     return data.filter(item => {
       // Filtro Obra
@@ -72,9 +61,22 @@ export default function InformesPage() {
       // Filtro Estado
       if (filtroEstado !== "todos" && item.estado !== filtroEstado) return false;
       
+      // ✅ Filtro Fechas (Simple)
+      if (fechaInicio) {
+        const fechaItem = new Date(item.fechaCreacion).getTime();
+        const inicio = new Date(fechaInicio).getTime();
+        if (fechaItem < inicio) return false;
+      }
+      if (fechaFin) {
+        const fechaItem = new Date(item.fechaCreacion).getTime();
+        // Sumamos un día (86400000ms) para incluir el día final completo o ajustamos lógica
+        const fin = new Date(fechaFin).getTime() + 86400000; 
+        if (fechaItem > fin) return false;
+      }
+      
       return true;
     });
-  }, [data, filtroObra, filtroResponsable, filtroEstado]);
+  }, [data, filtroObra, filtroResponsable, filtroEstado, fechaInicio, fechaFin]);
 
   // 3. GENERAR EL PDF MASIVO
   const handleDownloadReport = async () => {
@@ -85,7 +87,7 @@ export default function InformesPage() {
 
     const toastId = toast.loading(`Generando reporte de ${datosFiltrados.length} bitácoras...`);
     try {
-      // Pasamos el ARRAY COMPLETO filtrado al PDF
+      // ✅ Pasamos el ARRAY COMPLETO filtrado al PDF
       const blob = await pdf(<BitacoraReportePDF data={datosFiltrados} />).toBlob();
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -113,7 +115,6 @@ export default function InformesPage() {
           <p className="text-gray-500">Construye tu reporte usando los filtros a continuación</p>
         </div>
         
-        {/* BOTÓN MAGISTRAL DE DESCARGA */}
         <Button 
           size="lg" 
           onClick={handleDownloadReport}
@@ -125,14 +126,14 @@ export default function InformesPage() {
         </Button>
       </div>
 
-      {/* ZONA DE FILTROS (EL CONSTRUCTOR) */}
+      {/* ZONA DE FILTROS */}
       <Card className="border-t-4 border-t-[#0C2D57]">
         <CardContent className="p-6">
           <div className="flex items-center gap-2 mb-4 text-[#0C2D57] font-semibold">
             <Filter className="h-5 w-5" /> Filtros de Reporte
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             
             {/* FILTRO OBRA */}
             <div className="space-y-2">
@@ -181,11 +182,30 @@ export default function InformesPage() {
               </Select>
             </div>
 
+            {/* ✅ FILTRO FECHAS (SIMPLE) */}
+            <div className="space-y-2">
+              <label className="text-sm font-medium">Rango de Fechas</label>
+              <div className="flex gap-2">
+                <Input 
+                  type="date" 
+                  value={fechaInicio} 
+                  onChange={(e) => setFechaInicio(e.target.value)}
+                  className="bg-white"
+                />
+                <Input 
+                  type="date" 
+                  value={fechaFin} 
+                  onChange={(e) => setFechaFin(e.target.value)}
+                  className="bg-white"
+                />
+              </div>
+            </div>
+
           </div>
         </CardContent>
       </Card>
 
-      {/* PREVISUALIZACIÓN (TABLA SIMPLIFICADA) */}
+      {/* PREVISUALIZACIÓN */}
       <div className="bg-white rounded-lg shadow border border-gray-200 overflow-hidden">
         <div className="p-4 border-b bg-gray-100 flex justify-between items-center">
           <h2 className="font-semibold text-gray-700">Previsualización del Informe</h2>
