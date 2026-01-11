@@ -19,7 +19,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-// Usamos solo iconos estándar para evitar crashes
 import { Search, RefreshCw, Pencil, Trash2, Construction, User } from "lucide-react";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
@@ -68,7 +67,7 @@ const initialFormState: FormState = {
 
 export default function ObrasPage() {
   const [obras, setObras] = useState<Obra[]>([]);
-  const [users, setUsers] = useState<Responsable[]>([]); // Aquí guardaremos la lista fusionada
+  const [users, setUsers] = useState<Responsable[]>([]); // Lista fusionada
   const [loading, setLoading] = useState(false);
   
   // Estados para el Modal
@@ -87,7 +86,6 @@ export default function ObrasPage() {
   // ---------------------------------------------------------------------
 
   useEffect(() => {
-    // Decodificar token de forma segura
     const token = Cookies.get("svtec_token");
     if (token) {
       try {
@@ -108,68 +106,85 @@ export default function ObrasPage() {
       const obrasRes = await apiGet<Obra[]>("/obras");
       setObras(obrasRes);
 
-      // B) Cargar Usuarios (Fusión: YO + MIS EMPLEADOS)
-      // Solo si soy ADMIN o DIRECTOR intentamos cargar lista de usuarios
+      // B) Cargar Usuarios (Fusión Inteligente: YO + MIS EMPLEADOS)
       const token = Cookies.get("svtec_token");
       let role = "";
+      let myId = 0;
+      let myUsername = "";
+      
       if (token) {
          try {
              const d: any = jwtDecode(token);
              role = d.role;
+             myId = d.sub || d.id;
+             myUsername = d.username;
          } catch(e) {}
       }
 
       if (role === "ADMIN" || role === "DIRECTOR") {
-          // 1. Traer empleados (apiGet puede fallar si no hay, por eso try/catch)
-          let listaEmpleados: any[] = [];
-          try {
-             listaEmpleados = await apiGet<any[]>("/users");
-          } catch (error) {
-             console.log("No se pudieron cargar empleados o lista vacía", error);
-          }
-
-          // 2. Traerme a MÍ MISMO (apiGet /auth/me)
-          let yoMismo: any = null;
-          try {
-             yoMismo = await apiGet<any>("/auth/me");
-          } catch (error) {
-             console.log("Error cargando perfil propio", error);
-          }
-
-          // 3. FUSIONAR LISTAS (Usando un Map para evitar duplicados por ID)
           const mapaUsuarios = new Map();
 
-          // Prioridad: Yo mismo
-          if (yoMismo && yoMismo.id) {
-              mapaUsuarios.set(yoMismo.id, {
-                  id: yoMismo.id,
-                  nombreCompleto: yoMismo.nombreCompleto || yoMismo.username,
-                  username: yoMismo.username,
-                  role: yoMismo.role
-              });
+          // 1. AGREGAR AL DIRECTOR (TÚ) DESDE EL TOKEN (GARANTÍA DE QUE APARECE)
+          // Esto asegura que aparezcas aunque el backend no te devuelva en la lista
+          if (myId) {
+             mapaUsuarios.set(myId, {
+                id: myId,
+                nombreCompleto: myUsername, // Se verá "josue" inicialmente
+                username: myUsername,
+                role: role
+             });
           }
 
-          // Agregar empleados
-          if (Array.isArray(listaEmpleados)) {
-              listaEmpleados.forEach(emp => {
-                  if (emp.active) { // Solo activos
-                      mapaUsuarios.set(emp.id, {
-                          id: emp.id,
-                          nombreCompleto: emp.nombreCompleto || emp.username,
-                          username: emp.username,
-                          role: emp.role
-                      });
-                  }
-              });
+          // 2. INTENTAR MEJORAR TUS DATOS (Obtener Nombre Completo real)
+          try {
+             // Intentamos obtener tu perfil completo. Si falla, nos quedamos con los datos del token.
+             const me = await apiGet<any>("/auth/me");
+             if (me && me.id === myId) {
+                 mapaUsuarios.set(myId, {
+                    id: me.id,
+                    nombreCompleto: me.nombreCompleto || me.username,
+                    username: me.username,
+                    role: me.role
+                 });
+             }
+          } catch (e) {
+             // Si falla /auth/me, no pasa nada, ya te agregamos en el paso 1 con el token
+             console.log("Usando datos de sesión para el director.");
           }
 
-          // 4. Convertir a array y FILTRAR roles permitidos
+          // 3. AGREGAR EMPLEADOS (Desde la BD)
+          try {
+             const listaEmpleados = await apiGet<any[]>("/users");
+             if (Array.isArray(listaEmpleados)) {
+                listaEmpleados.forEach(emp => {
+                    if (emp.active) { 
+                        mapaUsuarios.set(emp.id, {
+                            id: emp.id,
+                            nombreCompleto: emp.nombreCompleto || emp.username,
+                            username: emp.username,
+                            role: emp.role
+                        });
+                    }
+                });
+             }
+          } catch (error) {
+             console.log("No se pudieron cargar empleados", error);
+          }
+
+          // 4. FILTRAR Y GUARDAR
           const todos = Array.from(mapaUsuarios.values());
           const rolesValidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
           
           const usuariosFinales = todos.filter(u => 
               u.role && rolesValidos.includes(u.role.toUpperCase())
           );
+          
+          // Ordenar: Primero el Director, luego los demás alfabéticamente
+          usuariosFinales.sort((a, b) => {
+              if (a.role === "DIRECTOR") return -1;
+              if (b.role === "DIRECTOR") return 1;
+              return a.nombreCompleto.localeCompare(b.nombreCompleto);
+          });
 
           setUsers(usuariosFinales);
       }
@@ -183,12 +198,11 @@ export default function ObrasPage() {
   };
 
   // ---------------------------------------------------------------------
-  // 2. FILTROS VISUALES (Tabla)
+  // 2. FILTROS VISUALES
   // ---------------------------------------------------------------------
   const filteredObras = useMemo(() => {
     let list = obras;
     
-    // Buscador
     if (searchTerm) {
       const s = searchTerm.toLowerCase();
       list = list.filter(o => 
@@ -196,7 +210,6 @@ export default function ObrasPage() {
       );
     }
 
-    // Permisos: Si no soy admin, solo veo lo mío
     if (currentUserRole !== "ADMIN" && currentUserId) {
         list = list.filter(o => 
             o.creatorId === currentUserId || 
@@ -207,12 +220,12 @@ export default function ObrasPage() {
   }, [obras, currentUserRole, currentUserId, searchTerm]);
 
   // ---------------------------------------------------------------------
-  // 3. MANEJO DEL FORMULARIO
+  // 3. HANDLERS
   // ---------------------------------------------------------------------
   const handleOpenRegister = () => {
     setErrorMsg("");
     setEditingId(null);
-    // Pre-seleccionar al usuario actual si está en la lista válida
+    // Pre-seleccionar al usuario actual (TÚ) por defecto
     if (currentUserId && users.some(u => u.id === currentUserId)) {
         setForm({ ...initialFormState, responsablesId: [currentUserId] });
     } else {
@@ -234,13 +247,12 @@ export default function ObrasPage() {
         });
         setOpen(true);
     } catch (e) {
-        toast.error("No se pudo cargar la información de la obra.");
+        toast.error("Error al cargar obra.");
     }
   };
 
   const handleSubmit = async () => {
     setErrorMsg("");
-    // Validaciones
     if (!form.prefijo || !form.nombre) {
         setErrorMsg("El Prefijo y el Nombre son obligatorios.");
         return;
@@ -260,13 +272,13 @@ export default function ObrasPage() {
     try {
         if (editingId) {
             await apiPatch(`/obras/${editingId}`, payload);
-            toast.success("Obra actualizada correctamente.");
+            toast.success("Obra actualizada.");
         } else {
             await apiPost("/obras", payload);
-            toast.success("Obra creada exitosamente.");
+            toast.success("Obra creada.");
         }
         setOpen(false);
-        fetchData(); // Recargar la tabla
+        fetchData();
     } catch (err: any) {
         console.error(err);
         toast.error(err?.response?.data?.message || "Error al guardar.");
@@ -274,7 +286,7 @@ export default function ObrasPage() {
   };
 
   const handleDelete = async (id: number) => {
-      if (!confirm("¿Seguro que deseas eliminar esta obra?")) return;
+      if (!confirm("¿Eliminar esta obra?")) return;
       try {
           await apiDelete(`/obras/${id}`);
           toast.success("Obra eliminada.");
@@ -284,7 +296,6 @@ export default function ObrasPage() {
       }
   };
 
-  // Utility
   const getStatusColor = (st?: string | null) => {
       if (st === "FINALIZADA") return "bg-green-100 text-green-700";
       if (st === "EN_PROGRESO") return "bg-blue-100 text-blue-700";
@@ -292,11 +303,10 @@ export default function ObrasPage() {
   }
 
   // ---------------------------------------------------------------------
-  // 4. RENDER (HTML)
+  // 4. RENDER
   // ---------------------------------------------------------------------
   return (
     <main className="p-4 md:p-8">
-      {/* Header */}
       <div className="flex flex-col md:flex-row justify-between items-center mb-6 gap-4">
           <h1 className="text-2xl font-bold text-[#0C2D57]">Gestión de Obras</h1>
           <div className="flex gap-2 w-full md:w-auto">
@@ -311,7 +321,6 @@ export default function ObrasPage() {
           </div>
       </div>
 
-      {/* Buscador */}
       <div className="relative mb-6 max-w-md">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
           <Input 
@@ -322,7 +331,6 @@ export default function ObrasPage() {
           />
       </div>
 
-      {/* Tabla */}
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hidden md:block">
           <table className="w-full text-sm">
               <thead className="bg-gray-50 text-gray-700 text-left">
@@ -369,7 +377,7 @@ export default function ObrasPage() {
           </table>
       </div>
 
-      {/* Mobile Card View */}
+      {/* Mobile Cards */}
       <div className="md:hidden space-y-3">
          {filteredObras.map(o => (
              <Card key={o.id} className="border border-gray-200">
@@ -426,7 +434,7 @@ export default function ObrasPage() {
 
                   <div>
                       <label className="text-xs font-semibold text-gray-500 mb-1 block">
-                          Responsables ({users.length} disponibles)
+                          Responsables ({users.length})
                       </label>
                       <Select onValueChange={(v) => {
                           const id = Number(v);
@@ -446,14 +454,14 @@ export default function ObrasPage() {
                           </SelectContent>
                       </Select>
                       
-                      {/* Chips de seleccionados */}
                       <div className="flex flex-wrap gap-2 mt-2">
                           {form.responsablesId.map(id => {
                               const u = users.find(x => x.id === id);
-                              if (!u) return null;
+                              // Fallback visual si el usuario está en la lista de IDs pero no cargó en users
+                              const displayName = u ? u.nombreCompleto : `Usuario #${id}`;
                               return (
                                   <Badge key={id} variant="secondary" className="flex items-center gap-1 pr-1">
-                                      {u.nombreCompleto}
+                                      {displayName}
                                       <button 
                                           onClick={() => setForm({...form, responsablesId: form.responsablesId.filter(x => x !== id)})}
                                           className="hover:bg-gray-300 rounded-full p-0.5"
@@ -478,7 +486,7 @@ export default function ObrasPage() {
                   {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
 
                   <Button onClick={handleSubmit} className="w-full bg-[#0C2D57] hover:bg-[#1e457a]">
-                      {editingId ? "Guardar Cambios" : "Crear Obra"}
+                      {editingId ? "Guardar Cambios" : "Agregar"}
                   </Button>
               </div>
           </DialogContent>
