@@ -6,7 +6,6 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { User } from "@/types/user";
 import {
   Dialog,
   DialogContent,
@@ -20,7 +19,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Search, RefreshCw, Pencil, Trash2, Construction, Users } from "lucide-react";
+import { Search, RefreshCw, Pencil, Trash2, Construction, Users, Check } from "lucide-react";
 import Cookies from "js-cookie";
 import { jwtDecode } from "jwt-decode";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -34,7 +33,7 @@ interface Responsable {
   id: number;
   nombreCompleto: string;
   username: string;
-  role: string; // ✅ Agregamos el rol para mostrarlo en el select
+  role: string;
 }
 
 interface Obra {
@@ -74,8 +73,12 @@ export default function ObrasPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
   const [form, setForm] = useState<FormState>(initialFormState);
+  
+  // Estado del usuario actual
   const [currentUserId, setCurrentUserId] = useState<number | null>(null);
   const [currentUserRole, setCurrentUserRole] = useState<string | null>(null);
+  const [currentUserData, setCurrentUserData] = useState<Responsable | null>(null);
+
   const [searchTerm, setSearchTerm] = useState("");
 
   // ---------------------------------------------------------------------
@@ -85,9 +88,13 @@ export default function ObrasPage() {
   useEffect(() => {
     const token = Cookies.get("svtec_token");
     if (token) {
-      const decoded: any = jwtDecode(token);
-      setCurrentUserId(decoded.sub);
-      setCurrentUserRole(decoded.role);
+      try {
+        const decoded: any = jwtDecode(token);
+        setCurrentUserId(decoded.sub || decoded.id);
+        setCurrentUserRole(decoded.role);
+      } catch (e) {
+        console.error("Error decodificando token", e);
+      }
     }
     fetchData();
   }, []);
@@ -95,56 +102,106 @@ export default function ObrasPage() {
   const fetchData = async () => {
     setLoading(true);
     try {
-      if (currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") {
-        // Obtenemos usuarios del backend (User[] debe tener la propiedad 'role')
-        const usersRes = await apiGet<any[]>("/users"); // Usamos any por si tu tipo User no tiene 'role' definido en el frontend aun
-        
-        // ✅ FILTRO DE ROLES PERMITIDOS
-        // Excluimos 'VISITANTE' y 'ADMIN' (a menos que quieras admin, agrégalo aquí)
-        const rolesPermitidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
-
-        setUsers(
-          usersRes
-            .filter((u) => u.active && rolesPermitidos.includes(u.role))
-            .map((u) => ({
-              id: u.id,
-              // ✅ Usamos nombreCompleto real, o username si no tiene
-              nombreCompleto: u.nombreCompleto || u.username, 
-              username: u.username,
-              role: u.role
-            }))
-        );
-      }
-
+      // 1. Cargar Obras
       const obrasRes = await apiGet<Obra[]>("/obras");
       setObras(obrasRes);
+
+      // 2. Cargar Usuarios (Solo si es Admin o Director)
+      const token = Cookies.get("svtec_token");
+      let role = "";
+      if (token) {
+         const decoded: any = jwtDecode(token);
+         role = decoded.role;
+      }
+
+      if (role === "ADMIN" || role === "DIRECTOR") {
+        // A) Traer empleados (Endpoint /users)
+        let empleados: any[] = [];
+        try {
+          empleados = await apiGet<any[]>("/users");
+        } catch (error) {
+          console.error("Error cargando empleados:", error);
+        }
+
+        // B) Traer datos de MI MISMO (El Director/Admin actual)
+        let yo: any = null;
+        try {
+          yo = await apiGet<any>("/auth/me");
+          if (yo) {
+             setCurrentUserData({
+                 id: yo.id,
+                 username: yo.username,
+                 nombreCompleto: yo.nombreCompleto || yo.username,
+                 role: yo.role
+             });
+          }
+        } catch (error) {
+          console.error("Error cargando perfil propio:", error);
+        }
+
+        // C) UNIR LISTAS (Yo + Empleados) asegurando no duplicados por ID
+        const mapaUsuarios = new Map();
+
+        // Primero me agrego a mí mismo (Prioridad)
+        if (yo && yo.active) {
+          mapaUsuarios.set(yo.id, yo);
+        }
+
+        // Luego agrego a los empleados
+        if (Array.isArray(empleados)) {
+          empleados.forEach((emp) => {
+            if (emp.active) {
+                mapaUsuarios.set(emp.id, emp);
+            }
+          });
+        }
+
+        const todos = Array.from(mapaUsuarios.values());
+
+        // D) FILTRAR POR ROL (Permitir Director, Supervisor y Residente)
+        const rolesPermitidos = ["DIRECTOR", "SUPERVISOR", "RESIDENTE"];
+        
+        const usuariosFiltrados = todos
+            .filter(u => rolesPermitidos.includes(u.role))
+            .map(u => ({
+                id: u.id,
+                nombreCompleto: u.nombreCompleto || u.username,
+                username: u.username,
+                role: u.role
+            }));
+
+        setUsers(usuariosFiltrados);
+        
+        console.log("Usuarios cargados para el select:", usuariosFiltrados);
+      }
+
     } catch (err) {
       console.error(err);
-      toast.error("Error al cargar datos del módulo de Obras.");
+      toast.error("Error al cargar datos.");
     } finally {
       setLoading(false);
     }
   };
 
   // ---------------------------------------------------------------------
-  // LÓGICA DE FILTRADO
+  // LÓGICA DE FILTRADO VISUAL (PARA LA TABLA DE OBRAS)
   // ---------------------------------------------------------------------
 
   const filteredObras = useMemo(() => {
-    if (!currentUserRole) return [];
-
-    const isAdmin = currentUserRole === "ADMIN";
     let filtered = obras;
 
+    // Filtro por texto
     if (searchTerm) {
+      const lower = searchTerm.toLowerCase();
       filtered = filtered.filter(
         (obra) =>
-          obra.nombre.toLowerCase().includes(searchTerm.toLowerCase()) ||
-          obra.prefijo.toLowerCase().includes(searchTerm.toLowerCase())
+          obra.nombre.toLowerCase().includes(lower) ||
+          obra.prefijo.toLowerCase().includes(lower)
       );
     }
 
-    if (!isAdmin) {
+    // Filtro por Rol (Si no es Admin, solo ve lo suyo)
+    if (currentUserRole !== "ADMIN" && currentUserId) {
       filtered = filtered.filter(
         (obra) =>
           obra.creatorId === currentUserId ||
@@ -156,15 +213,14 @@ export default function ObrasPage() {
   }, [obras, currentUserRole, currentUserId, searchTerm]);
 
   // ---------------------------------------------------------------------
-  // LÓGICA DEL FORMULARIO
+  // FORMULARIO
   // ---------------------------------------------------------------------
 
   const handleOpenRegister = () => {
     setErrorMsg("");
     setEditingId(null);
-
-    // Al crear, pre-seleccionamos al usuario actual si es un rol válido
-    if (currentUserId !== null) {
+    // Al abrir, por defecto me selecciono a mí mismo si soy válido
+    if (currentUserId && users.find(u => u.id === currentUserId)) {
       setForm({ ...initialFormState, responsablesId: [currentUserId] });
     } else {
       setForm(initialFormState);
@@ -179,43 +235,28 @@ export default function ObrasPage() {
 
     try {
       const res = await apiGet<Obra>(`/obras/${obra.id}`);
-
       setForm({
         prefijo: res.prefijo,
         nombre: res.nombre,
         observaciones: res.observaciones || "",
         responsablesId: res.responsables.map((r) => r.id),
       });
-
       setOpen(true);
     } catch (err) {
-      toast.error("Error al cargar los datos de la obra.");
+      toast.error("Error al cargar obra.");
     } finally {
       setLoading(false);
     }
   };
 
-  const validateForm = () => {
-    setErrorMsg("");
-    if (!form.prefijo || !form.nombre || form.responsablesId.length === 0) {
-      setErrorMsg(
-        "Prefijo, Nombre de Obra y al menos un Responsable son obligatorios."
-      );
-      return false;
-    }
-    if (form.prefijo.length > 10) {
-      setErrorMsg("El Prefijo debe ser corto (máx. 10 caracteres).");
-      return false;
-    }
-    return true;
-  };
-
   const handleSubmit = async () => {
     setErrorMsg("");
+    if (!form.prefijo || !form.nombre || form.responsablesId.length === 0) {
+      setErrorMsg("Debes completar Prefijo, Nombre y asignar al menos un Responsable.");
+      return;
+    }
 
-    if (!validateForm()) return;
-
-    const dataToSubmit = {
+    const payload = {
       prefijo: form.prefijo,
       nombre: form.nombre,
       responsablesId: form.responsablesId,
@@ -224,383 +265,200 @@ export default function ObrasPage() {
 
     try {
       if (editingId) {
-        await apiPatch(`/obras/${editingId}`, dataToSubmit);
-        toast.success("✅ Obra actualizada correctamente.");
+        await apiPatch(`/obras/${editingId}`, payload);
+        toast.success("Obra actualizada.");
       } else {
-        await apiPost("/obras", dataToSubmit);
-        toast.success("✅ Obra creada exitosamente.");
+        await apiPost("/obras", payload);
+        toast.success("Obra creada.");
       }
-
-      await fetchData();
       setOpen(false);
-      setEditingId(null);
-      setForm(initialFormState);
+      fetchData(); // Recargar lista
     } catch (err: any) {
-      console.error("❌ Error guardando obra:", err?.response?.data || err);
-      toast.error(
-        err?.response?.data?.message || "❌ No se pudo guardar la obra."
-      );
+      console.error(err);
+      toast.error(err?.response?.data?.message || "Error al guardar.");
     }
   };
 
-  const handleDelete = async (id: number, nombre: string) => {
-    if (
-      !confirm(
-        `¿Deseas eliminar la obra "${nombre}"? Esta acción no se puede deshacer.`
-      )
-    )
-      return;
-
+  const handleDelete = async (id: number) => {
+    if (!confirm("¿Eliminar esta obra?")) return;
     try {
       await apiDelete(`/obras/${id}`);
-      toast.success(`🗑️ Obra "${nombre}" eliminada.`);
+      toast.success("Obra eliminada.");
       fetchData();
     } catch (err) {
-      console.error("Error al eliminar:", err);
-      toast.error(
-        "No se pudo eliminar la obra. Revise si tiene registros asociados."
-      );
+      toast.error("No se pudo eliminar.");
     }
   };
 
-  const formatResponsables = (responsables: Responsable[]) => {
-    if (!responsables || responsables.length === 0) return "-";
-    // Muestra Nombre Completo si existe, si no el username
-    const names = responsables.map((r) => r.nombreCompleto || r.username);
-    if (names.length > 3) {
-      return `${names.slice(0, 3).join(", ")} (+${names.length - 3} más)`;
-    }
+  // Helpers visuales
+  const getStatusColor = (estado?: string | null) => {
+    if (estado === "FINALIZADA") return "bg-green-100 text-green-700";
+    if (estado === "EN_PROGRESO") return "bg-blue-100 text-blue-700";
+    return "bg-yellow-100 text-yellow-700";
+  }
+
+  const formatResponsables = (list: Responsable[]) => {
+    if (!list || list.length === 0) return "-";
+    const names = list.map(r => r.nombreCompleto || r.username);
     return names.join(", ");
   };
 
-  const getStatusColor = (estado?: string | null) => {
-    switch(estado) {
-        case "FINALIZADA": return "bg-green-100 text-green-700";
-        case "EN_PROGRESO": return "bg-blue-100 text-blue-700";
-        default: return "bg-yellow-100 text-yellow-700";
-    }
-  }
-
   // ---------------------------------------------------------------------
-  // RENDERIZADO
+  // RENDER
   // ---------------------------------------------------------------------
-
-  const canModify =
-    currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
-
-  const canDelete =
-    currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR";
-
   return (
-    // ✅ Padding responsivo
     <main className="p-4 md:p-8">
-      {/* ENCABEZADO ADAPTABLE */}
-      <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4 md:gap-0">
-        <h1 className="text-2xl md:text-3xl font-bold text-[#0C2D57]">Índice de Obras</h1>
-        
-        <div className="flex gap-2 w-full md:w-auto">
-          <Button
-            variant="outline"
-            onClick={fetchData}
-            disabled={loading}
-            title="Refrescar"
-          >
-            <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+      {/* HEADER */}
+      <div className="flex justify-between items-center mb-6">
+        <h1 className="text-2xl font-bold text-[#0C2D57]">Obras</h1>
+        <div className="flex gap-2">
+          <Button variant="outline" size="icon" onClick={fetchData} title="Recargar">
+            <RefreshCw className={loading ? "animate-spin" : ""} />
           </Button>
-          {canModify && (
-            <Button
-              onClick={handleOpenRegister}
-              className="bg-[#0C2D57] hover:bg-[#113a84] flex-1 md:flex-none"
-            >
+          {(currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") && (
+            <Button onClick={handleOpenRegister} className="bg-[#0C2D57]">
               + Nueva Obra
             </Button>
           )}
         </div>
       </div>
 
-      {/* BÚSQUEDA */}
-      <div className="flex flex-col md:flex-row items-start md:items-center gap-4 mb-6">
-        <div className="relative w-full max-w-md">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-500" />
-          <Input
-            placeholder="Buscar por Prefijo o Nombre de Obra..."
-            value={searchTerm}
-            onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10"
-          />
-        </div>
-        {loading && <p className="text-sm text-gray-500 animate-pulse">Cargando datos...</p>}
+      {/* BUSCADOR */}
+      <div className="mb-6 relative max-w-md">
+         <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-gray-400" />
+         <Input 
+           placeholder="Buscar obra..." 
+           className="pl-9"
+           value={searchTerm}
+           onChange={e => setSearchTerm(e.target.value)}
+         />
       </div>
 
-      {/* 📱 VISTA MÓVIL: TARJETAS */}
-      <div className="grid grid-cols-1 gap-4 md:hidden">
-        {filteredObras.length === 0 ? (
-          <p className="text-center text-gray-500 py-4">
-            No se encontraron obras o no tienes asignadas.
-          </p>
-        ) : (
-          filteredObras.map((obra) => (
-            <Card key={obra.id} className="shadow-sm border border-gray-200">
-              <CardHeader className="pb-2 flex flex-row justify-between items-start">
-                <div className="flex items-center gap-3 w-full">
-                  <div className="bg-orange-50 p-2 rounded-full flex-shrink-0">
-                    <Construction className="h-6 w-6 text-orange-600" />
-                  </div>
-                  <div className="overflow-hidden pr-2">
-                    {/* ✅ MOSTRAR EL ID CON # */}
-                    <p className="text-xs text-gray-500 font-bold mb-0.5">#{obra.id}</p>
-                    
-                    <h3 className="font-bold text-gray-800 text-lg truncate">{obra.nombre}</h3>
-                    <div className="flex items-center gap-2 mt-1">
-                        <Badge variant="outline" className="text-xs font-mono bg-gray-50">
-                            {obra.prefijo}
-                        </Badge>
-                        <span className={`text-[10px] px-2 py-0.5 rounded-full font-bold ${getStatusColor(obra.estado)}`}>
-                            {(obra.estado || "PENDIENTE").replace("_", " ")}
-                        </span>
-                    </div>
-                  </div>
-                </div>
-              </CardHeader>
-              <CardContent className="pt-2 text-sm space-y-3">
-                <div className="flex items-start gap-2 text-gray-600">
-                  <Users className="h-4 w-4 mt-0.5 text-gray-400 shrink-0" />
-                  <span className="text-xs line-clamp-2">
-                    {formatResponsables(obra.responsables)}
-                  </span>
-                </div>
-
-                {obra.observaciones && (
-                  <div className="bg-gray-50 p-2 rounded text-gray-600 text-xs italic">
-                    "{obra.observaciones}"
-                  </div>
-                )}
-                
-                <div className="flex gap-2 pt-2 border-t mt-2">
-                  {canModify && (
-                    <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="flex-1"
-                        onClick={() => handleOpenEdit(obra)}
-                    >
-                        <Pencil className="h-4 w-4 mr-2 text-blue-600" /> Editar
-                    </Button>
-                  )}
-                  {canDelete && (
-                    <Button
-                        size="sm"
-                        variant="destructive"
-                        className="flex-1"
-                        onClick={() => handleDelete(obra.id, obra.nombre)}
-                    >
-                        <Trash2 className="h-4 w-4 mr-2" /> Eliminar
-                    </Button>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          ))
-        )}
-      </div>
-
-      {/* 💻 VISTA ESCRITORIO: TABLA */}
-      <div className="hidden md:block bg-white rounded-lg shadow-lg overflow-hidden border border-gray-200">
-        <table className="w-full border-collapse text-sm">
+      {/* LISTADO (CARD MOBILE / TABLE DESKTOP) */}
+      <div className="hidden md:block bg-white rounded-lg shadow border overflow-hidden">
+        <table className="w-full text-sm">
           <thead className="bg-gray-100 text-gray-700 text-left">
-            <tr>
-              <th className="p-3 font-medium w-[80px]">ID</th>
-              <th className="p-3 font-medium w-[100px]">Prefijo</th>
-              <th className="p-3 font-medium">Nombre Obra</th>
-              <th className="p-3 font-medium w-[120px]">Estado</th>
-              <th className="p-3 font-medium">Responsables</th>
-              <th className="p-3 font-medium">Observaciones</th>
-              <th className="p-3 font-medium text-center w-[120px]">
-                Acciones
-              </th>
-            </tr>
+             <tr>
+               <th className="p-3">ID</th>
+               <th className="p-3">Prefijo</th>
+               <th className="p-3">Nombre</th>
+               <th className="p-3">Estado</th>
+               <th className="p-3">Responsables</th>
+               <th className="p-3 text-right">Acciones</th>
+             </tr>
           </thead>
           <tbody>
             {filteredObras.length === 0 ? (
-              <tr className="border-t">
-                <td colSpan={7} className="text-center py-8 text-gray-500">
-                  No se encontraron obras o no tienes obras asignadas.
-                </td>
-              </tr>
+               <tr><td colSpan={6} className="p-8 text-center text-gray-500">Sin obras.</td></tr>
             ) : (
-              filteredObras.map((obra) => (
-                <tr
-                  key={obra.id}
-                  className="border-t hover:bg-gray-50 transition-colors"
-                >
-                  <td className="p-3 font-medium text-gray-800">{obra.id}</td>
-                  <td className="p-3 font-semibold">{obra.prefijo}</td>
-                  <td className="p-3">{obra.nombre}</td>
-                  <td className="p-3">
-                    <span
-                      className={`px-2 py-1 rounded-md text-xs font-semibold ${getStatusColor(obra.estado)}`}
-                    >
-                      {(obra.estado || "NO_ESTADO").replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="p-3 text-xs">
-                    {formatResponsables(obra.responsables)}
-                  </td>
-                  <td className="p-3 text-xs">
-                    {obra.observaciones || "-"}
-                  </td>
-
-                  <td className="p-3 text-center">
-                    <div className="flex justify-center gap-2">
-                      {canModify && (
-                        <Button
-                          variant="outline"
-                          size="icon"
-                          onClick={() => handleOpenEdit(obra)}
-                        >
-                          <Pencil className="h-4 w-4" />
-                        </Button>
-                      )}
-
-                      {canDelete && (
-                        <Button
-                          variant="destructive"
-                          size="icon"
-                          onClick={() => handleDelete(obra.id, obra.nombre)}
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+               filteredObras.map(o => (
+                 <tr key={o.id} className="border-t hover:bg-gray-50">
+                    <td className="p-3 font-bold text-gray-600">#{o.id}</td>
+                    <td className="p-3"><Badge variant="outline">{o.prefijo}</Badge></td>
+                    <td className="p-3 font-medium">{o.nombre}</td>
+                    <td className="p-3">
+                      <span className={`px-2 py-1 rounded-full text-xs font-bold ${getStatusColor(o.estado)}`}>
+                        {o.estado?.replace("_", " ") || "PENDIENTE"}
+                      </span>
+                    </td>
+                    <td className="p-3 text-gray-600">{formatResponsables(o.responsables)}</td>
+                    <td className="p-3 text-right flex justify-end gap-2">
+                       <Button size="icon" variant="ghost" onClick={() => handleOpenEdit(o)}>
+                          <Pencil className="h-4 w-4 text-blue-600" />
+                       </Button>
+                       <Button size="icon" variant="ghost" onClick={() => handleDelete(o.id)}>
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                       </Button>
+                    </td>
+                 </tr>
+               ))
             )}
           </tbody>
         </table>
       </div>
 
-      {/* MODAL CREAR/EDITAR */}
+      {/* MODAL */}
       <Dialog open={open} onOpenChange={setOpen}>
-        <DialogContent className="max-w-[90%] md:max-w-md rounded-lg">
+        <DialogContent>
           <DialogHeader>
-            <DialogTitle>
-              {editingId ? "Editar Obra" : "Nuevo Registro de Obra"}
-            </DialogTitle>
+            <DialogTitle>{editingId ? "Editar Obra" : "Nueva Obra"}</DialogTitle>
           </DialogHeader>
-
-          <div className="flex flex-col gap-4">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                placeholder="Prefijo*"
-                value={form.prefijo}
-                maxLength={10}
-                onChange={(e) =>
-                  setForm({
-                    ...form,
-                    prefijo: e.target.value.toUpperCase(),
-                  })
-                }
-                required
-              />
-              <Input
-                placeholder="Nombre Obra*"
-                value={form.nombre}
-                onChange={(e) =>
-                  setForm({ ...form, nombre: e.target.value })
-                }
-                required
-              />
+          
+          <div className="space-y-4 py-2">
+            <div className="grid grid-cols-2 gap-4">
+               <Input 
+                 placeholder="Prefijo (Ej: ED-01)" 
+                 value={form.prefijo}
+                 onChange={e => setForm({...form, prefijo: e.target.value.toUpperCase()})}
+               />
+               <Input 
+                 placeholder="Nombre de la Obra" 
+                 value={form.nombre}
+                 onChange={e => setForm({...form, nombre: e.target.value})}
+               />
             </div>
 
+            {/* SELECTOR MULTIPLE DE RESPONSABLES */}
             <div>
-              <label className="text-sm font-medium">Responsables*</label>
-              <Select
-                value={
-                  form.responsablesId.length > 0
-                    ? form.responsablesId[0].toString()
-                    : ""
-                }
-                onValueChange={(value) => {
-                  const id = parseInt(value);
-                  if (!form.responsablesId.includes(id)) {
-                    setForm({
-                      ...form,
-                      responsablesId: [...form.responsablesId, id],
-                    });
-                  }
-                }}
-              >
-                <SelectTrigger className="w-full">
-                  <SelectValue placeholder="Seleccione responsables..." />
-                </SelectTrigger>
-                <SelectContent>
-                  {/* ✅ AQUÍ SE MUESTRAN LOS USUARIOS FILTRADOS */}
-                  {users.map((user) => (
-                    <SelectItem
-                      key={user.id}
-                      value={user.id.toString()}
-                      disabled={form.responsablesId.includes(user.id)}
-                    >
-                      {/* EJ: Juan Perez (Residente) */}
-                      {user.nombreCompleto} ({user.role}) 
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+               <label className="text-sm font-medium mb-1 block">Responsables:</label>
+               <Select
+                  onValueChange={(val) => {
+                     const id = Number(val);
+                     if(!form.responsablesId.includes(id)) {
+                        setForm({...form, responsablesId: [...form.responsablesId, id]});
+                     }
+                  }}
+               >
+                 <SelectTrigger>
+                    <SelectValue placeholder="Seleccionar usuario..." />
+                 </SelectTrigger>
+                 <SelectContent>
+                    {users.length === 0 ? (
+                       <SelectItem value="0" disabled>No hay usuarios disponibles</SelectItem>
+                    ) : (
+                       users.map(u => (
+                          <SelectItem 
+                             key={u.id} 
+                             value={u.id.toString()}
+                             disabled={form.responsablesId.includes(u.id)}
+                          >
+                             {u.nombreCompleto} — <span className="text-xs text-gray-500 uppercase">{u.role}</span>
+                          </SelectItem>
+                       ))
+                    )}
+                 </SelectContent>
+               </Select>
 
-              <div className="mt-2 flex flex-wrap gap-2 text-sm">
-                {form.responsablesId.map((id) => {
-                  const resp = users.find((u) => u.id === id);
-                  return resp ? (
-                    <span
-                      key={id}
-                      className="bg-gray-100 text-gray-800 px-2 py-1 rounded-full flex items-center gap-1"
-                    >
-                      {resp.nombreCompleto || resp.username}
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setForm({
-                            ...form,
-                            responsablesId: form.responsablesId.filter(
-                              (rId) => rId !== id
-                            ),
-                          })
-                        }
-                        className="ml-1 text-red-500 hover:text-red-700"
-                      >
-                        &times;
-                      </button>
-                    </span>
-                  ) : null;
-                })}
-              </div>
+               {/* CHIPS DE SELECCIONADOS */}
+               <div className="flex flex-wrap gap-2 mt-2">
+                  {form.responsablesId.map(id => {
+                     const u = users.find(user => user.id === id);
+                     if(!u) return null;
+                     return (
+                        <span key={id} className="bg-blue-50 text-blue-700 px-2 py-1 rounded-md text-xs flex items-center gap-1 border border-blue-100">
+                           {u.nombreCompleto}
+                           <button 
+                             onClick={() => setForm({...form, responsablesId: form.responsablesId.filter(x => x !== id)})}
+                             className="ml-1 hover:text-red-600"
+                           >
+                              &times;
+                           </button>
+                        </span>
+                     )
+                  })}
+               </div>
             </div>
 
-            <Textarea
-              placeholder="Observaciones"
-              value={form.observaciones}
-              onChange={(e) =>
-                setForm({ ...form, observaciones: e.target.value })
-              }
-              rows={4}
+            <Textarea 
+               placeholder="Observaciones..." 
+               value={form.observaciones}
+               onChange={e => setForm({...form, observaciones: e.target.value})}
             />
 
-            {errorMsg && (
-              <p className="text-sm text-red-500 text-center">{errorMsg}</p>
-            )}
+            {errorMsg && <p className="text-red-500 text-sm text-center">{errorMsg}</p>}
 
-            <Button
-              onClick={handleSubmit}
-              disabled={loading}
-              className="mt-2 bg-[#0C2D57] hover:bg-[#113a84]"
-            >
-              {loading
-                ? "Guardando..."
-                : editingId
-                ? "Actualizar"
-                : "Agregar"}
+            <Button onClick={handleSubmit} className="w-full bg-[#0C2D57]">
+               {editingId ? "Guardar Cambios" : "Crear Obra"}
             </Button>
           </div>
         </DialogContent>
