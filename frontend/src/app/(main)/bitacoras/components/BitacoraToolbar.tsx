@@ -1,33 +1,19 @@
 "use client";
 
-import { X, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
-
+import { X, RefreshCw, Calendar as CalendarIcon } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { Calendar } from "@/components/ui/calendar";
 
-import { format } from "date-fns";
-import { es } from "date-fns/locale";
-import { cn } from "@/lib/utils";
-
-// ✅ tipo local (sin dependencia react-day-picker)
 type DateRange = { from?: Date; to?: Date } | undefined;
-
-type Option = { label: string; value: string };
 
 interface BitacoraToolbarProps {
   // buscador
   globalFilter: string;
   setGlobalFilter: (value: string) => void;
 
-  // fechas
+  // fechas (sin popover/calendar)
   dateRange?: { from?: Date; to?: Date };
   setDateRange: (range: DateRange) => void;
-
-  // listas (opcionales)
-  obras?: Option[];
-  responsables?: Option[];
 
   // acciones globales
   loading?: boolean;
@@ -35,6 +21,23 @@ interface BitacoraToolbarProps {
   onNew?: () => void;
   onExportExcel?: () => void;
   onPrint?: () => void;
+}
+
+function toDateInputValue(d?: Date) {
+  if (!d) return "";
+  // YYYY-MM-DD
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${year}-${month}-${day}`;
+}
+
+function fromDateInputValue(v: string) {
+  if (!v) return undefined;
+  // evita problemas de TZ: construimos en local
+  const [y, m, d] = v.split("-").map(Number);
+  if (!y || !m || !d) return undefined;
+  return new Date(y, m - 1, d);
 }
 
 export function BitacoraToolbar({
@@ -48,7 +51,12 @@ export function BitacoraToolbar({
   onExportExcel,
   onPrint,
 }: BitacoraToolbarProps) {
-  const isFiltered = !!globalFilter || !!dateRange?.from;
+  const isFiltered = !!globalFilter || !!dateRange?.from || !!dateRange?.to;
+
+  const clearAll = () => {
+    setGlobalFilter("");
+    setDateRange(undefined);
+  };
 
   return (
     <div className="flex flex-col gap-4 mb-4">
@@ -65,72 +73,66 @@ export function BitacoraToolbar({
                 className="h-9 bg-white"
               />
               {loading && (
-                <p className="text-sm text-gray-500 animate-pulse mt-2">Cargando...</p>
+                <p className="text-sm text-gray-500 animate-pulse mt-2">
+                  Cargando...
+                </p>
               )}
             </div>
 
-            {/* FECHAS */}
-            <div className="flex flex-wrap items-center gap-2">
-              <Popover>
-                <PopoverTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className={cn(
-                      "h-9 justify-start text-left font-normal border-dashed",
-                      !dateRange?.from && "text-muted-foreground"
-                    )}
-                  >
-                    <CalendarIcon className="mr-2 h-4 w-4" />
-                    {dateRange?.from ? (
-                      dateRange.to ? (
-                        <>
-                          {format(dateRange.from, "dd/MM/y", { locale: es })} -{" "}
-                          {format(dateRange.to, "dd/MM/y", { locale: es })}
-                        </>
-                      ) : (
-                        format(dateRange.from, "dd/MM/y", { locale: es })
-                      )
-                    ) : (
-                      <span>Fechas</span>
-                    )}
-                  </Button>
-                </PopoverTrigger>
+            {/* FECHAS (sin popover) */}
+            <div className="flex flex-col sm:flex-row gap-2 items-start sm:items-center">
+              <div className="flex items-center gap-2">
+                <CalendarIcon className="h-4 w-4 text-gray-500" />
+                <span className="text-sm text-gray-600">Fechas</span>
+              </div>
 
-                <PopoverContent className="w-auto p-0" align="start">
-                  <Calendar
-                    initialFocus
-                    mode="range"
-                    defaultMonth={dateRange?.from}
-                    selected={dateRange as any}
-                    onSelect={(range) => setDateRange(range as any)}
-                    numberOfMonths={2}
-                    locale={es}
-                  />
-                </PopoverContent>
-              </Popover>
-
-              {/* LIMPIAR */}
-              {isFiltered && (
-                <Button
-                  variant="ghost"
-                  onClick={() => {
-                    setGlobalFilter("");
-                    setDateRange(undefined);
+              <div className="flex flex-col sm:flex-row gap-2">
+                <Input
+                  type="date"
+                  className="h-9 w-full sm:w-[170px]"
+                  value={toDateInputValue(dateRange?.from)}
+                  onChange={(e) => {
+                    const from = fromDateInputValue(e.target.value);
+                    setDateRange({ from, to: dateRange?.to });
                   }}
-                  className="h-9 px-2 lg:px-3 text-red-500 hover:text-red-700 hover:bg-red-50"
-                >
-                  Limpiar filtros
-                  <X className="ml-2 h-4 w-4" />
-                </Button>
-              )}
+                />
+                <Input
+                  type="date"
+                  className="h-9 w-full sm:w-[170px]"
+                  value={toDateInputValue(dateRange?.to)}
+                  onChange={(e) => {
+                    const to = fromDateInputValue(e.target.value);
+                    setDateRange({ from: dateRange?.from, to });
+                  }}
+                />
+              </div>
             </div>
+
+            {/* LIMPIAR */}
+            {isFiltered && (
+              <Button
+                variant="ghost"
+                onClick={clearAll}
+                className="h-9 px-2 lg:px-3 text-red-500 hover:text-red-700 hover:bg-red-50"
+              >
+                Limpiar filtros
+                <X className="ml-2 h-4 w-4" />
+              </Button>
+            )}
           </div>
 
           {/* DERECHA: BOTONES */}
           <div className="flex flex-wrap gap-2 w-full lg:w-auto lg:justify-end">
             {onRefresh && (
-              <Button variant="outline" onClick={onRefresh} disabled={loading} title="Refrescar">
-                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+              <Button
+                variant="outline"
+                onClick={onRefresh}
+                disabled={loading}
+                title="Refrescar"
+              >
+                <RefreshCw
+                  className={`h-4 w-4 ${loading ? "animate-spin" : ""}`}
+                />
               </Button>
             )}
 
