@@ -1,6 +1,5 @@
 "use client";
 
-import type { DateRange } from "react-day-picker";
 import { X, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -12,6 +11,9 @@ import { format } from "date-fns";
 import { es } from "date-fns/locale";
 import { cn } from "@/lib/utils";
 
+// ✅ tipo local (sin dependencia react-day-picker)
+type DateRange = { from?: Date; to?: Date } | undefined;
+
 type Option = { label: string; value: string };
 
 interface BitacoraToolbarProps {
@@ -20,10 +22,10 @@ interface BitacoraToolbarProps {
   setGlobalFilter: (value: string) => void;
 
   // fechas
-  dateRange?: DateRange;
-  setDateRange: (range: DateRange | undefined) => void;
+  dateRange?: { from?: Date; to?: Date };
+  setDateRange: (range: DateRange) => void;
 
-  // listas (opcionales para futuro)
+  // listas (opcionales)
   obras?: Option[];
   responsables?: Option[];
 
@@ -99,8 +101,8 @@ export function BitacoraToolbar({
                     initialFocus
                     mode="range"
                     defaultMonth={dateRange?.from}
-                    selected={dateRange}
-                    onSelect={setDateRange}
+                    selected={dateRange as any}
+                    onSelect={(range) => setDateRange(range as any)}
                     numberOfMonths={2}
                     locale={es}
                   />
