@@ -8,7 +8,16 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { DatePickerWithRange } from "@/components/ui/date-range-picker"; // Asumiendo que tienes uno o usa inputs fecha
 import { pdf } from "@react-pdf/renderer";
-import { BitacoraReportePDF } from "../../components/BitacoraPDF"; // El componente actualizado
+
+
+
+
+
+import { BitacoraReportePDF } from "../components/BitacoraPDF";
+
+
+
+
 import { toast } from "sonner";
 import { FileDown, Filter, Search } from "lucide-react";
 

@@ -12,7 +12,10 @@ import { toast } from "sonner";
 // ✅ PDF (React-PDF)
 // ❌ ELIMINADOS: jsPDF y html2canvas-pro
 import { pdf } from "@react-pdf/renderer";
-import { BitacoraPDF } from "./components/BitacoraPDF";
+
+
+
+import { BitacoraReportePDF } from "./components/BitacoraPDF";
 
 import BitacoraTable from "./components/BitacoraTable";
 import BitacoraFormModal from "./components/BitacoraFormModal";
@@ -463,34 +466,42 @@ export default function BitacorasPage() {
   // ===============================
   // 🖨️ NUEVA FUNCIÓN PDF (REEMPLAZO)
   // ===============================
-  const handleGeneratePDF = async (bitacora: Bitacora) => {
-    const toastId = toast.loading("Generando PDF...");
-    try {
-      // 1) Generamos el documento en memoria usando el componente
-      const blob = await pdf(<BitacoraPDF data={bitacora} />).toBlob();
+  
+const handleGeneratePDF = async (bitacora: Bitacora) => {
+  const toastId = toast.loading("Generando PDF...");
 
-      // 2) Creamos una URL para descargar
-      const url = URL.createObjectURL(blob);
+  try {
+    // 🟢 Generamos el PDF usando el componente correcto
+    // 🟢 IMPORTANTE: data ahora es un ARRAY
+    const blob = await pdf(
+      <BitacoraReportePDF data={[bitacora]} />
+    ).toBlob();
 
-      // 3) Forzamos la descarga
-      const link = document.createElement("a");
-      link.href = url;
-      link.download = `Bitacora_${bitacora.id}.pdf`;
-      document.body.appendChild(link);
-      link.click();
+    // 🟢 Creamos la URL del blob
+    const url = URL.createObjectURL(blob);
 
-      // 4) Limpieza
-      document.body.removeChild(link);
-      URL.revokeObjectURL(url);
+    // 🟢 Forzamos la descarga
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = `Bitacora_${bitacora.id}.pdf`;
+    document.body.appendChild(link);
+    link.click();
 
-      toast.dismiss(toastId);
-      toast.success("PDF descargado correctamente");
-    } catch (err) {
-      console.error(err);
-      toast.dismiss(toastId);
-      toast.error("Error generando PDF. Intenta de nuevo.");
-    }
-  };
+    // 🟢 Limpieza
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+
+    toast.dismiss(toastId);
+    toast.success("PDF descargado correctamente");
+  } catch (error) {
+    console.error("Error generando PDF:", error);
+    toast.dismiss(toastId);
+    toast.error("Error generando PDF. Intenta de nuevo.");
+  }
+};
+
+
+
 
   return (
     <main className="p-4 md:p-8">
