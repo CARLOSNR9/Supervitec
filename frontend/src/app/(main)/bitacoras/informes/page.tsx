@@ -21,8 +21,6 @@ export default function InformesPage() {
   const [filtroObra, setFiltroObra] = useState("todos");
   const [filtroResponsable, setFiltroResponsable] = useState("todos");
   const [filtroEstado, setFiltroEstado] = useState("todos");
-  
-  // ✅ NUEVOS FILTROS
   const [filtroVariable, setFiltroVariable] = useState("todos");
   const [filtroContratista, setFiltroContratista] = useState("todos");
 
@@ -32,8 +30,6 @@ export default function InformesPage() {
   // --- LISTAS PARA LOS DROPDOWNS ---
   const [obrasList, setObrasList] = useState<string[]>([]);
   const [respList, setRespList] = useState<string[]>([]);
-  
-  // ✅ NUEVAS LISTAS
   const [variablesList, setVariablesList] = useState<string[]>([]);
   const [contratistasList, setContratistasList] = useState<string[]>([]);
 
@@ -44,13 +40,24 @@ export default function InformesPage() {
         const res: Bitacora[] = await apiGet("/bitacoras");
         setData(res);
         
-        // Extraer listas únicas
-        const obras = Array.from(new Set(res.map(b => b.obra?.nombre).filter(Boolean)));
-        const resps = Array.from(new Set(res.map(b => b.responsable?.nombreCompleto).filter(Boolean)));
+        // ✅ CORRECCIÓN TÉCNICA:
+        // Usamos '(x): x is string => !!x' para asegurar a TypeScript que el resultado es string[]
         
-        // ✅ Extraer Variables y Contratistas únicos
-        const vars = Array.from(new Set(res.map(b => b.variable?.nombre).filter(Boolean)));
-        const contras = Array.from(new Set(res.map(b => b.contratista?.nombre).filter(Boolean)));
+        const obras = Array.from(new Set(
+          res.map(b => b.obra?.nombre).filter((x): x is string => !!x)
+        ));
+        
+        const resps = Array.from(new Set(
+          res.map(b => b.responsable?.nombreCompleto).filter((x): x is string => !!x)
+        ));
+        
+        const vars = Array.from(new Set(
+          res.map(b => b.variable?.nombre).filter((x): x is string => !!x)
+        ));
+        
+        const contras = Array.from(new Set(
+          res.map(b => b.contratista?.nombre).filter((x): x is string => !!x)
+        ));
 
         setObrasList(obras);
         setRespList(resps);
@@ -58,6 +65,7 @@ export default function InformesPage() {
         setContratistasList(contras);
 
       } catch (e) {
+        console.error(e);
         toast.error("Error cargando datos");
       } finally {
         setLoading(false);
@@ -69,23 +77,16 @@ export default function InformesPage() {
   // 2. FILTRADO EN TIEMPO REAL
   const datosFiltrados = useMemo(() => {
     return data.filter(item => {
-      // Filtros existentes
       if (filtroObra !== "todos" && item.obra?.nombre !== filtroObra) return false;
       if (filtroResponsable !== "todos" && item.responsable?.nombreCompleto !== filtroResponsable) return false;
       if (filtroEstado !== "todos" && item.estado !== filtroEstado) return false;
-      
-      // ✅ Lógica nuevos filtros
       if (filtroVariable !== "todos" && item.variable?.nombre !== filtroVariable) return false;
       if (filtroContratista !== "todos" && item.contratista?.nombre !== filtroContratista) return false;
 
-      // Filtro Fechas
       if (fechaInicio) {
-        // Normalizamos horas para comparar solo fechas si es necesario, 
-        // o comparamos timestamps directos (inicio del día)
         if (new Date(item.fechaCreacion).getTime() < new Date(fechaInicio).getTime()) return false;
       }
       if (fechaFin) {
-        // Sumamos 1 día para incluir el día final completo
         if (new Date(item.fechaCreacion).getTime() > new Date(fechaFin).getTime() + 86400000) return false;
       }
       return true;
@@ -107,6 +108,7 @@ export default function InformesPage() {
       document.body.removeChild(link);
       toast.success("Reporte descargado");
     } catch (error) {
+      console.error(error);
       toast.error("Error al generar PDF");
     } finally {
       toast.dismiss(toastId);
@@ -141,7 +143,6 @@ export default function InformesPage() {
             <Filter className="h-5 w-5" /> Filtros de Auditoría
           </div>
           
-          {/* ✅ CAMBIO: Usamos grid-cols-3 para organizar mejor los 6 filtros */}
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             
             {/* 1. OBRA */}
@@ -181,7 +182,7 @@ export default function InformesPage() {
               </Select>
             </div>
 
-            {/* ✅ 4. VARIABLE (NUEVO) */}
+            {/* 4. VARIABLE */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Variable de Control</label>
               <Select value={filtroVariable} onValueChange={setFiltroVariable}>
@@ -193,7 +194,7 @@ export default function InformesPage() {
               </Select>
             </div>
 
-            {/* ✅ 5. CONTRATISTA (NUEVO) */}
+            {/* 5. CONTRATISTA */}
             <div className="space-y-2">
               <label className="text-xs font-medium uppercase text-gray-500">Contratista</label>
               <Select value={filtroContratista} onValueChange={setFiltroContratista}>
@@ -218,7 +219,7 @@ export default function InformesPage() {
         </CardContent>
       </Card>
 
-      {/* PREVISUALIZACIÓN DETALLADA */}
+      {/* VISTA PREVIA */}
       <div className="bg-white rounded-lg shadow-md border border-gray-200 overflow-hidden">
         <div className="p-4 border-b bg-gray-50 flex justify-between items-center">
           <h2 className="font-semibold text-[#0C2D57] flex items-center gap-2">
@@ -249,15 +250,10 @@ export default function InformesPage() {
                   
                   return (
                     <tr key={bit.id} className="hover:bg-blue-50/50 transition-colors">
-                      {/* ID */}
                       <td className="px-4 py-4 font-bold text-gray-700">#{bit.id}</td>
-                      
-                      {/* FECHA */}
                       <td className="px-4 py-4 text-gray-600">
                         {new Date(bit.fechaCreacion).toLocaleDateString()}
                       </td>
-
-                      {/* DATOS CLAVE (Ahora incluye Variable y Contratista visualmente) */}
                       <td className="px-4 py-4">
                         <div className="flex flex-col gap-1">
                           <span className="font-bold text-[#0C2D57] text-xs">{bit.variable?.nombre}</span>
@@ -270,7 +266,6 @@ export default function InformesPage() {
                           <span className="text-xs font-medium text-gray-600">
                             Resp: {bit.responsable?.nombreCompleto}
                           </span>
-                          {/* Mostramos contratista si existe */}
                           {bit.contratista?.nombre && (
                              <span className="text-[10px] text-gray-400 bg-gray-100 px-1 rounded w-fit">
                                Contr: {bit.contratista.nombre}
@@ -278,15 +273,11 @@ export default function InformesPage() {
                           )}
                         </div>
                       </td>
-
-                      {/* OBSERVACIÓN */}
                       <td className="px-4 py-4">
                         <p className="text-gray-700 text-sm line-clamp-3" title={bit.observaciones || ""}>
                           {bit.observaciones || <span className="italic text-gray-400">Sin observaciones registradas...</span>}
                         </p>
                       </td>
-
-                      {/* EVIDENCIAS */}
                       <td className="px-4 py-4">
                         <div className="flex items-center gap-2">
                           {numFotos > 0 ? (
@@ -302,8 +293,6 @@ export default function InformesPage() {
                           )}
                         </div>
                       </td>
-
-                      {/* ESTADO */}
                       <td className="px-4 py-4">
                         <Badge className={bit.estado === 'ABIERTA' ? 'bg-green-500' : 'bg-red-500'}>
                           {bit.estado}
