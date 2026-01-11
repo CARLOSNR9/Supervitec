@@ -19,7 +19,8 @@ import {
   SelectItem,
   SelectValue,
 } from "@/components/ui/select";
-import { Eye, EyeOff, CheckCircle2, XCircle, Pencil, Trash2, User } from "lucide-react";
+// Agregamos ArrowUpDown, ArrowUp, ArrowDown para los iconos de ordenar
+import { Eye, EyeOff, CheckCircle2, XCircle, Pencil, Trash2, User, ArrowUpDown, ArrowUp, ArrowDown } from "lucide-react";
 import { toast } from "sonner";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -49,6 +50,12 @@ export default function UsuariosPage() {
   const [errorMsg, setErrorMsg] = useState("");
   const [showPass, setShowPass] = useState(false);
   const [showConfirm, setShowConfirm] = useState(false);
+
+  // === ESTADO PARA EL ORDENAMIENTO ===
+  const [sortConfig, setSortConfig] = useState<{ key: string | null; direction: 'asc' | 'desc' }>({
+    key: null,
+    direction: 'asc',
+  });
 
   const [validations, setValidations] = useState({
     emailValid: false,
@@ -93,6 +100,42 @@ export default function UsuariosPage() {
       toast.error("Error al cargar los usuarios");
       console.error(err);
     }
+  };
+
+  // ==== LOGICA DE ORDENAMIENTO ====
+  const handleSort = (key: string) => {
+    let direction: 'asc' | 'desc' = 'asc';
+    
+    // Si ya estamos ordenando por esta columna y es ascendente, cambiamos a descendente
+    if (sortConfig.key === key && sortConfig.direction === 'asc') {
+      direction = 'desc';
+    }
+    setSortConfig({ key, direction });
+  };
+
+  // Creamos una copia ordenada de los usuarios para renderizar
+  const sortedUsers = [...users].sort((a, b) => {
+    if (!sortConfig.key) return 0;
+    
+    const key = sortConfig.key;
+    // Manejo seguro de valores nulos
+    const valA = a[key] ? a[key].toString().toLowerCase() : "";
+    const valB = b[key] ? b[key].toString().toLowerCase() : "";
+
+    if (valA < valB) {
+      return sortConfig.direction === 'asc' ? -1 : 1;
+    }
+    if (valA > valB) {
+      return sortConfig.direction === 'asc' ? 1 : -1;
+    }
+    return 0;
+  });
+
+  // Función auxiliar para mostrar el icono de ordenamiento en el encabezado
+  const renderSortIcon = (columnKey: string) => {
+    if (sortConfig.key !== columnKey) return <ArrowUpDown className="ml-2 h-4 w-4 text-gray-400" />;
+    if (sortConfig.direction === 'asc') return <ArrowUp className="ml-2 h-4 w-4 text-gray-800" />;
+    return <ArrowDown className="ml-2 h-4 w-4 text-gray-800" />;
   };
 
   // ==== Password strength ====
@@ -303,9 +346,9 @@ export default function UsuariosPage() {
         </Button>
       </div>
 
-      {/* 📱 VISTA MÓVIL: TARJETAS (Visible solo en pantallas pequeñas) */}
+      {/* 📱 VISTA MÓVIL: TARJETAS (Usamos sortedUsers también aquí para consistencia) */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
-        {users.map((u) => (
+        {sortedUsers.map((u) => (
           <Card key={u.id} className="shadow-sm border border-gray-200">
             <CardHeader className="pb-2 flex flex-row justify-between items-start">
               <div className="flex items-center gap-3">
@@ -366,23 +409,73 @@ export default function UsuariosPage() {
         ))}
       </div>
 
-      {/* 💻 VISTA ESCRITORIO: TABLA (Oculta en móvil) */}
+      {/* 💻 VISTA ESCRITORIO: TABLA */}
       <div className="hidden md:block overflow-x-auto rounded-lg border border-gray-200 shadow-sm">
         <table className="w-full border-collapse text-sm">
           <thead className="bg-gray-100 text-gray-700 text-left">
             <tr>
-              <th className="p-3 font-medium">Usuario</th>
-              <th className="p-3 font-medium">Nombre Completo</th>
-              <th className="p-3 font-medium">Correo</th>
-              <th className="p-3 font-medium">Teléfono</th>
-              <th className="p-3 font-medium">Rol</th>
-              <th className="p-3 font-medium">Activo</th>
+              {/* ENCABEZADOS CON CLICK PARA ORDENAR */}
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('username')}
+              >
+                <div className="flex items-center">
+                  Usuario {renderSortIcon('username')}
+                </div>
+              </th>
+              
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('nombreCompleto')}
+              >
+                <div className="flex items-center">
+                  Nombre Completo {renderSortIcon('nombreCompleto')}
+                </div>
+              </th>
+
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('email')}
+              >
+                <div className="flex items-center">
+                  Correo {renderSortIcon('email')}
+                </div>
+              </th>
+
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('phone')}
+              >
+                <div className="flex items-center">
+                  Teléfono {renderSortIcon('phone')}
+                </div>
+              </th>
+
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('role')}
+              >
+                <div className="flex items-center">
+                  Rol {renderSortIcon('role')}
+                </div>
+              </th>
+
+              <th 
+                className="p-3 font-medium cursor-pointer hover:bg-gray-200 transition-colors"
+                onClick={() => handleSort('active')}
+              >
+                <div className="flex items-center">
+                  Activo {renderSortIcon('active')}
+                </div>
+              </th>
+
               <th className="p-3 font-medium text-right">Acciones</th>
             </tr>
           </thead>
 
           <tbody>
-            {users.map((u) => (
+            {/* Renderizamos sortedUsers en lugar de users */}
+            {sortedUsers.map((u) => (
               <tr
                 key={u.id}
                 className="border-t hover:bg-gray-50 transition-colors"
