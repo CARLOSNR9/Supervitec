@@ -1,6 +1,5 @@
 // ================================================================
 // Archivo: prisma/schema.prisma
-// Modelo ajustado a tu negocio actual + plan SaaS con Directores
 // ================================================================
 
 generator client {
@@ -11,7 +10,6 @@ datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
 }
-
 
 // ===================== ENUMS =====================
 
@@ -109,7 +107,7 @@ model Contratista {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
 
-  // NUEVO: relación con Director (User)
+  // Relación con Director (User)
   directorId Int?
   director   User? @relation(fields: [directorId], references: [id])
 
@@ -137,19 +135,18 @@ model User {
   obras          Obra[]         @relation("ObraResponsables")
   createdObras   Obra[]         @relation("CreatedObras")
 
-  // NUEVO: un Director puede tener muchos contratistas
+  // Relación: Un Director puede tener muchos contratistas
   contratistas Contratista[]
 
-  // Nuevas relaciones Director ↔ Obras
+  // Relación: Obras dirigidas por un Director
   obrasDirigidas Obra[] @relation("DirectorObras")
 
-  // Relación Director ↔ Usuarios del Director
+  // Relación: Jerarquía de usuarios (Director -> Sus usuarios)
   ownerDirectorId Int?
-  ownerDirector   User? @relation("DirectorUsers", fields: [ownerDirectorId], references: [id])
+  ownerDirector   User?  @relation("DirectorUsers", fields: [ownerDirectorId], references: [id])
+  subUsers        User[] @relation("DirectorUsers")
 
-  subUsers User[] @relation("DirectorUsers")
-
-  // Límites SaaS
+  // Límites SaaS (Esto es lo que faltaba en la DB)
   maxUsers Int? @default(3)
   maxObras Int? @default(1)
 }
@@ -175,28 +172,28 @@ model Obra {
   creatorId Int
   creator   User @relation("CreatedObras", fields: [creatorId], references: [id])
 
-  // ===== RELACIÓN CON DIRECTOR =====
+  // Relación con Director
   directorId Int?
   director   User? @relation("DirectorObras", fields: [directorId], references: [id])
 }
 
 // 🚀 BITÁCORAS
 model Bitacora {
-  id             Int            @id @default(autoincrement())
-  obraId         Int
-  responsableId  Int
-  estado         BitacoraEstado @default(ABIERTA)
-  fechaCreacion  DateTime       @default(now())
-  fechaMejora    DateTime?
+  id            Int            @id @default(autoincrement())
+  obraId        Int
+  responsableId Int
+  estado        BitacoraEstado @default(ABIERTA)
+  fechaCreacion DateTime       @default(now())
+  fechaMejora   DateTime?
   fechaEjecucion DateTime?
-  ubicacion      String?
-  registro       String?
-  unidad         String?
-  observaciones  String?
-  seguimiento    String?
-  contratistaId  Int?
-  latitud        Float?
-  longitud       Float?
+  ubicacion     String?
+  registro      String?
+  unidad        String?
+  observaciones String?
+  seguimiento   String?
+  contratistaId Int?
+  latitud       Float?
+  longitud      Float?
 
   variableId Int?
   variable   Variable? @relation(fields: [variableId], references: [id])
@@ -204,11 +201,11 @@ model Bitacora {
   medicionId Int?
   medicion   Medicion? @relation(fields: [medicionId], references: [id])
 
-  unidadId  Int?
+  unidadId Int?
   unidadRel Unidad? @relation("BitacoraUnidad", fields: [unidadId], references: [id])
 
-  obra        Obra         @relation(fields: [obraId], references: [id])
-  responsable User         @relation("BitacoraResponsable", fields: [responsableId], references: [id])
+  obra        Obra        @relation(fields: [obraId], references: [id])
+  responsable User        @relation("BitacoraResponsable", fields: [responsableId], references: [id])
   contratista Contratista? @relation(fields: [contratistaId], references: [id])
 
   evidencias            BitacoraMedia[]
@@ -251,18 +248,18 @@ model BitacoraSeguimientoMedia {
 
 // 🚀 ORDEN DE TRABAJO
 model OrdenTrabajo {
-  id              Int              @id @default(autoincrement())
-  nOrden          String           @unique
-  identificacion  String?
-  objetivo        String
-  tipoTrabajo     String
-  fecha           DateTime         @default(now())
-  numeroAuto      String?
-  observaciones   String?
-  carpeta         String?
-  actividad       String?
+  id             Int              @id @default(autoincrement())
+  nOrden         String           @unique
+  identificacion String?
+  objetivo       String
+  tipoTrabajo    String
+  fecha          DateTime         @default(now())
+  numeroAuto     String?
+  observaciones  String?
+  carpeta        String?
+  actividad      String?
   estadoActividad EstadoActividad?
-  estado          EstadoOT         @default(PENDIENTE)
+  estado         EstadoOT         @default(PENDIENTE)
 
   obraId Int
   obra   Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
@@ -279,7 +276,7 @@ model OrdenTrabajo {
 }
 
 model Carpeta {
-  id             Int         @id @default(autoincrement())
+  id             Int       @id @default(autoincrement())
   ordenTrabajoId Int
   nombre         String
   indice         Int
@@ -291,7 +288,7 @@ model Carpeta {
 }
 
 model Actividad {
-  id           Int                   @id @default(autoincrement())
+  id           Int        @id @default(autoincrement())
   carpetaId    Int
   nombre       String
   indice       Int
