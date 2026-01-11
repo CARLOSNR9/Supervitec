@@ -1,16 +1,10 @@
 "use client";
 
-import type { Table } from "@tanstack/react-table";
 import type { DateRange } from "react-day-picker";
-
 import { X, Calendar as CalendarIcon, RefreshCw } from "lucide-react";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-
-// Si no usas estos, puedes borrarlos
-// import { DataTableViewOptions } from "@/components/ui/data-table-view-options";
-
-import { DataTableFacetedFilter } from "./DataTableFacetedFilter";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { Calendar } from "@/components/ui/calendar";
 
@@ -20,28 +14,20 @@ import { cn } from "@/lib/utils";
 
 type Option = { label: string; value: string };
 
-interface BitacoraToolbarProps<TData> {
-  /**
-   * ✅ Opcional:
-   * - Si usas TanStack, pásalo y se activan filtros por columnas.
-   * - Si NO usas TanStack (tu caso actual en BitacoraTable HTML),
-   *   NO lo pases y NO se rompe: solo mostrará buscador/fechas/botones.
-   */
-  table?: Table<TData>;
-
-  /** Buscador */
+interface BitacoraToolbarProps {
+  // buscador
   globalFilter: string;
   setGlobalFilter: (value: string) => void;
 
-  /** Rango de fechas */
+  // fechas
   dateRange?: DateRange;
   setDateRange: (range: DateRange | undefined) => void;
 
-  /** Listas para los filtros (si hay table y columnas) */
+  // listas (opcionales para futuro)
   obras?: Option[];
   responsables?: Option[];
 
-  /** ✅ Acciones globales (para integrarlo a tu BitacoraTable) */
+  // acciones globales
   loading?: boolean;
   onRefresh?: () => void;
   onNew?: () => void;
@@ -49,93 +35,40 @@ interface BitacoraToolbarProps<TData> {
   onPrint?: () => void;
 }
 
-export function BitacoraToolbar<TData>({
-  table,
+export function BitacoraToolbar({
   globalFilter,
   setGlobalFilter,
   dateRange,
   setDateRange,
-  obras = [],
-  responsables = [],
   loading = false,
   onRefresh,
   onNew,
   onExportExcel,
   onPrint,
-}: BitacoraToolbarProps<TData>) {
-  const hasTable = !!table;
-
-  // Si existe table, revisa filtros de columnas. Si no, solo global/dateRange.
-  const hasColumnFilters = hasTable ? table.getState().columnFilters.length > 0 : false;
-
-  const isFiltered = hasColumnFilters || !!globalFilter || !!dateRange?.from;
-
-  const clearAll = () => {
-    if (hasTable) table.resetColumnFilters();
-    setGlobalFilter("");
-    setDateRange(undefined);
-  };
-
-  const renderDateLabel = () => {
-    if (!dateRange?.from) return <span>Fechas</span>;
-    if (dateRange.to) {
-      return (
-        <>
-          {format(dateRange.from, "dd/MM/y", { locale: es })} -{" "}
-          {format(dateRange.to, "dd/MM/y", { locale: es })}
-        </>
-      );
-    }
-    return format(dateRange.from, "dd/MM/y", { locale: es });
-  };
+}: BitacoraToolbarProps) {
+  const isFiltered = !!globalFilter || !!dateRange?.from;
 
   return (
     <div className="flex flex-col gap-4 mb-4">
-      {/* Toolbar container */}
       <div className="bg-white border border-gray-200 rounded-2xl shadow-sm p-3">
         <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
-          {/* IZQUIERDA: Buscador + filtros */}
+          {/* IZQUIERDA */}
           <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:flex-1">
-            {/* BUSCADOR GENERAL */}
-            <div className="w-full lg:w-[320px]">
+            {/* BUSCADOR */}
+            <div className="w-full lg:w-[350px]">
               <Input
                 placeholder="Buscar en todas las bitácoras..."
                 value={globalFilter ?? ""}
-                onChange={(event) => setGlobalFilter(event.target.value)}
+                onChange={(e) => setGlobalFilter(e.target.value)}
                 className="h-9 bg-white"
               />
+              {loading && (
+                <p className="text-sm text-gray-500 animate-pulse mt-2">Cargando...</p>
+              )}
             </div>
 
-            {/* FILTROS (solo si hay table y columnas) */}
+            {/* FECHAS */}
             <div className="flex flex-wrap items-center gap-2">
-              {hasTable && table.getColumn("obra") && (
-                <DataTableFacetedFilter
-                  column={table.getColumn("obra")}
-                  title="Obra"
-                  options={obras}
-                />
-              )}
-
-              {hasTable && table.getColumn("estado") && (
-                <DataTableFacetedFilter
-                  column={table.getColumn("estado")}
-                  title="Estado"
-                  options={[
-                    { label: "Abierta", value: "ABIERTA" },
-                    { label: "Cerrada", value: "CERRADA" },
-                  ]}
-                />
-              )}
-
-              {hasTable && table.getColumn("responsable") && (
-                <DataTableFacetedFilter
-                  column={table.getColumn("responsable")}
-                  title="Responsable"
-                  options={responsables}
-                />
-              )}
-
-              {/* FECHAS (siempre visible) */}
               <Popover>
                 <PopoverTrigger asChild>
                   <Button
@@ -146,9 +79,21 @@ export function BitacoraToolbar<TData>({
                     )}
                   >
                     <CalendarIcon className="mr-2 h-4 w-4" />
-                    {renderDateLabel()}
+                    {dateRange?.from ? (
+                      dateRange.to ? (
+                        <>
+                          {format(dateRange.from, "dd/MM/y", { locale: es })} -{" "}
+                          {format(dateRange.to, "dd/MM/y", { locale: es })}
+                        </>
+                      ) : (
+                        format(dateRange.from, "dd/MM/y", { locale: es })
+                      )
+                    ) : (
+                      <span>Fechas</span>
+                    )}
                   </Button>
                 </PopoverTrigger>
+
                 <PopoverContent className="w-auto p-0" align="start">
                   <Calendar
                     initialFocus
@@ -166,7 +111,10 @@ export function BitacoraToolbar<TData>({
               {isFiltered && (
                 <Button
                   variant="ghost"
-                  onClick={clearAll}
+                  onClick={() => {
+                    setGlobalFilter("");
+                    setDateRange(undefined);
+                  }}
                   className="h-9 px-2 lg:px-3 text-red-500 hover:text-red-700 hover:bg-red-50"
                 >
                   Limpiar filtros
@@ -176,15 +124,10 @@ export function BitacoraToolbar<TData>({
             </div>
           </div>
 
-          {/* DERECHA: Botones globales (opcionales) */}
+          {/* DERECHA: BOTONES */}
           <div className="flex flex-wrap gap-2 w-full lg:w-auto lg:justify-end">
             {onRefresh && (
-              <Button
-                variant="outline"
-                onClick={onRefresh}
-                disabled={loading}
-                title="Refrescar"
-              >
+              <Button variant="outline" onClick={onRefresh} disabled={loading} title="Refrescar">
                 <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
               </Button>
             )}
@@ -219,11 +162,6 @@ export function BitacoraToolbar<TData>({
             )}
           </div>
         </div>
-
-        {/* Estado loading (opcional) */}
-        {loading && (
-          <p className="text-sm text-gray-500 animate-pulse mt-3">Cargando...</p>
-        )}
       </div>
     </div>
   );
