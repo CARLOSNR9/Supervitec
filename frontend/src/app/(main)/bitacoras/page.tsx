@@ -4,17 +4,12 @@ import { useEffect, useMemo, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
-// ⬅️ CAMBIO: apiPut eliminado, apiPatch agregado
-import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api"; // <--- Agrega apiPostForm
+import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api"; 
 
 import { toast } from "sonner";
 
 // ✅ PDF (React-PDF)
-// ❌ ELIMINADOS: jsPDF y html2canvas-pro
 import { pdf } from "@react-pdf/renderer";
-
-
-
 import { BitacoraReportePDF } from "./components/BitacoraPDF";
 
 import BitacoraTable from "./components/BitacoraTable";
@@ -188,8 +183,6 @@ export default function BitacorasPage() {
   // SUBMIT
   // ===============================
 
-  // En src/app/(main)/bitacoras/page.tsx
-
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
@@ -221,12 +214,10 @@ export default function BitacorasPage() {
       if (form.longitud) fd.append("longitud", form.longitud);
 
       // 3. 📸 FOTOS BITÁCORA
-      // DEBUG: Ver en consola cuántas fotos hay antes de enviar
       console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
 
       if (form.fotoFiles && form.fotoFiles.length > 0) {
         form.fotoFiles.forEach((file) => {
-          // El nombre "files" es OBLIGATORIO porque así lo espera el backend
           fd.append("files", file);
         });
       }
@@ -250,18 +241,14 @@ export default function BitacorasPage() {
       }
 
       // =====================================================================
-      // 🚨 CAMBIO CLAVE AQUÍ: Usamos apiPostForm para crear
+      // 🚨 GUARDAR (Crear o Editar)
       // =====================================================================
 
       if (editingId) {
-        // Si estamos editando, usamos PATCH
         await apiPatch(`/bitacoras/${editingId}`, fd);
       } else {
-        // Si estamos creando (NUEVA), usamos la función especial que ignora JSON
         await apiPostForm(`/bitacoras`, fd);
       }
-
-      // =====================================================================
 
       toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
 
@@ -319,11 +306,10 @@ export default function BitacorasPage() {
       fotoFiles: [],
       fotosSeguimiento: [],
 
-      // ⭐ Fotos que vienen del backend (mostrar en modal)
+      // ⭐ Fotos existentes
       fotosExistentes:
         bitacora.evidencias?.map((f) => ({
           id: f.id,
-
           url: f.url.startsWith("http")
             ? f.url
             : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
@@ -346,14 +332,17 @@ export default function BitacorasPage() {
   };
 
   // =====================================================================
-  // FILTROS, SORT, ESTADÍSTICAS, PAGINACIÓN, EXPORT, RENDER...
+  // 🔍 FILTROS, SORT, ESTADÍSTICAS, PAGINACIÓN, EXPORT, RENDER...
   // =====================================================================
 
   const filteredBitacoras = useMemo(() => {
     if (!searchTerm) return bitacoras;
     const term = searchTerm.toLowerCase();
+    
     return bitacoras.filter(
       (b) =>
+        // ✅ AQUI AGREGAMOS LA BÚSQUEDA POR ID
+        b.id.toString().includes(term) || 
         b.obra?.nombre.toLowerCase().includes(term) ||
         b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
         b.contratista?.nombre.toLowerCase().includes(term) ||
@@ -464,44 +453,35 @@ export default function BitacorasPage() {
   };
 
   // ===============================
-  // 🖨️ NUEVA FUNCIÓN PDF (REEMPLAZO)
+  // 🖨️ PDF INDIVIDUAL
   // ===============================
-  
-const handleGeneratePDF = async (bitacora: Bitacora) => {
-  const toastId = toast.loading("Generando PDF...");
+  const handleGeneratePDF = async (bitacora: Bitacora) => {
+    const toastId = toast.loading("Generando PDF...");
 
-  try {
-    // 🟢 Generamos el PDF usando el componente correcto
-    // 🟢 IMPORTANTE: data ahora es un ARRAY
-    const blob = await pdf(
-      <BitacoraReportePDF data={[bitacora]} />
-    ).toBlob();
+    try {
+      // 🟢 Generamos el PDF (como array de 1 elemento)
+      const blob = await pdf(
+        <BitacoraReportePDF data={[bitacora]} />
+      ).toBlob();
 
-    // 🟢 Creamos la URL del blob
-    const url = URL.createObjectURL(blob);
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Bitacora_${bitacora.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
 
-    // 🟢 Forzamos la descarga
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Bitacora_${bitacora.id}.pdf`;
-    document.body.appendChild(link);
-    link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    // 🟢 Limpieza
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
-
-    toast.dismiss(toastId);
-    toast.success("PDF descargado correctamente");
-  } catch (error) {
-    console.error("Error generando PDF:", error);
-    toast.dismiss(toastId);
-    toast.error("Error generando PDF. Intenta de nuevo.");
-  }
-};
-
-
-
+      toast.dismiss(toastId);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generando PDF:", error);
+      toast.dismiss(toastId);
+      toast.error("Error generando PDF. Intenta de nuevo.");
+    }
+  };
 
   return (
     <main className="p-4 md:p-8">
@@ -526,7 +506,7 @@ const handleGeneratePDF = async (bitacora: Bitacora) => {
         onSearchChange={setSearchTerm}
         onEdit={handleEdit}
         onGeneratePDF={handleGeneratePDF}
-        onView={handleView} // ✅ PASAR LA FUNCIÓN A LA TABLA
+        onView={handleView} 
       />
 
       <BitacoraFormModal
