@@ -183,7 +183,7 @@ export default function BitacorasPage() {
   // SUBMIT
   // ===============================
 
-  const handleSubmit = async () => {
+ const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
@@ -198,7 +198,11 @@ export default function BitacorasPage() {
       if (form.medicionId) fd.append("medicionId", form.medicionId);
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
-      fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
+
+      // ✅ SOLUCIÓN: Solo enviamos fechaCreacion si NO estamos editando (es nueva)
+      if (!editingId) {
+        fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
+      }
 
       if (form.fechaMejora)
         fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
@@ -264,6 +268,12 @@ export default function BitacorasPage() {
       setLoading(false);
     }
   };
+
+
+
+
+
+
 
   // ===============================
   // EDITAR
