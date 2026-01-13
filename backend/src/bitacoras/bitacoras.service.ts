@@ -20,7 +20,7 @@ export class BitacorasService {
   ) {}
 
   // ============================================================
-  // CREATE + CLOUDINARY
+  // CREATE + CLOUDINARY + CÓDIGO (NUMERACIÓN POR OBRA)
   // ============================================================
   async create(
     dto: CreateBitacoraDto,
@@ -28,7 +28,42 @@ export class BitacorasService {
     files: Express.Multer.File[] = [],
   ) {
     try {
+      // ============================================================
+      // 0) VALIDAR OBRA + GENERAR CÓDIGO
+      // ============================================================
+      const obraId = dto.obraId;
+
+      // Según el requerimiento nuevo, la obra es necesaria para numerar
+      if (!obraId) {
+        throw new NotFoundException('Obra no encontrada');
+      }
+
+      // 1) Buscar la obra para sacar el prefijo
+      const obra = await this.prisma.obra.findUnique({
+        where: { id: obraId },
+        select: { id: true, prefijo: true },
+      });
+
+      if (!obra) {
+        throw new NotFoundException('Obra no encontrada');
+      }
+
+      // 2) Contar cuántas bitácoras lleva esa obra actualmente
+      const cantidadActual = await this.prisma.bitacora.count({
+        where: { obraId: obraId },
+      });
+
+      // 3) Generar consecutivo (ej: 5 -> 05)
+      const consecutivo = (cantidadActual + 1).toString().padStart(2, '0');
+
+      // 4) Armar el código final (ej: ED25-01)
+      const codigoGenerado = `${obra.prefijo || 'OBRA'}-${consecutivo}`;
+
+      // ============================================================
+      // 1) ARMAR DATA BASE (TU LÓGICA ORIGINAL) + codigo
+      // ============================================================
       const data: any = {
+        codigo: codigoGenerado, // 🔥 NUEVO: guardamos el código generado
         estado: dto.estado as BitacoraEstado,
 
         fechaCreacion: dto.fechaCreacion
@@ -48,9 +83,11 @@ export class BitacorasService {
         longitud: dto.longitud ?? null,
 
         responsable: { connect: { id: responsableId } },
+
+        // 🔥 Mantienes tu relación por connect (y ya validamos arriba)
+        obra: { connect: { id: obraId } },
       };
 
-      if (dto.obraId) data.obra = { connect: { id: dto.obraId } };
       if (dto.variableId) data.variable = { connect: { id: dto.variableId } };
       if (dto.contratistaId)
         data.contratista = { connect: { id: dto.contratistaId } };
@@ -58,15 +95,13 @@ export class BitacorasService {
       if (dto.unidadId) data.unidadRel = { connect: { id: dto.unidadId } };
 
       // ============================================================
-      // SUBIR ARCHIVOS A CLOUDINARY
+      // 2) SUBIR ARCHIVOS A CLOUDINARY (TU LÓGICA ORIGINAL)
       // ============================================================
-
       const evidenciasCloud: any[] = [];
 
       this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
 
       if (files?.length > 0) {
-        // Log mínimo por archivo (para confirmar buffer)
         files.forEach((f, i) => {
           this.logger.log(
             `🖼️ [${i}] ${f.originalname} | mimetype=${f.mimetype} | size=${f.size} | buffer=${f.buffer?.length ?? 0}`,
@@ -94,20 +129,26 @@ export class BitacorasService {
         });
       }
 
-      // Crear bitácora
-      const bit = await this.prisma.bitacora.create({
-        data,
-      });
-
-      // Guardar imágenes asociadas
-      if (evidenciasCloud.length > 0) {
-        await this.prisma.bitacoraMedia.createMany({
-          data: evidenciasCloud.map((e) => ({
-            ...e,
-            bitacoraId: bit.id,
-          })),
+      // ============================================================
+      // 3) CREAR BITÁCORA + GUARDAR IMÁGENES ASOCIADAS
+      //    (manteniendo exactamente tu flujo)
+      // ============================================================
+      const bit = await this.prisma.$transaction(async (tx) => {
+        const created = await tx.bitacora.create({
+          data,
         });
-      }
+
+        if (evidenciasCloud.length > 0) {
+          await tx.bitacoraMedia.createMany({
+            data: evidenciasCloud.map((e) => ({
+              ...e,
+              bitacoraId: created.id,
+            })),
+          });
+        }
+
+        return created;
+      });
 
       return this.findOne(bit.id);
     } catch (error) {
@@ -311,8 +352,6 @@ export class BitacorasService {
   // 🗑️ DELETE EVIDENCE (FOTO INDIVIDUAL)
   // ============================================================
   async removeEvidence(id: number) {
-    // Usamos 'bitacoraMedia' que es el nombre de tu tabla en Prisma
-    // según lo que veo en tu método create()
     return this.prisma.bitacoraMedia.delete({
       where: { id },
     });

@@ -51,6 +51,7 @@ export interface BitacoraMedia {
 
 export interface Bitacora {
   id: number;
+  codigo?: string | null; // 🔥 NUEVO CAMPO AGREGADO
   obraId: number;
   responsableId: number;
   contratistaId: number | null;

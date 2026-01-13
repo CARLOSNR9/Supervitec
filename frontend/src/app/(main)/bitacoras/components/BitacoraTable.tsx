@@ -1,9 +1,9 @@
 "use client";
 
+import { useMemo } from "react";
 import { Bitacora } from "../types/bitacora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-// ✅ IMPORTAR EL ICONO EYE
 import { Search, RefreshCw, Pencil, Eye } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -41,7 +41,6 @@ interface BitacoraTableProps {
 
   onEdit: (bitacora: Bitacora) => void;
   onGeneratePDF: (bitacora: Bitacora) => void;
-  // ✅ NUEVA PROP
   onView: (bitacora: Bitacora) => void;
 }
 
@@ -62,8 +61,78 @@ export default function BitacoraTable({
   onSearchChange,
   onEdit,
   onGeneratePDF,
-  onView, // ✅ RECIBIR PROP
+  onView,
 }: BitacoraTableProps) {
+  // ✅ FUNCIÓN PARA ORDENAR POR COLUMNA (incluye "codigo")
+  const getSortableValue = (row: Bitacora, key: string) => {
+    switch (key) {
+      case "codigo": // 🔥 NUEVO
+        return row.codigo ?? "";
+
+      case "obra":
+        return row.obra?.nombre ?? "";
+      case "responsable":
+        return row.responsable?.nombreCompleto ?? "";
+      case "variable":
+        return row.variable?.nombre ?? "";
+      case "medicion":
+        return row.medicion?.nombre ?? "";
+      case "unidad":
+        return row.unidadRel?.nombre ?? row.unidad ?? "";
+      case "estado":
+        return row.estado ?? "";
+      case "fechaCreacion":
+        return row.fechaCreacion ?? "";
+      case "fechaEjecucion":
+        return row.fechaEjecucion ?? "";
+      case "id":
+        return row.id;
+      default:
+        // @ts-ignore
+        return row[key] ?? "";
+    }
+  };
+
+  // ✅ ORDENAMIENTO (si ya lo tenías, esto mantiene el patrón)
+  const sortedBitacoras = useMemo(() => {
+    if (!sortConfig?.key) return bitacoras;
+
+    const rows = [...bitacoras];
+    const direction = sortConfig.direction === "asc" ? 1 : -1;
+    const key = sortConfig.key;
+
+    rows.sort((a, b) => {
+      const va = getSortableValue(a, key);
+      const vb = getSortableValue(b, key);
+
+      // números
+      if (typeof va === "number" && typeof vb === "number") {
+        return (va - vb) * direction;
+      }
+
+      // fechas ISO (cuando aplica)
+      if (
+        (key === "fechaCreacion" || key === "fechaEjecucion") &&
+        typeof va === "string" &&
+        typeof vb === "string"
+      ) {
+        const ta = va ? new Date(va).getTime() : 0;
+        const tb = vb ? new Date(vb).getTime() : 0;
+        return (ta - tb) * direction;
+      }
+
+      // strings (incluye codigo tipo UP1-01)
+      return (
+        String(va).localeCompare(String(vb), "es", {
+          numeric: true,
+          sensitivity: "base",
+        }) * direction
+      );
+    });
+
+    return rows;
+  }, [bitacoras, sortConfig]);
+
   return (
     <>
       {/* ENCABEZADO ADAPTABLE */}
@@ -73,7 +142,7 @@ export default function BitacoraTable({
             Informe de Bitácoras
           </h1>
           <p className="text-sm text-gray-600 mt-1">
-            Mostrando {bitacoras.length} de {stats.total} registros
+            Mostrando {sortedBitacoras.length} de {stats.total} registros
           </p>
         </div>
 
@@ -86,7 +155,10 @@ export default function BitacoraTable({
           >
             <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
           </Button>
-          <Button onClick={onNew} className="bg-[#0C2D57] hover:bg-[#113a84] flex-1 xl:flex-none">
+          <Button
+            onClick={onNew}
+            className="bg-[#0C2D57] hover:bg-[#113a84] flex-1 xl:flex-none"
+          >
             + Nueva
           </Button>
           <Button
@@ -117,23 +189,29 @@ export default function BitacoraTable({
             className="pl-10"
           />
         </div>
-        {loading && <p className="text-sm text-gray-500 animate-pulse">Cargando...</p>}
+        {loading && (
+          <p className="text-sm text-gray-500 animate-pulse">Cargando...</p>
+        )}
       </div>
 
       {/* 📱 VISTA MÓVIL: TARJETAS */}
       <div className="grid grid-cols-1 gap-4 md:hidden">
-        {bitacoras.length === 0 ? (
+        {sortedBitacoras.length === 0 ? (
           <p className="text-center text-gray-500 py-4">No hay registros.</p>
         ) : (
-          bitacoras.map((b) => (
+          sortedBitacoras.map((b) => (
             <Card key={b.id} className="shadow-sm border border-gray-200">
               <CardHeader className="pb-2">
                 <div className="flex justify-between items-start">
                   <div>
-                    <h3 className="font-bold text-gray-800 text-lg">{b.obra?.nombre || "Sin Obra"}</h3>
+                    <h3 className="font-bold text-gray-800 text-lg">
+                      {b.obra?.nombre || "Sin Obra"}
+                    </h3>
                     <p className="text-xs text-gray-500">ID: {b.id}</p>
                   </div>
-                  <Badge variant={b.estado === "ABIERTA" ? "default" : "destructive"}>
+                  <Badge
+                    variant={b.estado === "ABIERTA" ? "default" : "destructive"}
+                  >
                     {b.estado}
                   </Badge>
                 </div>
@@ -141,12 +219,18 @@ export default function BitacoraTable({
               <CardContent className="pt-2 text-sm space-y-2">
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-500">Responsable:</span>
-                  <span className="font-medium text-right">{b.responsable?.nombreCompleto || "-"}</span>
+                  <span className="font-medium text-right">
+                    {b.responsable?.nombreCompleto || "-"}
+                  </span>
                 </div>
-                
+
                 <div className="flex justify-between border-b pb-2">
                   <span className="text-gray-500">Fecha:</span>
-                  <span>{b.fechaCreacion ? new Date(b.fechaCreacion).toLocaleDateString() : "-"}</span>
+                  <span>
+                    {b.fechaCreacion
+                      ? new Date(b.fechaCreacion).toLocaleDateString()
+                      : "-"}
+                  </span>
                 </div>
 
                 <div className="flex justify-between border-b pb-2">
@@ -161,24 +245,24 @@ export default function BitacoraTable({
                 )}
 
                 <div className="flex gap-2 pt-2 mt-2">
-                  {/* ✅ BOTÓN VER EN MÓVIL */}
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1 text-gray-700 border-gray-200 hover:bg-gray-100"
                     onClick={() => onView(b)}
                   >
                     <Eye className="h-4 w-4 mr-2" /> Ver
                   </Button>
 
-                  <Button 
-                    size="sm" 
-                    variant="outline" 
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1 text-blue-700 border-blue-200 hover:bg-blue-50"
                     onClick={() => onEdit(b)}
                   >
                     <Pencil className="h-4 w-4 mr-2" /> Editar
                   </Button>
+
                   <Button
                     size="sm"
                     variant="outline"
@@ -201,6 +285,10 @@ export default function BitacoraTable({
             <thead>
               <tr className="bg-[#0C2D57] text-white text-left">
                 <ThSortable label="ID" sortKey="id" sortConfig={sortConfig} onSort={onSort} />
+
+                {/* 🔥 NUEVO: CÓDIGO */}
+                <ThSortable label="Cód." sortKey="codigo" sortConfig={sortConfig} onSort={onSort} />
+
                 <ThSortable label="Obra" sortKey="obra" sortConfig={sortConfig} onSort={onSort} />
                 <ThSortable label="Responsable" sortKey="responsable" sortConfig={sortConfig} onSort={onSort} />
                 <ThSortable label="Estado" sortKey="estado" sortConfig={sortConfig} onSort={onSort} />
@@ -212,10 +300,16 @@ export default function BitacoraTable({
             </thead>
 
             <tbody>
-              {bitacoras.length > 0 ? (
-                bitacoras.map((b) => (
+              {sortedBitacoras.length > 0 ? (
+                sortedBitacoras.map((b) => (
                   <tr key={b.id} className="hover:bg-gray-50 border-b transition duration-100 text-sm">
                     <td className="px-4 py-3 text-gray-700">{b.id}</td>
+
+                    {/* 🔥 NUEVO: CELDA CÓDIGO */}
+                    <td className="px-4 py-3 font-bold text-[#0C2D57] whitespace-nowrap">
+                      {b.codigo || "—"}
+                    </td>
+
                     <td className="px-4 py-3 font-medium max-w-[150px] truncate" title={b.obra?.nombre}>
                       {b.obra?.nombre || "—"}
                     </td>
@@ -235,7 +329,6 @@ export default function BitacoraTable({
 
                     <td className="px-4 py-3 text-center">
                       <div className="flex justify-center gap-2">
-                        {/* ✅ BOTÓN VER EN ESCRITORIO */}
                         <button
                           onClick={() => onView(b)}
                           className="text-gray-600 hover:text-gray-900 transition bg-gray-100 p-1.5 rounded-md hover:bg-gray-200"
@@ -251,6 +344,7 @@ export default function BitacoraTable({
                         >
                           <Pencil size={18} />
                         </button>
+
                         <button
                           onClick={() => onGeneratePDF(b)}
                           className="text-red-600 hover:text-red-800 transition bg-red-50 p-1.5 rounded-md hover:bg-red-100"
@@ -264,7 +358,8 @@ export default function BitacoraTable({
                 ))
               ) : (
                 <tr>
-                  <td colSpan={8} className="text-center py-6 text-gray-500">
+                  {/* Antes colSpan={8}; ahora hay 1 columna extra */}
+                  <td colSpan={9} className="text-center py-6 text-gray-500">
                     No hay registros de bitácoras.
                   </td>
                 </tr>
@@ -272,7 +367,6 @@ export default function BitacoraTable({
             </tbody>
           </table>
 
-          {/* ... (Paginación y Stats se mantienen igual) ... */}
           {/* QUICK STATS */}
           <div className="grid grid-cols-2 lg:grid-cols-4 gap-2 p-4 bg-gray-50 border-t">
             <StatCard label="Total" value={stats.total} />
@@ -281,9 +375,7 @@ export default function BitacoraTable({
             <div className="bg-white p-2 rounded-md text-center border shadow-sm">
               <div className="text-[10px] uppercase tracking-wide text-gray-500">Última</div>
               <div className="text-[12px] font-semibold text-violet-700">
-                {stats.ultimaActualizada
-                  ? stats.ultimaActualizada.toLocaleDateString()
-                  : "—"}
+                {stats.ultimaActualizada ? stats.ultimaActualizada.toLocaleDateString() : "—"}
               </div>
             </div>
           </div>
@@ -336,7 +428,9 @@ function ThSortable({ label, sortKey, sortConfig, onSort }: ThSortableProps) {
       <div className="flex items-center gap-1">
         {label}
         {sortConfig.key === sortKey && (
-          <span className="text-xs">{sortConfig.direction === "asc" ? "▲" : "▼"}</span>
+          <span className="text-xs">
+            {sortConfig.direction === "asc" ? "▲" : "▼"}
+          </span>
         )}
       </div>
     </th>
