@@ -210,11 +210,12 @@ export default function BitacorasPage() {
             )
         );
 
-        // 3. Ejecutar el borrado en el Backend
+       // 3. Ejecutar el borrado en el Backend
         const promesasBorrado = [
-          ...fotosBorradas.map((f) => apiDelete(`/evidencias/${f.id}`)),
+          // ⚠️ FIJATE EN LA RUTA: /bitacoras/evidencia/
+          ...fotosBorradas.map((f) => apiDelete(`/bitacoras/evidencia/${f.id}`)),
           ...fotosSeguimientoBorradas.map((f) =>
-            apiDelete(`/evidencias/${f.id}`)
+            apiDelete(`/bitacoras/evidencia/${f.id}`)
           ),
         ];
 

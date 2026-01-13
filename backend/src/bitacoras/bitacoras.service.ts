@@ -7,7 +7,6 @@ import {
 import { PrismaService } from '../prisma/prisma.service';
 import { BitacoraEstado } from '@prisma/client';
 import { CreateBitacoraDto } from './dto/create-bitacora.dto';
- 4
 import { UpdateBitacoraDto } from './dto/update-bitacora.dto';
 import { CloudinaryService } from '../common/cloudinary/cloudinary.service';
 
@@ -61,37 +60,39 @@ export class BitacorasService {
       // ============================================================
       // SUBIR ARCHIVOS A CLOUDINARY
       // ============================================================
-      
-const evidenciasCloud: any[] = [];
 
-this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
+      const evidenciasCloud: any[] = [];
 
-if (files?.length > 0) {
-  // Log mínimo por archivo (para confirmar buffer)
-  files.forEach((f, i) => {
-    this.logger.log(
-      `🖼️ [${i}] ${f.originalname} | mimetype=${f.mimetype} | size=${f.size} | buffer=${f.buffer?.length ?? 0}`,
-    );
-  });
+      this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
 
-  // Subida estricta: si Cloudinary falla, que falle la request (así vemos el error real)
-  const results = await Promise.all(files.map((f) => this.cloudinary.uploadImage(f)));
+      if (files?.length > 0) {
+        // Log mínimo por archivo (para confirmar buffer)
+        files.forEach((f, i) => {
+          this.logger.log(
+            `🖼️ [${i}] ${f.originalname} | mimetype=${f.mimetype} | size=${f.size} | buffer=${f.buffer?.length ?? 0}`,
+          );
+        });
 
-  const ok = results.filter((r) => r?.secure_url);
+        // Subida estricta: si Cloudinary falla, que falle la request
+        const results = await Promise.all(
+          files.map((f) => this.cloudinary.uploadImage(f)),
+        );
 
-  if (ok.length === 0) {
-    throw new InternalServerErrorException(
-      'No se pudo subir ninguna imagen a Cloudinary (resultados sin secure_url).',
-    );
-  }
+        const ok = results.filter((r) => r?.secure_url);
 
-  ok.forEach((res) => {
-    evidenciasCloud.push({
-      url: res.secure_url,
-      tipo: 'NORMAL',
-    });
-  });
-}
+        if (ok.length === 0) {
+          throw new InternalServerErrorException(
+            'No se pudo subir ninguna imagen a Cloudinary (resultados sin secure_url).',
+          );
+        }
+
+        ok.forEach((res) => {
+          evidenciasCloud.push({
+            url: res.secure_url,
+            tipo: 'NORMAL',
+          });
+        });
+      }
 
       // Crear bitácora
       const bit = await this.prisma.bitacora.create({
@@ -298,10 +299,21 @@ if (files?.length > 0) {
   }
 
   // ============================================================
-  // DELETE
+  // DELETE BITACORA
   // ============================================================
   async remove(id: number) {
     return this.prisma.bitacora.delete({
+      where: { id },
+    });
+  }
+
+  // ============================================================
+  // 🗑️ DELETE EVIDENCE (FOTO INDIVIDUAL)
+  // ============================================================
+  async removeEvidence(id: number) {
+    // Usamos 'bitacoraMedia' que es el nombre de tu tabla en Prisma
+    // según lo que veo en tu método create()
+    return this.prisma.bitacoraMedia.delete({
       where: { id },
     });
   }
