@@ -186,32 +186,43 @@ export default function BitacorasPage() {
   };
 
  // ===============================
-  // 💾 SUBMIT (CON FECHAS + HORA ACTUAL)
+  // 💾 SUBMIT (INTELIGENTE: RESPETA HORAS ORIGINALES)
   // ===============================
   const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
     try {
-      // ---------------------------------------------------------
-      // 🕒 FUNCIÓN AUXILIAR: COMBINAR FECHA SELECCIONADA + HORA ACTUAL
-      // ---------------------------------------------------------
-      const addCurrentTime = (dateString: string) => {
-        if (!dateString) return null;
-        
-        // 1. Obtenemos la hora actual real
-        const now = new Date();
-        
-        // 2. Si el string ya viene largo (ISO), lo convertimos directo
-        if (dateString.includes('T')) return new Date(dateString).toISOString();
+      // 1️⃣ BUSCAR LA BITÁCORA ORIGINAL (Para comparar fechas)
+      const originalBitacora = editingId 
+        ? bitacoras.find((b) => b.id === editingId) 
+        : null;
 
-        // 3. Si viene como "YYYY-MM-DD" (Input type="date"), lo mezclamos
-        const [year, month, day] = dateString.split('-').map(Number);
+      // ---------------------------------------------------------
+      // 🕒 FUNCIÓN AUXILIAR: GESTIÓN DE FECHAS Y HORAS
+      // ---------------------------------------------------------
+      const resolveDateToSend = (formDateString: string, originalIsoString?: string | null) => {
+        if (!formDateString) return null;
+
+        // A. Si estamos editando y existe una fecha original
+        if (originalIsoString) {
+          // Extraemos solo la parte "YYYY-MM-DD" de la original
+          const originalDatePart = new Date(originalIsoString).toISOString().slice(0, 10);
+
+          // B. COMPARACIÓN: ¿El usuario cambió la fecha?
+          if (formDateString === originalDatePart) {
+            // NO cambió el día -> Mantenemos la fecha ORIGINAL con su HORA ORIGINAL
+            return originalIsoString;
+          }
+        }
+
+        // C. Si es nueva o el usuario cambió el día -> Usamos HORA ACTUAL
+        const now = new Date();
+        const [year, month, day] = formDateString.split('-').map(Number);
         
-        // Creamos una nueva fecha: Día seleccionado + Hora del reloj actual
         const mixedDate = new Date(
           year,
-          month - 1, // Meses en JS van de 0 a 11
+          month - 1,
           day,
           now.getHours(),
           now.getMinutes(),
@@ -223,7 +234,7 @@ export default function BitacorasPage() {
       // ---------------------------------------------------------
 
       // ---------------------------------------------------------
-      // 🗑️ LÓGICA DE ELIMINADO DE FOTOS (Solo al editar)
+      // 🗑️ LÓGICA DE ELIMINADO DE FOTOS
       // ---------------------------------------------------------
       if (editingId) {
         const fotosBorradas = originalPhotos.filter(
@@ -248,10 +259,9 @@ export default function BitacorasPage() {
         }
       }
 
-      // 1. Crear la caja
+      // 2. Crear la caja FormData
       const fd = new FormData();
 
-      // 2. Llenar textos
       if (form.obraId) fd.append("obraId", form.obraId);
       if (form.contratistaId) fd.append("contratistaId", form.contratistaId);
       if (form.variableId) fd.append("variableId", form.variableId);
@@ -259,25 +269,25 @@ export default function BitacorasPage() {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
 
-      // Fecha Creación: Si es nueva, usa la del form o la actual
+      // Fecha Creación (Solo si es nueva)
       if (!editingId) {
-        // Si el usuario eligió una fecha manual, le respetamos la hora si la puso,
-        // si no, usamos la lógica de agregar hora actual.
         const fechaC = form.fechaCreacion 
              ? new Date(form.fechaCreacion).toISOString() 
              : new Date().toISOString();
         fd.append("fechaCreacion", fechaC);
       }
 
-      // ✅ APLICANDO LA LÓGICA DE HORA ACTUAL A LOS CAMPOS SOLICITADOS
+      // ✅ APLICANDO LA LÓGICA INTELIGENTE A LAS FECHAS
       if (form.fechaMejora) {
-        const fechaConHora = addCurrentTime(form.fechaMejora);
-        if (fechaConHora) fd.append("fechaMejora", fechaConHora);
+        // Pasamos la fecha del form Y la fecha original de la base de datos
+        const fechaFinal = resolveDateToSend(form.fechaMejora, originalBitacora?.fechaMejora);
+        if (fechaFinal) fd.append("fechaMejora", fechaFinal);
       }
 
       if (form.fechaEjecucion) {
-        const fechaConHora = addCurrentTime(form.fechaEjecucion);
-        if (fechaConHora) fd.append("fechaEjecucion", fechaConHora);
+        // Pasamos la fecha del form Y la fecha original de la base de datos
+        const fechaFinal = resolveDateToSend(form.fechaEjecucion, originalBitacora?.fechaEjecucion);
+        if (fechaFinal) fd.append("fechaEjecucion", fechaFinal);
       }
 
       if (form.ubicacion) fd.append("ubicacion", form.ubicacion);
@@ -286,21 +296,16 @@ export default function BitacorasPage() {
       if (form.latitud) fd.append("latitud", form.latitud);
       if (form.longitud) fd.append("longitud", form.longitud);
 
-      // 3. 📸 FOTOS BITÁCORA (NUEVAS)
+      // 3. FOTOS NUEVAS
       if (form.fotoFiles && form.fotoFiles.length > 0) {
-        form.fotoFiles.forEach((file) => {
-          fd.append("files", file);
-        });
+        form.fotoFiles.forEach((file) => fd.append("files", file));
       }
 
-      // 4. 📸 FOTOS SEGUIMIENTO (NUEVAS)
       if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
-        form.fotosSeguimiento.forEach((file) => {
-          fd.append("files", file);
-        });
+        form.fotosSeguimiento.forEach((file) => fd.append("files", file));
       }
 
-      // 5. FOTOS EXISTENTES
+      // 4. FOTOS EXISTENTES (Solo si es nueva)
       if (!editingId) {
         if (form.fotosExistentes.length > 0) {
           fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
@@ -313,7 +318,7 @@ export default function BitacorasPage() {
         }
       }
 
-      // 6. GUARDAR
+      // 5. GUARDAR
       if (editingId) {
         await apiPatch(`/bitacoras/${editingId}`, fd);
       } else {
