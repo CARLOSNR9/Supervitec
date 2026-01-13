@@ -32,20 +32,28 @@ export default function BitacoraDetailsModal({
       : `${process.env.NEXT_PUBLIC_API_URL}${path}`;
   };
 
-  // ✅ NUEVO: Fecha + Hora (12h AM/PM) en es-CO
+  // ✅ Fecha + Hora (12h AM/PM) en es-CO
   const formatDateTime = (dateString?: string | Date | null) => {
     if (!dateString) return "-";
     const date = new Date(dateString);
 
+    // Esto mostrará algo como: "13/01/2026, 10:45 a. m."
     return date.toLocaleString("es-CO", {
-      day: "numeric",
-      month: "numeric",
+      day: "2-digit",
+      month: "2-digit",
       year: "numeric",
       hour: "2-digit",
       minute: "2-digit",
       hour12: true,
     });
   };
+
+  // ✅ helper: fecha real de subida de foto = createdAt (fallback a fechaCreacion de la bitácora)
+  const getEvidenceDateTime = (foto: any) =>
+    formatDateTime(foto?.createdAt ?? data.fechaCreacion);
+
+  const totalEvidencias =
+    (data.evidencias?.length ?? 0) + (data.evidenciasSeguimiento?.length ?? 0);
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -117,7 +125,7 @@ export default function BitacoraDetailsModal({
                 </span>
               </div>
 
-              {/* ✅ CAMBIO: Fecha Ejecución ahora incluye hora */}
+              {/* Fecha Ejecución con hora */}
               <div>
                 <span className="text-xs text-gray-500 block">
                   Fecha Ejecución
@@ -127,7 +135,7 @@ export default function BitacoraDetailsModal({
                 </span>
               </div>
 
-              {/* ✅ CAMBIO: Fecha Mejora ahora incluye hora */}
+              {/* Fecha Mejora con hora */}
               {data.fechaMejora && (
                 <div>
                   <span className="text-xs text-gray-500 block">
@@ -164,23 +172,59 @@ export default function BitacoraDetailsModal({
             )}
           </div>
 
-          {/* 4. EVIDENCIAS FOTOGRÁFICAS */}
+          {/* 4. EVIDENCIAS (FOTOS CON FECHA REAL DE SUBIDA) */}
           <div>
             <h3 className="font-semibold text-[#0C2D57] mb-3 border-b pb-1">
-              Evidencias ({data.evidencias?.length || 0})
+              Evidencias ({totalEvidencias})
             </h3>
-            {data.evidencias && data.evidencias.length > 0 ? (
+
+            {totalEvidencias > 0 ? (
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {data.evidencias.map((foto) => (
+                {/* 📸 Fotos Bitácora */}
+                {data.evidencias?.map((foto) => (
                   <div
-                    key={foto.id}
+                    key={`bitacora-${foto.id}`}
                     className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200"
                   >
                     <img
-                      src={getImageUrl(foto.url)}
+                      src={getImageUrl((foto as any).url)}
                       alt="Evidencia"
                       className="object-cover w-full h-full hover:scale-105 transition-transform"
                     />
+
+                    {/* ✅ BARRA INFERIOR CON FECHA REAL 'createdAt' */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex flex-col justify-center">
+                      <span className="text-[10px] font-bold uppercase">
+                        Bitácora
+                      </span>
+                      <span className="text-[9px] text-gray-200">
+                        {getEvidenceDateTime(foto)}
+                      </span>
+                    </div>
+                  </div>
+                ))}
+
+                {/* 📸 Fotos Seguimiento */}
+                {data.evidenciasSeguimiento?.map((foto) => (
+                  <div
+                    key={`seguimiento-${foto.id}`}
+                    className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200"
+                  >
+                    <img
+                      src={getImageUrl((foto as any).url)}
+                      alt="Seguimiento"
+                      className="object-cover w-full h-full hover:scale-105 transition-transform"
+                    />
+
+                    {/* ✅ BARRA INFERIOR CON FECHA REAL 'createdAt' */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex flex-col justify-center">
+                      <span className="text-[10px] font-bold uppercase">
+                        Seguimiento
+                      </span>
+                      <span className="text-[9px] text-gray-100">
+                        {getEvidenceDateTime(foto)}
+                      </span>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -190,29 +234,6 @@ export default function BitacoraDetailsModal({
               </p>
             )}
           </div>
-
-          {/* 5. EVIDENCIAS SEGUIMIENTO */}
-          {data.evidenciasSeguimiento && data.evidenciasSeguimiento.length > 0 && (
-            <div>
-              <h3 className="font-semibold text-[#0C2D57] mb-3 border-b pb-1">
-                Evidencias de Seguimiento
-              </h3>
-              <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
-                {data.evidenciasSeguimiento.map((foto) => (
-                  <div
-                    key={foto.id}
-                    className="relative group aspect-square rounded-lg overflow-hidden border border-gray-200"
-                  >
-                    <img
-                      src={getImageUrl(foto.url)}
-                      alt="Evidencia Seguimiento"
-                      className="object-cover w-full h-full hover:scale-105 transition-transform"
-                    />
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
 
         <div className="p-4 border-t bg-gray-50 flex justify-end">

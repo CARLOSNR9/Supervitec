@@ -46,6 +46,7 @@ export interface MedicionRel {
 export interface BitacoraMedia {
   id: number;
   url: string;
+  createdAt?: string; // ✅ AGREGADO (con ? por si acaso viene vacío en algun caso raro)
 }
 
 export interface Bitacora {
