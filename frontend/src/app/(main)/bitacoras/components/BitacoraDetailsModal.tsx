@@ -37,7 +37,6 @@ export default function BitacoraDetailsModal({
     if (!dateString) return "-";
     const date = new Date(dateString);
 
-    // Esto mostrará algo como: "13/01/2026, 10:45 a. m."
     return date.toLocaleString("es-CO", {
       day: "2-digit",
       month: "2-digit",
@@ -48,7 +47,7 @@ export default function BitacoraDetailsModal({
     });
   };
 
-  // ✅ helper: fecha real de subida de foto = createdAt (fallback a fechaCreacion de la bitácora)
+  // ✅ helper: usa createdAt de la foto; si no viene, usa fechaCreacion de la bitácora
   const getEvidenceDateTime = (foto: any) =>
     formatDateTime(foto?.createdAt ?? data.fechaCreacion);
 
@@ -125,7 +124,6 @@ export default function BitacoraDetailsModal({
                 </span>
               </div>
 
-              {/* Fecha Ejecución con hora */}
               <div>
                 <span className="text-xs text-gray-500 block">
                   Fecha Ejecución
@@ -135,7 +133,6 @@ export default function BitacoraDetailsModal({
                 </span>
               </div>
 
-              {/* Fecha Mejora con hora */}
               {data.fechaMejora && (
                 <div>
                   <span className="text-xs text-gray-500 block">
@@ -172,7 +169,7 @@ export default function BitacoraDetailsModal({
             )}
           </div>
 
-          {/* 4. EVIDENCIAS (FOTOS CON FECHA REAL DE SUBIDA) */}
+          {/* 4. EVIDENCIAS (SOLO FECHA Y HORA EN LA BARRA) */}
           <div>
             <h3 className="font-semibold text-[#0C2D57] mb-3 border-b pb-1">
               Evidencias ({totalEvidencias})
@@ -192,12 +189,9 @@ export default function BitacoraDetailsModal({
                       className="object-cover w-full h-full hover:scale-105 transition-transform"
                     />
 
-                    {/* ✅ BARRA INFERIOR CON FECHA REAL 'createdAt' */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex flex-col justify-center">
-                      <span className="text-[10px] font-bold uppercase">
-                        Bitácora
-                      </span>
-                      <span className="text-[9px] text-gray-200">
+                    {/* ✅ BARRA INFERIOR SOLO CON FECHA Y HORA */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex items-center justify-center">
+                      <span className="text-[10px] text-gray-100 font-medium">
                         {getEvidenceDateTime(foto)}
                       </span>
                     </div>
@@ -212,16 +206,13 @@ export default function BitacoraDetailsModal({
                   >
                     <img
                       src={getImageUrl((foto as any).url)}
-                      alt="Seguimiento"
+                      alt="Evidencia Seguimiento"
                       className="object-cover w-full h-full hover:scale-105 transition-transform"
                     />
 
-                    {/* ✅ BARRA INFERIOR CON FECHA REAL 'createdAt' */}
-                    <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex flex-col justify-center">
-                      <span className="text-[10px] font-bold uppercase">
-                        Seguimiento
-                      </span>
-                      <span className="text-[9px] text-gray-100">
+                    {/* ✅ BARRA INFERIOR SOLO CON FECHA Y HORA */}
+                    <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex items-center justify-center">
+                      <span className="text-[10px] text-gray-100 font-medium">
                         {getEvidenceDateTime(foto)}
                       </span>
                     </div>
