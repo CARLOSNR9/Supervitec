@@ -183,7 +183,8 @@ export default function BitacorasPage() {
   // SUBMIT
   // ===============================
 
- const handleSubmit = async () => {
+
+const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
@@ -199,7 +200,7 @@ export default function BitacorasPage() {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
 
-      // ✅ SOLUCIÓN: Solo enviamos fechaCreacion si NO estamos editando (es nueva)
+      // (Corrección anterior de fecha)
       if (!editingId) {
         fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
       }
@@ -217,7 +218,8 @@ export default function BitacorasPage() {
       if (form.latitud) fd.append("latitud", form.latitud);
       if (form.longitud) fd.append("longitud", form.longitud);
 
-      // 3. 📸 FOTOS BITÁCORA
+      // 3. 📸 FOTOS BITÁCORA (NUEVAS)
+      // Estas SÍ se envían siempre, porque son los archivos nuevos que estás subiendo
       console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
 
       if (form.fotoFiles && form.fotoFiles.length > 0) {
@@ -226,22 +228,29 @@ export default function BitacorasPage() {
         });
       }
 
-      // 4. 📸 FOTOS SEGUIMIENTO
+      // 4. 📸 FOTOS SEGUIMIENTO (NUEVAS)
       if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
         form.fotosSeguimiento.forEach((file) => {
           fd.append("files", file);
         });
       }
 
-      // 5. Fotos existentes
-      if (form.fotosExistentes.length > 0) {
-        fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
-      }
-      if (form.fotosSeguimientoExistentes.length > 0) {
-        fd.append(
-          "fotosSeguimientoExistentes",
-          JSON.stringify(form.fotosSeguimientoExistentes)
-        );
+      // =====================================================================
+      // 5. FOTOS EXISTENTES (SOLUCIÓN DEL ERROR)
+      // =====================================================================
+      // Solo enviamos la lista de fotos viejas si NO estamos editando.
+      // Al editar, el backend solo quiere los archivos nuevos ('files') y ya sabe cuáles son los viejos.
+      
+      if (!editingId) { 
+        if (form.fotosExistentes.length > 0) {
+          fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
+        }
+        if (form.fotosSeguimientoExistentes.length > 0) {
+          fd.append(
+            "fotosSeguimientoExistentes",
+            JSON.stringify(form.fotosSeguimientoExistentes)
+          );
+        }
       }
 
       // =====================================================================
@@ -263,13 +272,12 @@ export default function BitacorasPage() {
       await fetchData();
     } catch (error: any) {
       console.error("❌ ERROR:", error);
+      // Muestra el mensaje exacto del backend si existe
       toast.error(error?.response?.data?.message ?? "Error al guardar.");
     } finally {
       setLoading(false);
     }
   };
-
-
 
 
 
