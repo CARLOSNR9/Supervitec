@@ -179,21 +179,22 @@ model Obra {
 
 // 🚀 BITÁCORAS
 model Bitacora {
-  id            Int            @id @default(autoincrement())
-  obraId        Int
-  responsableId Int
-  estado        BitacoraEstado @default(ABIERTA)
-  fechaCreacion DateTime       @default(now())
-  fechaMejora   DateTime?
+  id             Int            @id @default(autoincrement())
+  codigo         String?        // 🔥 NUEVO CAMPO (nullable para registros viejos)
+  obraId         Int
+  responsableId  Int
+  estado         BitacoraEstado @default(ABIERTA)
+  fechaCreacion  DateTime       @default(now())
+  fechaMejora    DateTime?
   fechaEjecucion DateTime?
-  ubicacion     String?
-  registro      String?
-  unidad        String?
-  observaciones String?
-  seguimiento   String?
-  contratistaId Int?
-  latitud       Float?
-  longitud      Float?
+  ubicacion      String?
+  registro       String?
+  unidad         String?
+  observaciones  String?
+  seguimiento    String?
+  contratistaId  Int?
+  latitud        Float?
+  longitud       Float?
 
   variableId Int?
   variable   Variable? @relation(fields: [variableId], references: [id])
@@ -201,11 +202,11 @@ model Bitacora {
   medicionId Int?
   medicion   Medicion? @relation(fields: [medicionId], references: [id])
 
-  unidadId Int?
+  unidadId  Int?
   unidadRel Unidad? @relation("BitacoraUnidad", fields: [unidadId], references: [id])
 
-  obra        Obra        @relation(fields: [obraId], references: [id])
-  responsable User        @relation("BitacoraResponsable", fields: [responsableId], references: [id])
+  obra        Obra         @relation(fields: [obraId], references: [id])
+  responsable User         @relation("BitacoraResponsable", fields: [responsableId], references: [id])
   contratista Contratista? @relation(fields: [contratistaId], references: [id])
 
   evidencias            BitacoraMedia[]
@@ -248,18 +249,18 @@ model BitacoraSeguimientoMedia {
 
 // 🚀 ORDEN DE TRABAJO
 model OrdenTrabajo {
-  id             Int              @id @default(autoincrement())
-  nOrden         String           @unique
-  identificacion String?
-  objetivo       String
-  tipoTrabajo    String
-  fecha          DateTime         @default(now())
-  numeroAuto     String?
-  observaciones  String?
-  carpeta        String?
-  actividad      String?
+  id              Int              @id @default(autoincrement())
+  nOrden          String           @unique
+  identificacion  String?
+  objetivo        String
+  tipoTrabajo     String
+  fecha           DateTime         @default(now())
+  numeroAuto      String?
+  observaciones   String?
+  carpeta         String?
+  actividad       String?
   estadoActividad EstadoActividad?
-  estado         EstadoOT         @default(PENDIENTE)
+  estado          EstadoOT         @default(PENDIENTE)
 
   obraId Int
   obra   Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
