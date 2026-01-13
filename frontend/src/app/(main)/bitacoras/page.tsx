@@ -4,7 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
-import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api"; 
+import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api";
 
 import { toast } from "sonner";
 
@@ -53,6 +53,12 @@ export default function BitacorasPage() {
 
   const [form, setForm] = useState<FormState>(createInitialFormState());
   const [editingId, setEditingId] = useState<number | null>(null);
+
+  // 📸 ESTADOS PARA CONTROLAR ELIMINACIÓN DE FOTOS (NUEVO)
+  const [originalPhotos, setOriginalPhotos] = useState<any[]>([]);
+  const [originalSeguimientoPhotos, setOriginalSeguimientoPhotos] = useState<
+    any[]
+  >([]);
 
   const [searchTerm, setSearchTerm] = useState("");
   const [sortConfig, setSortConfig] = useState({
@@ -180,15 +186,45 @@ export default function BitacorasPage() {
   };
 
   // ===============================
-  // SUBMIT
+  // SUBMIT (CON ELIMINACIÓN DE FOTOS)
   // ===============================
-
-
-const handleSubmit = async () => {
+  const handleSubmit = async () => {
     if (!validateForm()) return;
     setLoading(true);
 
     try {
+      // ---------------------------------------------------------
+      // 🗑️ LÓGICA DE ELIMINADO DE FOTOS (Solo al editar)
+      // ---------------------------------------------------------
+      if (editingId) {
+        // 1. Detectar fotos principales eliminadas
+        const fotosBorradas = originalPhotos.filter(
+          (orig) => !form.fotosExistentes.find((actual) => actual.id === orig.id)
+        );
+
+        // 2. Detectar fotos de seguimiento eliminadas
+        const fotosSeguimientoBorradas = originalSeguimientoPhotos.filter(
+          (orig) =>
+            !form.fotosSeguimientoExistentes.find(
+              (actual) => actual.id === orig.id
+            )
+        );
+
+        // 3. Ejecutar el borrado en el Backend
+        const promesasBorrado = [
+          ...fotosBorradas.map((f) => apiDelete(`/evidencias/${f.id}`)),
+          ...fotosSeguimientoBorradas.map((f) =>
+            apiDelete(`/evidencias/${f.id}`)
+          ),
+        ];
+
+        if (promesasBorrado.length > 0) {
+          console.log(`🗑️ Eliminando ${promesasBorrado.length} fotos...`);
+          await Promise.all(promesasBorrado);
+        }
+      }
+      // ---------------------------------------------------------
+
       // 1. Crear la caja
       const fd = new FormData();
 
@@ -200,7 +236,7 @@ const handleSubmit = async () => {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
 
-      // (Corrección anterior de fecha)
+      // (Corrección anterior de fecha: Solo si es nueva)
       if (!editingId) {
         fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
       }
@@ -219,7 +255,6 @@ const handleSubmit = async () => {
       if (form.longitud) fd.append("longitud", form.longitud);
 
       // 3. 📸 FOTOS BITÁCORA (NUEVAS)
-      // Estas SÍ se envían siempre, porque son los archivos nuevos que estás subiendo
       console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
 
       if (form.fotoFiles && form.fotoFiles.length > 0) {
@@ -235,13 +270,9 @@ const handleSubmit = async () => {
         });
       }
 
-      // =====================================================================
-      // 5. FOTOS EXISTENTES (SOLUCIÓN DEL ERROR)
-      // =====================================================================
+      // 5. FOTOS EXISTENTES (SOLUCIÓN DEL ERROR AL EDITAR)
       // Solo enviamos la lista de fotos viejas si NO estamos editando.
-      // Al editar, el backend solo quiere los archivos nuevos ('files') y ya sabe cuáles son los viejos.
-      
-      if (!editingId) { 
+      if (!editingId) {
         if (form.fotosExistentes.length > 0) {
           fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
         }
@@ -263,32 +294,35 @@ const handleSubmit = async () => {
         await apiPostForm(`/bitacoras`, fd);
       }
 
-      toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
+      toast.success(
+        editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada"
+      );
 
       // Limpieza
       setForm(createInitialFormState());
       setEditingId(null);
+      setOriginalPhotos([]); // Limpiamos memoria
+      setOriginalSeguimientoPhotos([]);
       setOpen(false);
       await fetchData();
     } catch (error: any) {
       console.error("❌ ERROR:", error);
-      // Muestra el mensaje exacto del backend si existe
       toast.error(error?.response?.data?.message ?? "Error al guardar.");
     } finally {
       setLoading(false);
     }
   };
 
-
-
-
-
   // ===============================
-  // EDITAR
+  // EDITAR (ACTUALIZADO)
   // ===============================
 
   const handleEdit = (bitacora: Bitacora) => {
     setEditingId(bitacora.id);
+
+    // 1️⃣ Guardamos las fotos originales en memoria para comparar después
+    setOriginalPhotos(bitacora.evidencias || []);
+    setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
 
     setForm({
       ...createInitialFormState(),
@@ -356,11 +390,11 @@ const handleSubmit = async () => {
   const filteredBitacoras = useMemo(() => {
     if (!searchTerm) return bitacoras;
     const term = searchTerm.toLowerCase();
-    
+
     return bitacoras.filter(
       (b) =>
         // ✅ AQUI AGREGAMOS LA BÚSQUEDA POR ID
-        b.id.toString().includes(term) || 
+        b.id.toString().includes(term) ||
         b.obra?.nombre.toLowerCase().includes(term) ||
         b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
         b.contratista?.nombre.toLowerCase().includes(term) ||
@@ -478,9 +512,7 @@ const handleSubmit = async () => {
 
     try {
       // 🟢 Generamos el PDF (como array de 1 elemento)
-      const blob = await pdf(
-        <BitacoraReportePDF data={[bitacora]} />
-      ).toBlob();
+      const blob = await pdf(<BitacoraReportePDF data={[bitacora]} />).toBlob();
 
       const url = URL.createObjectURL(blob);
       const link = document.createElement("a");
@@ -524,7 +556,7 @@ const handleSubmit = async () => {
         onSearchChange={setSearchTerm}
         onEdit={handleEdit}
         onGeneratePDF={handleGeneratePDF}
-        onView={handleView} 
+        onView={handleView}
       />
 
       <BitacoraFormModal
