@@ -10,7 +10,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Bitacora } from "../types/bitacora";
-import { Calendar, MapPin, User, FileText, Tag } from "lucide-react";
+import { MapPin, User, FileText, Tag } from "lucide-react";
 
 interface BitacoraDetailsModalProps {
   open: boolean;
@@ -25,16 +25,27 @@ export default function BitacoraDetailsModal({
 }: BitacoraDetailsModalProps) {
   if (!data) return null;
 
-const getImageUrl = (path: string) => {
-  if (!path) return "";
-  return path.startsWith("http")
-    ? path
-    : `${process.env.NEXT_PUBLIC_API_URL}${path}`;
-};
+  const getImageUrl = (path: string) => {
+    if (!path) return "";
+    return path.startsWith("http")
+      ? path
+      : `${process.env.NEXT_PUBLIC_API_URL}${path}`;
+  };
 
+  // ✅ NUEVO: Fecha + Hora (12h AM/PM) en es-CO
+  const formatDateTime = (dateString?: string | Date | null) => {
+    if (!dateString) return "-";
+    const date = new Date(dateString);
 
-
-
+    return date.toLocaleString("es-CO", {
+      day: "numeric",
+      month: "numeric",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+      hour12: true,
+    });
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -45,13 +56,11 @@ const getImageUrl = (path: string) => {
               Detalle de Bitácora #{data.id}
             </DialogTitle>
             <p className="text-xs text-gray-500 mt-1">
-              Creado el {data.fechaCreacion ? new Date(data.fechaCreacion).toLocaleString("es-CO") : "-"}
+              Creado el {formatDateTime(data.fechaCreacion)}
             </p>
           </div>
           <Badge
-            className={
-              data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"
-            }
+            className={data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"}
           >
             {data.estado}
           </Badge>
@@ -100,27 +109,32 @@ const getImageUrl = (path: string) => {
                   {data.medicion?.nombre || "N/A"}
                 </span>
               </div>
+
               <div>
                 <span className="text-xs text-gray-500 block">Unidad</span>
                 <span className="text-sm font-medium">
                   {data.unidadRel?.nombre || data.unidad || "N/A"}
                 </span>
               </div>
+
+              {/* ✅ CAMBIO: Fecha Ejecución ahora incluye hora */}
               <div>
-                <span className="text-xs text-gray-500 block">Fecha Ejecución</span>
+                <span className="text-xs text-gray-500 block">
+                  Fecha Ejecución
+                </span>
                 <span className="text-sm font-medium">
-                  {data.fechaEjecucion
-                    ? new Date(data.fechaEjecucion).toLocaleDateString()
-                    : "-"}
+                  {formatDateTime(data.fechaEjecucion)}
                 </span>
               </div>
+
+              {/* ✅ CAMBIO: Fecha Mejora ahora incluye hora */}
               {data.fechaMejora && (
                 <div>
                   <span className="text-xs text-gray-500 block">
                     Fecha Mejora
                   </span>
                   <span className="text-sm font-medium text-orange-600">
-                    {new Date(data.fechaMejora).toLocaleDateString()}
+                    {formatDateTime(data.fechaMejora)}
                   </span>
                 </div>
               )}
@@ -171,7 +185,9 @@ const getImageUrl = (path: string) => {
                 ))}
               </div>
             ) : (
-              <p className="text-sm text-gray-400 italic">No hay fotos registradas.</p>
+              <p className="text-sm text-gray-400 italic">
+                No hay fotos registradas.
+              </p>
             )}
           </div>
 
@@ -224,7 +240,6 @@ function InfoItem({
   return (
     <div className="flex items-start gap-3 p-2 rounded-md hover:bg-gray-50 transition">
       <div className="mt-1 bg-white p-2 rounded-full border shadow-sm">
-        {/* ✅ CORRECCIÓN AQUÍ: Usamos 'as any' para evitar el error de TypeScript sobre 'size' */}
         {React.cloneElement(icon as any, { size: 16 })}
       </div>
       <div>
