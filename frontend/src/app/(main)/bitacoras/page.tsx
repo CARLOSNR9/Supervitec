@@ -185,8 +185,8 @@ export default function BitacorasPage() {
     return true;
   };
 
-  // ===============================
-  // SUBMIT (CON ELIMINACIÓN DE FOTOS)
+ // ===============================
+  // 💾 SUBMIT (CON FECHAS + HORA ACTUAL)
   // ===============================
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -194,15 +194,41 @@ export default function BitacorasPage() {
 
     try {
       // ---------------------------------------------------------
+      // 🕒 FUNCIÓN AUXILIAR: COMBINAR FECHA SELECCIONADA + HORA ACTUAL
+      // ---------------------------------------------------------
+      const addCurrentTime = (dateString: string) => {
+        if (!dateString) return null;
+        
+        // 1. Obtenemos la hora actual real
+        const now = new Date();
+        
+        // 2. Si el string ya viene largo (ISO), lo convertimos directo
+        if (dateString.includes('T')) return new Date(dateString).toISOString();
+
+        // 3. Si viene como "YYYY-MM-DD" (Input type="date"), lo mezclamos
+        const [year, month, day] = dateString.split('-').map(Number);
+        
+        // Creamos una nueva fecha: Día seleccionado + Hora del reloj actual
+        const mixedDate = new Date(
+          year,
+          month - 1, // Meses en JS van de 0 a 11
+          day,
+          now.getHours(),
+          now.getMinutes(),
+          now.getSeconds()
+        );
+        
+        return mixedDate.toISOString();
+      };
+      // ---------------------------------------------------------
+
+      // ---------------------------------------------------------
       // 🗑️ LÓGICA DE ELIMINADO DE FOTOS (Solo al editar)
       // ---------------------------------------------------------
       if (editingId) {
-        // 1. Detectar fotos principales eliminadas
         const fotosBorradas = originalPhotos.filter(
           (orig) => !form.fotosExistentes.find((actual) => actual.id === orig.id)
         );
-
-        // 2. Detectar fotos de seguimiento eliminadas
         const fotosSeguimientoBorradas = originalSeguimientoPhotos.filter(
           (orig) =>
             !form.fotosSeguimientoExistentes.find(
@@ -210,9 +236,7 @@ export default function BitacorasPage() {
             )
         );
 
-       // 3. Ejecutar el borrado en el Backend
         const promesasBorrado = [
-          // ⚠️ FIJATE EN LA RUTA: /bitacoras/evidencia/
           ...fotosBorradas.map((f) => apiDelete(`/bitacoras/evidencia/${f.id}`)),
           ...fotosSeguimientoBorradas.map((f) =>
             apiDelete(`/bitacoras/evidencia/${f.id}`)
@@ -220,11 +244,9 @@ export default function BitacorasPage() {
         ];
 
         if (promesasBorrado.length > 0) {
-          console.log(`🗑️ Eliminando ${promesasBorrado.length} fotos...`);
           await Promise.all(promesasBorrado);
         }
       }
-      // ---------------------------------------------------------
 
       // 1. Crear la caja
       const fd = new FormData();
@@ -237,18 +259,27 @@ export default function BitacorasPage() {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
 
-      // (Corrección anterior de fecha: Solo si es nueva)
+      // Fecha Creación: Si es nueva, usa la del form o la actual
       if (!editingId) {
-        fd.append("fechaCreacion", new Date(form.fechaCreacion).toISOString());
+        // Si el usuario eligió una fecha manual, le respetamos la hora si la puso,
+        // si no, usamos la lógica de agregar hora actual.
+        const fechaC = form.fechaCreacion 
+             ? new Date(form.fechaCreacion).toISOString() 
+             : new Date().toISOString();
+        fd.append("fechaCreacion", fechaC);
       }
 
-      if (form.fechaMejora)
-        fd.append("fechaMejora", new Date(form.fechaMejora).toISOString());
-      if (form.fechaEjecucion)
-        fd.append(
-          "fechaEjecucion",
-          new Date(form.fechaEjecucion).toISOString()
-        );
+      // ✅ APLICANDO LA LÓGICA DE HORA ACTUAL A LOS CAMPOS SOLICITADOS
+      if (form.fechaMejora) {
+        const fechaConHora = addCurrentTime(form.fechaMejora);
+        if (fechaConHora) fd.append("fechaMejora", fechaConHora);
+      }
+
+      if (form.fechaEjecucion) {
+        const fechaConHora = addCurrentTime(form.fechaEjecucion);
+        if (fechaConHora) fd.append("fechaEjecucion", fechaConHora);
+      }
+
       if (form.ubicacion) fd.append("ubicacion", form.ubicacion);
       if (form.observaciones) fd.append("observaciones", form.observaciones);
       if (form.seguimiento) fd.append("seguimiento", form.seguimiento);
@@ -256,8 +287,6 @@ export default function BitacorasPage() {
       if (form.longitud) fd.append("longitud", form.longitud);
 
       // 3. 📸 FOTOS BITÁCORA (NUEVAS)
-      console.log("📸 Cantidad de fotos a subir:", form.fotoFiles.length);
-
       if (form.fotoFiles && form.fotoFiles.length > 0) {
         form.fotoFiles.forEach((file) => {
           fd.append("files", file);
@@ -271,8 +300,7 @@ export default function BitacorasPage() {
         });
       }
 
-      // 5. FOTOS EXISTENTES (SOLUCIÓN DEL ERROR AL EDITAR)
-      // Solo enviamos la lista de fotos viejas si NO estamos editando.
+      // 5. FOTOS EXISTENTES
       if (!editingId) {
         if (form.fotosExistentes.length > 0) {
           fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
@@ -285,10 +313,7 @@ export default function BitacorasPage() {
         }
       }
 
-      // =====================================================================
-      // 🚨 GUARDAR (Crear o Editar)
-      // =====================================================================
-
+      // 6. GUARDAR
       if (editingId) {
         await apiPatch(`/bitacoras/${editingId}`, fd);
       } else {
@@ -302,7 +327,7 @@ export default function BitacorasPage() {
       // Limpieza
       setForm(createInitialFormState());
       setEditingId(null);
-      setOriginalPhotos([]); // Limpiamos memoria
+      setOriginalPhotos([]);
       setOriginalSeguimientoPhotos([]);
       setOpen(false);
       await fetchData();
@@ -313,6 +338,7 @@ export default function BitacorasPage() {
       setLoading(false);
     }
   };
+
 
   // ===============================
   // EDITAR (ACTUALIZADO)
