@@ -116,7 +116,10 @@ model Bitacora {
   variableId            Int?
   medicionId            Int?
   unidadId              Int?
-  codigo                String?
+
+  // ✅ AJUSTE PEDIDO: codigo con unique
+  codigo                String?                    @unique
+
   contratista           Contratista?               @relation(fields: [contratistaId], references: [id])
   medicion              Medicion?                  @relation(fields: [medicionId], references: [id])
   obra                  Obra                       @relation(fields: [obraId], references: [id])
