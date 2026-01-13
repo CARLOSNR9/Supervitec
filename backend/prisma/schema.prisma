@@ -1,7 +1,3 @@
-// ================================================================
-// Archivo: prisma/schema.prisma
-// ================================================================
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,7 +7,224 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ===================== ENUMS =====================
+model Variable {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique
+  observaciones String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  bitacoras     Bitacora[]
+
+  @@map("variables")
+}
+
+model Unidad {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique
+  observaciones String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  bitacoras     Bitacora[] @relation("BitacoraUnidad")
+}
+
+model Medicion {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique
+  observaciones String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  bitacoras     Bitacora[]
+
+  @@map("mediciones")
+}
+
+model Contratista {
+  id            Int        @id @default(autoincrement())
+  nombre        String     @unique
+  responsable   String?
+  email         String?
+  observaciones String?
+  createdAt     DateTime   @default(now())
+  updatedAt     DateTime   @updatedAt
+  directorId    Int?
+  bitacoras     Bitacora[]
+  director      User?      @relation(fields: [directorId], references: [id])
+
+  @@map("contratistas")
+}
+
+model User {
+  id              Int            @id @default(autoincrement())
+  username        String         @unique
+  hash            String
+  nombreCompleto  String
+  email           String?        @unique
+  phone           String?        @unique
+  role            Role           @default(RESIDENTE)
+  active          Boolean        @default(true)
+  createdAt       DateTime       @default(now())
+  updatedAt       DateTime       @updatedAt
+  ownerDirectorId Int?
+  maxUsers        Int?           @default(3)
+  maxObras        Int?           @default(1)
+  bitacoras       Bitacora[]     @relation("BitacoraResponsable")
+  createdObras    Obra[]         @relation("CreatedObras")
+  obrasDirigidas  Obra[]         @relation("DirectorObras")
+  ownerDirector   User?          @relation("DirectorUsers", fields: [ownerDirectorId], references: [id])
+  subUsers        User[]         @relation("DirectorUsers")
+  contratistas    Contratista[]
+  ordenesTrabajo  OrdenTrabajo[]
+  obras           Obra[]         @relation("ObraResponsables")
+}
+
+model Obra {
+  id               Int            @id @default(autoincrement())
+  prefijo          String         @unique
+  nombre           String         @unique
+  descripcion      String?
+  observaciones    String?
+  estado           EstadoObra     @default(PENDIENTE)
+  fechaInicio      DateTime?
+  fechaFinPrevista DateTime?
+  createdAt        DateTime       @default(now())
+  updatedAt        DateTime       @updatedAt
+  creatorId        Int
+  directorId       Int?
+  bitacoras        Bitacora[]
+  creator          User           @relation("CreatedObras", fields: [creatorId], references: [id])
+  director         User?          @relation("DirectorObras", fields: [directorId], references: [id])
+  ordenes          OrdenTrabajo[]
+  responsables     User[]         @relation("ObraResponsables")
+}
+
+model Bitacora {
+  id                    Int                        @id @default(autoincrement())
+  obraId                Int
+  responsableId         Int
+  estado                BitacoraEstado             @default(ABIERTA)
+  fechaCreacion         DateTime                   @default(now())
+  fechaMejora           DateTime?
+  fechaEjecucion        DateTime?
+  ubicacion             String?
+  registro              String?
+  unidad                String?
+  observaciones         String?
+  seguimiento           String?
+  contratistaId         Int?
+  latitud               Float?
+  longitud              Float?
+  variableId            Int?
+  medicionId            Int?
+  unidadId              Int?
+  codigo                String?
+  contratista           Contratista?               @relation(fields: [contratistaId], references: [id])
+  medicion              Medicion?                  @relation(fields: [medicionId], references: [id])
+  obra                  Obra                       @relation(fields: [obraId], references: [id])
+  responsable           User                       @relation("BitacoraResponsable", fields: [responsableId], references: [id])
+  unidadRel             Unidad?                    @relation("BitacoraUnidad", fields: [unidadId], references: [id])
+  variable              Variable?                  @relation(fields: [variableId], references: [id])
+  evidencias            BitacoraMedia[]
+  evidenciasSeguimiento BitacoraSeguimientoMedia[]
+
+  @@index([obraId])
+  @@index([responsableId])
+  @@index([estado])
+  @@index([fechaCreacion])
+  @@index([contratistaId])
+  @@index([latitud])
+  @@index([longitud])
+  @@index([variableId])
+  @@index([medicionId])
+  @@index([unidadId])
+}
+
+model BitacoraMedia {
+  id         Int      @id @default(autoincrement())
+  bitacoraId Int
+  url        String
+  tipo       String
+  metadata   Json?
+  createdAt  DateTime @default(now())
+  bitacora   Bitacora @relation(fields: [bitacoraId], references: [id])
+}
+
+model BitacoraSeguimientoMedia {
+  id         Int      @id @default(autoincrement())
+  bitacoraId Int
+  url        String
+  tipo       String
+  createdAt  DateTime @default(now())
+  bitacora   Bitacora @relation(fields: [bitacoraId], references: [id])
+}
+
+model OrdenTrabajo {
+  id              Int              @id @default(autoincrement())
+  nOrden          String           @unique
+  identificacion  String?
+  objetivo        String
+  tipoTrabajo     String
+  fecha           DateTime         @default(now())
+  numeroAuto      String?
+  observaciones   String?
+  carpeta         String?
+  actividad       String?
+  estadoActividad EstadoActividad?
+  estado          EstadoOT         @default(PENDIENTE)
+  obraId          Int
+  responsableId   Int
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+  carpetas        Carpeta[]
+  obra            Obra             @relation(fields: [obraId], references: [id], onDelete: Cascade)
+  responsable     User             @relation(fields: [responsableId], references: [id])
+
+  @@map("ordenes_trabajo")
+}
+
+model Carpeta {
+  id             Int          @id @default(autoincrement())
+  ordenTrabajoId Int
+  nombre         String
+  indice         Int
+  actividades    Actividad[]
+  ordenTrabajo   OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id])
+
+  @@map("carpetas")
+}
+
+model Actividad {
+  id           Int                   @id @default(autoincrement())
+  carpetaId    Int
+  nombre       String
+  indice       Int
+  evidencias   ActividadMedia[]
+  carpeta      Carpeta               @relation(fields: [carpetaId], references: [id])
+  evaluaciones EvaluacionActividad[]
+
+  @@map("actividades")
+}
+
+model EvaluacionActividad {
+  id            Int             @id @default(autoincrement())
+  actividadId   Int
+  estado        EstadoActividad
+  observaciones String?
+  createdAt     DateTime        @default(now())
+  actividad     Actividad       @relation(fields: [actividadId], references: [id])
+
+  @@map("evaluaciones_actividad")
+}
+
+model ActividadMedia {
+  id          Int       @id @default(autoincrement())
+  actividadId Int
+  url         String
+  tipo        String?
+  metadata    Json?
+  actividad   Actividad @relation(fields: [actividadId], references: [id])
+
+  @@map("actividad_media")
+}
 
 enum Role {
   ADMIN
@@ -56,270 +269,4 @@ enum EstadoOT {
   CANCELADA
   APROBADA
   RECHAZADA
-}
-
-// ===================== MODELOS =====================
-
-// 🌟 VARIABLES (Catálogo)
-model Variable {
-  id            Int      @id @default(autoincrement())
-  nombre        String   @unique
-  observaciones String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  bitacoras Bitacora[]
-
-  @@map("variables")
-}
-
-// 🌟 UNIDADES (Catálogo)
-model Unidad {
-  id            Int      @id @default(autoincrement())
-  nombre        String   @unique
-  observaciones String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  bitacoras Bitacora[] @relation("BitacoraUnidad")
-}
-
-// 🌟 MEDICIONES (Catálogo)
-model Medicion {
-  id            Int      @id @default(autoincrement())
-  nombre        String   @unique
-  observaciones String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  bitacoras Bitacora[]
-
-  @@map("mediciones")
-}
-
-// 🚀 CONTRATISTAS
-model Contratista {
-  id            Int      @id @default(autoincrement())
-  nombre        String   @unique
-  responsable   String?
-  email         String?
-  observaciones String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-
-  // Relación con Director (User)
-  directorId Int?
-  director   User? @relation(fields: [directorId], references: [id])
-
-  bitacoras Bitacora[]
-
-  @@map("contratistas")
-}
-
-// 🚀 USERS
-model User {
-  id             Int      @id @default(autoincrement())
-  username       String   @unique
-  hash           String
-  nombreCompleto String
-  email          String?  @unique
-  phone          String?  @unique
-  role           Role     @default(RESIDENTE)
-  active         Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
-
-  // Relaciones existentes
-  bitacoras      Bitacora[]     @relation("BitacoraResponsable")
-  ordenesTrabajo OrdenTrabajo[]
-  obras          Obra[]         @relation("ObraResponsables")
-  createdObras   Obra[]         @relation("CreatedObras")
-
-  // Relación: Un Director puede tener muchos contratistas
-  contratistas Contratista[]
-
-  // Relación: Obras dirigidas por un Director
-  obrasDirigidas Obra[] @relation("DirectorObras")
-
-  // Relación: Jerarquía de usuarios (Director -> Sus usuarios)
-  ownerDirectorId Int?
-  ownerDirector   User?  @relation("DirectorUsers", fields: [ownerDirectorId], references: [id])
-  subUsers        User[] @relation("DirectorUsers")
-
-  // Límites SaaS (Esto es lo que faltaba en la DB)
-  maxUsers Int? @default(3)
-  maxObras Int? @default(1)
-}
-
-// 🚀 OBRAS
-model Obra {
-  id               Int        @id @default(autoincrement())
-  prefijo          String     @unique
-  nombre           String     @unique
-  descripcion      String?
-  observaciones    String?
-  estado           EstadoObra @default(PENDIENTE)
-  fechaInicio      DateTime?
-  fechaFinPrevista DateTime?
-  createdAt        DateTime   @default(now())
-  updatedAt        DateTime   @updatedAt
-
-  responsables User[] @relation("ObraResponsables")
-
-  bitacoras Bitacora[]
-  ordenes   OrdenTrabajo[]
-
-  creatorId Int
-  creator   User @relation("CreatedObras", fields: [creatorId], references: [id])
-
-  // Relación con Director
-  directorId Int?
-  director   User? @relation("DirectorObras", fields: [directorId], references: [id])
-}
-
-// 🚀 BITÁCORAS
-model Bitacora {
-  id             Int            @id @default(autoincrement())
-  codigo         String?        // 🔥 NUEVO CAMPO (nullable para registros viejos)
-  obraId         Int
-  responsableId  Int
-  estado         BitacoraEstado @default(ABIERTA)
-  fechaCreacion  DateTime       @default(now())
-  fechaMejora    DateTime?
-  fechaEjecucion DateTime?
-  ubicacion      String?
-  registro       String?
-  unidad         String?
-  observaciones  String?
-  seguimiento    String?
-  contratistaId  Int?
-  latitud        Float?
-  longitud       Float?
-
-  variableId Int?
-  variable   Variable? @relation(fields: [variableId], references: [id])
-
-  medicionId Int?
-  medicion   Medicion? @relation(fields: [medicionId], references: [id])
-
-  unidadId  Int?
-  unidadRel Unidad? @relation("BitacoraUnidad", fields: [unidadId], references: [id])
-
-  obra        Obra         @relation(fields: [obraId], references: [id])
-  responsable User         @relation("BitacoraResponsable", fields: [responsableId], references: [id])
-  contratista Contratista? @relation(fields: [contratistaId], references: [id])
-
-  evidencias            BitacoraMedia[]
-  evidenciasSeguimiento BitacoraSeguimientoMedia[]
-
-  @@index([obraId])
-  @@index([responsableId])
-  @@index([estado])
-  @@index([fechaCreacion])
-  @@index([contratistaId])
-  @@index([latitud])
-  @@index([longitud])
-  @@index([variableId])
-  @@index([medicionId])
-  @@index([unidadId])
-}
-
-// 🖼️ FOTOS NORMALES
-model BitacoraMedia {
-  id         Int      @id @default(autoincrement())
-  bitacoraId Int
-  url        String
-  tipo       String
-  metadata   Json?
-  createdAt  DateTime @default(now())
-
-  bitacora Bitacora @relation(fields: [bitacoraId], references: [id])
-}
-
-// 🖼️ FOTOS DE SEGUIMIENTO
-model BitacoraSeguimientoMedia {
-  id         Int      @id @default(autoincrement())
-  bitacoraId Int
-  url        String
-  tipo       String
-  createdAt  DateTime @default(now())
-
-  bitacora Bitacora @relation(fields: [bitacoraId], references: [id])
-}
-
-// 🚀 ORDEN DE TRABAJO
-model OrdenTrabajo {
-  id              Int              @id @default(autoincrement())
-  nOrden          String           @unique
-  identificacion  String?
-  objetivo        String
-  tipoTrabajo     String
-  fecha           DateTime         @default(now())
-  numeroAuto      String?
-  observaciones   String?
-  carpeta         String?
-  actividad       String?
-  estadoActividad EstadoActividad?
-  estado          EstadoOT         @default(PENDIENTE)
-
-  obraId Int
-  obra   Obra @relation(fields: [obraId], references: [id], onDelete: Cascade)
-
-  responsableId Int
-  responsable   User @relation(fields: [responsableId], references: [id])
-
-  carpetas Carpeta[]
-
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  @@map("ordenes_trabajo")
-}
-
-model Carpeta {
-  id             Int       @id @default(autoincrement())
-  ordenTrabajoId Int
-  nombre         String
-  indice         Int
-  actividades    Actividad[]
-
-  ordenTrabajo OrdenTrabajo @relation(fields: [ordenTrabajoId], references: [id])
-
-  @@map("carpetas")
-}
-
-model Actividad {
-  id           Int        @id @default(autoincrement())
-  carpetaId    Int
-  nombre       String
-  indice       Int
-  evaluaciones EvaluacionActividad[]
-  evidencias   ActividadMedia[]
-
-  carpeta Carpeta @relation(fields: [carpetaId], references: [id])
-
-  @@map("actividades")
-}
-
-model EvaluacionActividad {
-  id            Int             @id @default(autoincrement())
-  actividadId   Int
-  estado        EstadoActividad
-  observaciones String?
-  createdAt     DateTime        @default(now())
-
-  actividad Actividad @relation(fields: [actividadId], references: [id])
-
-  @@map("evaluaciones_actividad")
-}
-
-model ActividadMedia {
-  id          Int       @id @default(autoincrement())
-  actividadId Int
-  url         String
-  tipo        String?
-  metadata    Json?
-  actividad   Actividad @relation(fields: [actividadId], references: [id])
-
-  @@map("actividad_media")
 }
