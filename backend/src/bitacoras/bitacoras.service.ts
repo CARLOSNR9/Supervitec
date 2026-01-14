@@ -16,7 +16,7 @@ export class BitacorasService {
 
   constructor(
     private prisma: PrismaService,
-    private cloudinary: CloudinaryService, // ✅ Cloudinary inyectado
+    private cloudinary: CloudinaryService,
   ) {}
 
   // ============================================================
@@ -84,12 +84,6 @@ export class BitacorasService {
       this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
 
       if (files?.length > 0) {
-        files.forEach((f, i) => {
-          this.logger.log(
-            `🖼️ [${i}] ${f.originalname} | fieldname=${f.fieldname} | mimetype=${f.mimetype} | size=${f.size}`,
-          );
-        });
-
         const results = await Promise.all(
           files.map((f) => this.cloudinary.uploadImage(f)),
         );
@@ -211,7 +205,7 @@ export class BitacorasService {
   }
 
   // ============================================================
-  // UPDATE + CLOUDINARY (CON SEPARACIÓN ESTRICTA DE FOTOS)
+  // UPDATE + CLOUDINARY + BORRADO (SEPARACIÓN ESTRICTA DE FOTOS)
   // ============================================================
   async update(
     id: number,
@@ -222,8 +216,7 @@ export class BitacorasService {
       const data: any = {};
 
       // === estado ===
-      if (dto.estado !== undefined)
-        data.estado = dto.estado as BitacoraEstado;
+      if (dto.estado !== undefined) data.estado = dto.estado as BitacoraEstado;
 
       // === fechas ===
       if (dto.fechaMejora !== undefined)
@@ -279,14 +272,56 @@ export class BitacorasService {
           : { disconnect: true };
       }
 
-      // === ACTUALIZA DATOS DE TEXTO ===
+      // 1) ACTUALIZA DATOS DE TEXTO
       await this.prisma.bitacora.update({
         where: { id },
         data,
       });
 
       // ==========================================================
-      // 🚀 MANEJO INTELIGENTE DE IMÁGENES (SEPARACIÓN REAL)
+      // 🗑️ FASE DE ELIMINACIÓN (NUEVO)
+      // ==========================================================
+      const parseIds = (raw?: string) => {
+        if (!raw) return [];
+        try {
+          const parsed = JSON.parse(raw);
+          if (!Array.isArray(parsed)) return [];
+          return parsed
+            .map((x) => Number(x))
+            .filter((n) => Number.isInteger(n) && n > 0);
+        } catch (e) {
+          return [];
+        }
+      };
+
+      // 1) Borrar fotos normales
+      if (dto.idsToDelete) {
+        const ids = parseIds(dto.idsToDelete);
+        if (ids.length > 0) {
+          await this.prisma.bitacoraMedia.deleteMany({
+            where: {
+              id: { in: ids },
+              bitacoraId: id, // ✅ seguridad: solo de esta bitácora
+            },
+          });
+        }
+      }
+
+      // 2) Borrar fotos seguimiento
+      if (dto.idsToDeleteSeguimiento) {
+        const ids = parseIds(dto.idsToDeleteSeguimiento);
+        if (ids.length > 0) {
+          await this.prisma.bitacoraSeguimientoMedia.deleteMany({
+            where: {
+              id: { in: ids },
+              bitacoraId: id, // ✅ seguridad
+            },
+          });
+        }
+      }
+
+      // ==========================================================
+      // 📸 FASE DE SUBIDA (SEPARACIÓN REAL)
       // ==========================================================
       if (files?.length > 0) {
         // Compatibilidad: si aún llega "files" (legacy), lo tratamos como NORMAL
@@ -301,7 +336,7 @@ export class BitacorasService {
           `📸 update(): files=${files.length} | normales=${fotosNormales.length} | seguimiento=${fotosSeguimiento.length}`,
         );
 
-        // 1) Subir y guardar FOTOS NORMALES (Iniciales)
+        // Subir y guardar normales
         if (fotosNormales.length > 0) {
           const uploadsNormal = await Promise.all(
             fotosNormales.map((f) => this.cloudinary.uploadImage(f)),
@@ -320,7 +355,7 @@ export class BitacorasService {
           }
         }
 
-        // 2) Subir y guardar FOTOS SEGUIMIENTO (Corrección)
+        // Subir y guardar seguimiento (tabla correcta)
         if (fotosSeguimiento.length > 0) {
           const uploadsSeguimiento = await Promise.all(
             fotosSeguimiento.map((f) => this.cloudinary.uploadImage(f)),
@@ -335,7 +370,6 @@ export class BitacorasService {
             }));
 
           if (dataSeguimiento.length > 0) {
-            // ⚠️ Guardamos en la tabla correcta: BitacoraSeguimientoMedia
             await this.prisma.bitacoraSeguimientoMedia.createMany({
               data: dataSeguimiento,
             });

@@ -83,23 +83,26 @@ export default function BitacoraFormModal({
 
   const isProductoNoConformeOrSeRecomienda = useMemo(() => {
     const nombre = selectedVar?.nombre?.toUpperCase()?.trim() ?? "";
-    // Normalizamos quitando guiones bajos por si acaso vienen con espacios
-    const cleanName = nombre.replace(/_/g, " "); 
-    return cleanName === "PRODUCTO NO CONFORME" || cleanName === "SE RECOMIENDA" || nombre === "PRODUCTO_NO_CONFORME" || nombre === "SE_RECOMIENDA";
+    const cleanName = nombre.replace(/_/g, " ");
+    return (
+      cleanName === "PRODUCTO NO CONFORME" ||
+      cleanName === "SE RECOMIENDA" ||
+      nombre === "PRODUCTO_NO_CONFORME" ||
+      nombre === "SE_RECOMIENDA"
+    );
   }, [selectedVar]);
 
   // 2. Determinar si mostramos la sección de abajo
-  // Se muestra si la variable lo pide O SI YA EXISTEN fotos de seguimiento (para no ocultarlas por error)
-  const showSeguimientoSection = isProductoNoConformeOrSeRecomienda || 
-                                 form.fotosSeguimientoExistentes.length > 0 || 
-                                 form.fotosSeguimiento.length > 0;
+  const showSeguimientoSection =
+    isProductoNoConformeOrSeRecomienda ||
+    form.fotosSeguimientoExistentes.length > 0 ||
+    form.fotosSeguimiento.length > 0;
 
   // 3. Limpiar seguimiento si cambiamos a una variable normal Y no hay fotos
   useEffect(() => {
     if (!showSeguimientoSection && !isEditing) {
-       // Solo limpiamos si no estamos editando o si el usuario explícitamente cambió la variable
-       // y no hay datos relevantes. (Lógica defensiva)
-       // setForm((f) => ({ ...f, seguimiento: "", fotosSeguimiento: [] }));
+      // (Lógica defensiva - por ahora no limpiamos automáticamente)
+      // setForm((f) => ({ ...f, seguimiento: "", fotosSeguimiento: [] }));
     }
   }, [showSeguimientoSection, isEditing, setForm]);
 
@@ -158,7 +161,6 @@ export default function BitacoraFormModal({
 
           {open && (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
-
               {/* ESTADO */}
               <Select
                 value={form.estado}
@@ -185,22 +187,22 @@ export default function BitacoraFormModal({
               {/* OBRA */}
               <div className="col-span-1 md:col-span-2">
                 <Select
-                    value={form.obraId || "none"}
-                    onValueChange={(v) =>
+                  value={form.obraId || "none"}
+                  onValueChange={(v) =>
                     setForm({ ...form, obraId: v === "none" ? "" : v })
-                    }
+                  }
                 >
-                    <SelectTrigger>
+                  <SelectTrigger>
                     <SelectValue placeholder="Obra *" />
-                    </SelectTrigger>
-                    <SelectContent>
+                  </SelectTrigger>
+                  <SelectContent>
                     <SelectItem value="none">-- Seleccionar Obra --</SelectItem>
                     {obras.map((o) => (
-                        <SelectItem key={o.id} value={o.id.toString()}>
+                      <SelectItem key={o.id} value={o.id.toString()}>
                         {o.prefijo ? `${o.prefijo} - ` : ""} {o.nombre}
-                        </SelectItem>
+                      </SelectItem>
                     ))}
-                    </SelectContent>
+                  </SelectContent>
                 </Select>
               </div>
 
@@ -228,9 +230,7 @@ export default function BitacoraFormModal({
               <Input
                 placeholder="Ubicación *"
                 value={form.ubicacion}
-                onChange={(e) =>
-                  setForm({ ...form, ubicacion: e.target.value })
-                }
+                onChange={(e) => setForm({ ...form, ubicacion: e.target.value })}
               />
 
               {/* CONTRATISTA */}
@@ -298,7 +298,9 @@ export default function BitacoraFormModal({
 
               {/* GPS */}
               <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-2 p-2 border rounded-md bg-gray-50">
-                <label className="text-xs font-semibold text-gray-500">Geolocalización</label>
+                <label className="text-xs font-semibold text-gray-500">
+                  Geolocalización
+                </label>
                 <div className="flex flex-col sm:flex-row gap-2">
                   <Button
                     type="button"
@@ -322,88 +324,100 @@ export default function BitacoraFormModal({
                 </div>
 
                 <div className="grid grid-cols-2 gap-2">
-                  <Input value={form.latitud} readOnly disabled={isEditing} placeholder="Latitud" className="bg-white" />
-                  <Input value={form.longitud} readOnly disabled={isEditing} placeholder="Longitud" className="bg-white" />
+                  <Input
+                    value={form.latitud}
+                    readOnly
+                    disabled={isEditing}
+                    placeholder="Latitud"
+                    className="bg-white"
+                  />
+                  <Input
+                    value={form.longitud}
+                    readOnly
+                    disabled={isEditing}
+                    placeholder="Longitud"
+                    className="bg-white"
+                  />
                 </div>
               </div>
 
               {/* OBSERVACIONES */}
               <div className="col-span-1 md:col-span-2 lg:col-span-4">
                 <Textarea
-                    placeholder="Observaciones generales de la actividad..."
-                    value={form.observaciones}
-                    onChange={(e) =>
+                  placeholder="Observaciones generales de la actividad..."
+                  value={form.observaciones}
+                  onChange={(e) =>
                     setForm({ ...form, observaciones: e.target.value })
-                    }
-                    className="min-h-[80px]"
+                  }
+                  className="min-h-[80px]"
                 />
               </div>
 
-              {/* FECHAS CONDICIONALES (Se muestran si hay fechas O si es no conforme) */}
+              {/* FECHAS CONDICIONALES */}
               {(showSeguimientoSection || form.fechaMejora || form.fechaEjecucion) && (
                 <div className="col-span-1 md:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-yellow-50 rounded-md border border-yellow-200">
-                    {/* Fecha mejora */}
-                    {(showSeguimientoSection || form.fechaMejora) && (
+                  {/* Fecha mejora */}
+                  {(showSeguimientoSection || form.fechaMejora) && (
                     <div>
-                        <label className="block text-sm font-medium text-yellow-800 mb-1">
+                      <label className="block text-sm font-medium text-yellow-800 mb-1">
                         Fecha Compromiso / Mejora
-                        </label>
-                        <Input
+                      </label>
+                      <Input
                         type="date"
                         value={form.fechaMejora}
                         min={
-                            form.fechaCreacion
+                          form.fechaCreacion
                             ? form.fechaCreacion.split("T")[0]
                             : undefined
                         }
                         onChange={(e) =>
-                            setForm({ ...form, fechaMejora: e.target.value })
+                          setForm({ ...form, fechaMejora: e.target.value })
                         }
                         className="bg-white"
-                        />
+                      />
                     </div>
-                    )}
+                  )}
 
-                    {/* Fecha ejecución */}
-                    <div>
+                  {/* Fecha ejecución */}
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Fecha Real de Ejecución
+                      Fecha Real de Ejecución
                     </label>
                     <Input
-                        type="date"
-                        value={form.fechaEjecucion}
-                        min={
+                      type="date"
+                      value={form.fechaEjecucion}
+                      min={
                         form.fechaCreacion
-                            ? form.fechaCreacion.split("T")[0]
-                            : undefined
-                        }
-                        onChange={(e) =>
+                          ? form.fechaCreacion.split("T")[0]
+                          : undefined
+                      }
+                      onChange={(e) =>
                         setForm({ ...form, fechaEjecucion: e.target.value })
-                        }
-                        className="bg-white"
+                      }
+                      className="bg-white"
                     />
-                    </div>
+                  </div>
                 </div>
               )}
 
               {/* ======================= */}
-              {/* FOTOGRAFÍAS INICIALES (NORMALES) */}
+              {/* FOTOGRAFÍAS INICIALES */}
               {/* ======================= */}
               <div className="col-span-1 md:col-span-2 lg:col-span-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
                   Fotografías Iniciales / Hallazgo (máximo 3)
                 </label>
 
-                {/* ⚠️ Advertencia visual si hay más de 3 fotos (error de datos antiguos) */}
                 {(form.fotosExistentes.length + form.fotoFiles.length) > 3 && (
-                    <div className="flex items-center gap-2 text-xs text-orange-600 mb-2 bg-orange-50 p-2 rounded">
-                        <AlertTriangle size={14} />
-                        <span>Hay más de 3 fotos. Por favor elimina las sobrantes o muévelas a seguimiento.</span>
-                    </div>
+                  <div className="flex items-center gap-2 text-xs text-orange-600 mb-2 bg-orange-50 p-2 rounded">
+                    <AlertTriangle size={14} />
+                    <span>
+                      Hay más de 3 fotos. Por favor elimina las sobrantes o muévelas a seguimiento.
+                    </span>
+                  </div>
                 )}
 
                 <div className="flex flex-wrap gap-3">
-
                   {/* --- EXISTENTES --- */}
                   {form.fotosExistentes.map((foto, idx) => (
                     <div
@@ -420,9 +434,10 @@ export default function BitacoraFormModal({
                         onClick={() =>
                           setForm({
                             ...form,
-                            fotosExistentes: form.fotosExistentes.filter(
-                              (_, i) => i !== idx
-                            ),
+                            // 1) Quitar de la vista
+                            fotosExistentes: form.fotosExistentes.filter((_, i) => i !== idx),
+                            // 2) ✅ Guardar ID pendiente por borrar
+                            idsToDelete: [...(form.idsToDelete || []), foto.id],
                           })
                         }
                         className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
@@ -463,7 +478,9 @@ export default function BitacoraFormModal({
                   {form.fotoFiles.length + form.fotosExistentes.length < 3 && (
                     <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84] hover:bg-blue-50 transition-colors">
                       <span className="text-xl md:text-2xl">📷</span>
-                      <span className="text-[10px] md:text-xs text-center mt-1">Agregar</span>
+                      <span className="text-[10px] md:text-xs text-center mt-1">
+                        Agregar
+                      </span>
                       <input
                         type="file"
                         accept="image/*"
@@ -472,11 +489,7 @@ export default function BitacoraFormModal({
                           const file = e.target.files?.[0];
                           if (!file) return;
 
-                          if (
-                            form.fotoFiles.length +
-                              form.fotosExistentes.length >=
-                            3
-                          ) {
+                          if (form.fotoFiles.length + form.fotosExistentes.length >= 3) {
                             toast.error("Máximo 3 fotografías iniciales.");
                             return;
                           }
@@ -495,30 +508,28 @@ export default function BitacoraFormModal({
               {/* ============================ */}
               {/* SEGUIMIENTO + FOTOS EXTRA    */}
               {/* ============================ */}
-              {/* Mostramos esto SI es No Conforme O SI YA HAY fotos ahí (para que no se oculten) */}
               {showSeguimientoSection && (
                 <div className="col-span-1 md:col-span-2 lg:col-span-4 p-4 bg-gray-50 rounded-md border border-gray-200 mt-2 shadow-sm">
                   <div className="flex items-center gap-2 mb-2">
                     <span className="bg-yellow-500 w-2 h-6 rounded-sm"></span>
-                    <label className="block text-sm font-bold text-gray-800">Seguimiento de Calidad / Corrección</label>
+                    <label className="block text-sm font-bold text-gray-800">
+                      Seguimiento de Calidad / Corrección
+                    </label>
                   </div>
-                  
+
                   <Textarea
                     placeholder="Describa el seguimiento realizado..."
                     value={form.seguimiento}
-                    onChange={(e) =>
-                      setForm({ ...form, seguimiento: e.target.value })
-                    }
+                    onChange={(e) => setForm({ ...form, seguimiento: e.target.value })}
                     className="bg-white mb-4"
                   />
 
-                  <div className="">
+                  <div>
                     <label className="block text-sm font-medium text-gray-700 mb-2">
                       Evidencias de corrección (máximo 2)
                     </label>
 
                     <div className="flex flex-wrap gap-3">
-
                       {/* EXISTENTES (Seguimiento) */}
                       {form.fotosSeguimientoExistentes.map((foto, idx) => (
                         <div
@@ -535,17 +546,23 @@ export default function BitacoraFormModal({
                             onClick={() =>
                               setForm({
                                 ...form,
+                                // 1) Quitar de la vista
                                 fotosSeguimientoExistentes:
-                                  form.fotosSeguimientoExistentes.filter(
-                                    (_, i) => i !== idx
-                                  ),
+                                  form.fotosSeguimientoExistentes.filter((_, i) => i !== idx),
+                                // 2) ✅ Guardar ID pendiente por borrar
+                                idsToDeleteSeguimiento: [
+                                  ...(form.idsToDeleteSeguimiento || []),
+                                  foto.id,
+                                ],
                               })
                             }
                             className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
                           >
                             ✕
                           </button>
-                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">CORRECCIÓN</div>
+                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">
+                            CORRECCIÓN
+                          </div>
                         </div>
                       ))}
 
@@ -565,27 +582,26 @@ export default function BitacoraFormModal({
                             onClick={() =>
                               setForm({
                                 ...form,
-                                fotosSeguimiento:
-                                  form.fotosSeguimiento.filter(
-                                    (_, i) => i !== idx
-                                  ),
+                                fotosSeguimiento: form.fotosSeguimiento.filter((_, i) => i !== idx),
                               })
                             }
                             className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
                           >
                             ✕
                           </button>
-                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">NUEVA</div>
+                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">
+                            NUEVA
+                          </div>
                         </div>
                       ))}
 
                       {/* AGREGAR (Seguimiento) */}
-                      {form.fotosSeguimiento.length +
-                        form.fotosSeguimientoExistentes.length <
-                        2 && (
+                      {form.fotosSeguimiento.length + form.fotosSeguimientoExistentes.length < 2 && (
                         <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-yellow-400 bg-yellow-50 rounded-lg cursor-pointer text-yellow-700 hover:bg-yellow-100 transition-colors">
                           <span className="text-xl md:text-2xl">📷</span>
-                          <span className="text-[10px] md:text-xs text-center mt-1">Evidencia<br/>Corrección</span>
+                          <span className="text-[10px] md:text-xs text-center mt-1">
+                            Evidencia<br />Corrección
+                          </span>
                           <input
                             type="file"
                             accept="image/*"
@@ -605,10 +621,7 @@ export default function BitacoraFormModal({
 
                               setForm({
                                 ...form,
-                                fotosSeguimiento: [
-                                  ...form.fotosSeguimiento,
-                                  file,
-                                ],
+                                fotosSeguimiento: [...form.fotosSeguimiento, file],
                               });
                             }}
                           />
@@ -622,7 +635,9 @@ export default function BitacoraFormModal({
           )}
 
           {errorMsg && (
-            <p className="text-sm text-red-500 text-center mt-2 font-medium bg-red-50 p-2 rounded">{errorMsg}</p>
+            <p className="text-sm text-red-500 text-center mt-2 font-medium bg-red-50 p-2 rounded">
+              {errorMsg}
+            </p>
           )}
 
           <Button
@@ -663,8 +678,14 @@ export default function BitacoraFormModal({
             </div>
           ) : (
             <div className="p-8 text-center">
-              <p className="text-gray-500">No hay coordenadas disponibles para mostrar el mapa.</p>
-              <Button variant="outline" onClick={() => setMapOpen(false)} className="mt-4">
+              <p className="text-gray-500">
+                No hay coordenadas disponibles para mostrar el mapa.
+              </p>
+              <Button
+                variant="outline"
+                onClick={() => setMapOpen(false)}
+                className="mt-4"
+              >
                 Cerrar
               </Button>
             </div>

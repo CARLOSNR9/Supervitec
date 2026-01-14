@@ -112,4 +112,8 @@ export interface FormState {
 
   fotosExistentes: { id: number; url: string }[];
   fotosSeguimientoExistentes: { id: number; url: string }[];
+
+  // ✅ NUEVOS CAMPOS PARA BORRADO DIFERIDO
+  idsToDelete: number[]; // Para fotos normales
+  idsToDeleteSeguimiento: number[]; // Para fotos de seguimiento
 }

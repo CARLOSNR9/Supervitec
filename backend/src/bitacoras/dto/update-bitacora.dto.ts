@@ -51,23 +51,17 @@ export class UpdateBitacoraDto {
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   ubicacion?: string;
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   observaciones?: string;
 
   @IsOptional()
   @IsString()
-  @Transform(({ value }) =>
-    typeof value === 'string' ? value.trim() : value,
-  )
+  @Transform(({ value }) => (typeof value === 'string' ? value.trim() : value))
   seguimiento?: string;
 
   @IsOptional()
@@ -81,4 +75,15 @@ export class UpdateBitacoraDto {
   // Ignorar archivos en DTO
   @IsOptional()
   files?: any;
+
+  // ✅ NUEVOS CAMPOS PARA BORRAR FOTOS
+  // Recibimos un JSON string ej: "[1,2]"
+  @IsOptional()
+  @IsString()
+  idsToDelete?: string;
+
+  // Recibimos un JSON string ej: "[5,8]"
+  @IsOptional()
+  @IsString()
+  idsToDeleteSeguimiento?: string;
 }

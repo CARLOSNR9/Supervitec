@@ -4,8 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 
-import { apiGet, apiPost, apiPatch, apiPostForm, apiDelete } from "@/lib/api";
-
+import { apiGet, apiPatch, apiPostForm } from "@/lib/api";
 import { toast } from "sonner";
 
 // ✅ PDF (React-PDF)
@@ -14,7 +13,6 @@ import { BitacoraReportePDF } from "./components/BitacoraPDF";
 
 import BitacoraTable from "./components/BitacoraTable";
 import BitacoraFormModal from "./components/BitacoraFormModal";
-// ✅ IMPORTAR EL NUEVO MODAL DE DETALLE
 import BitacoraDetailsModal from "./components/BitacoraDetailsModal";
 
 import {
@@ -55,7 +53,8 @@ export default function BitacorasPage() {
 
   // Modal de creación / edición
   const [open, setOpen] = useState(false);
-  // ✅ ESTADOS PARA EL MODAL DE DETALLE (VER)
+
+  // Modal de detalle
   const [viewModalOpen, setViewModalOpen] = useState(false);
   const [selectedBitacora, setSelectedBitacora] = useState<Bitacora | null>(
     null
@@ -67,7 +66,7 @@ export default function BitacorasPage() {
   const [form, setForm] = useState<FormState>(createInitialFormState());
   const [editingId, setEditingId] = useState<number | null>(null);
 
-  // 📸 ESTADOS PARA CONTROLAR ELIMINACIÓN DE FOTOS (NUEVO)
+  // 📸 (se mantienen por compatibilidad / trazabilidad, aunque ya no borramos por endpoint)
   const [originalPhotos, setOriginalPhotos] = useState<any[]>([]);
   const [originalSeguimientoPhotos, setOriginalSeguimientoPhotos] = useState<
     any[]
@@ -199,7 +198,7 @@ export default function BitacorasPage() {
   };
 
   // ===============================
-  // 💾 SUBMIT (INTELIGENTE: RESPETA HORAS ORIGINALES)
+  // 💾 SUBMIT (INTELIGENTE + IDS BORRADO + FIELDNAMES DIFERENTES)
   // ===============================
   const handleSubmit = async () => {
     if (!validateForm()) return;
@@ -226,10 +225,12 @@ export default function BitacorasPage() {
             .slice(0, 10);
 
           if (formDateString === originalDatePart) {
+            // NO cambió el día -> mantener hora original
             return originalIsoString;
           }
         }
 
+        // Cambió el día o es nuevo -> mezclar con hora actual
         const now = new Date();
         const [year, month, day] = formDateString.split("-").map(Number);
 
@@ -246,33 +247,7 @@ export default function BitacorasPage() {
       };
       // ---------------------------------------------------------
 
-      // ---------------------------------------------------------
-      // 🗑️ LÓGICA DE ELIMINADO DE FOTOS
-      // ---------------------------------------------------------
-      if (editingId) {
-        const fotosBorradas = originalPhotos.filter(
-          (orig) => !form.fotosExistentes.find((actual) => actual.id === orig.id)
-        );
-        const fotosSeguimientoBorradas = originalSeguimientoPhotos.filter(
-          (orig) =>
-            !form.fotosSeguimientoExistentes.find(
-              (actual) => actual.id === orig.id
-            )
-        );
-
-        const promesasBorrado = [
-          ...fotosBorradas.map((f) => apiDelete(`/bitacoras/evidencia/${f.id}`)),
-          ...fotosSeguimientoBorradas.map((f) =>
-            apiDelete(`/bitacoras/evidencia/${f.id}`)
-          ),
-        ];
-
-        if (promesasBorrado.length > 0) {
-          await Promise.all(promesasBorrado);
-        }
-      }
-
-      // 2. Crear la caja FormData
+      // 2) FormData
       const fd = new FormData();
 
       if (form.obraId) fd.append("obraId", form.obraId);
@@ -282,7 +257,7 @@ export default function BitacorasPage() {
       if (form.unidadId) fd.append("unidadId", form.unidadId);
       fd.append("estado", form.estado);
 
-      // Fecha Creación (Solo si es nueva)
+      // Fecha Creación (solo si es nueva)
       if (!editingId) {
         const fechaC = form.fechaCreacion
           ? new Date(form.fechaCreacion).toISOString()
@@ -290,7 +265,7 @@ export default function BitacorasPage() {
         fd.append("fechaCreacion", fechaC);
       }
 
-      // ✅ APLICANDO LA LÓGICA INTELIGENTE A LAS FECHAS
+      // Fechas inteligentes
       if (form.fechaMejora) {
         const fechaFinal = resolveDateToSend(
           form.fechaMejora,
@@ -313,23 +288,35 @@ export default function BitacorasPage() {
       if (form.latitud) fd.append("latitud", form.latitud);
       if (form.longitud) fd.append("longitud", form.longitud);
 
-      // ========================================================
-      // 📸 CLAVE: NOMBRES DE CAMPO DIFERENTES (PASO 3)
-      // ========================================================
+      // ✅ ENVIAR LISTAS DE BORRADO (solo en edición)
+      if (editingId) {
+        if (form.idsToDelete && form.idsToDelete.length > 0) {
+          fd.append("idsToDelete", JSON.stringify(form.idsToDelete));
+        }
+        if (
+          form.idsToDeleteSeguimiento &&
+          form.idsToDeleteSeguimiento.length > 0
+        ) {
+          fd.append(
+            "idsToDeleteSeguimiento",
+            JSON.stringify(form.idsToDeleteSeguimiento)
+          );
+        }
+      }
 
-      // 3. FOTOS NUEVAS INICIALES (Hallazgo) -> fotoFiles
+      // 📸 FOTOS NUEVAS con fieldnames diferentes
+      // 1) Iniciales
       if (form.fotoFiles && form.fotoFiles.length > 0) {
         form.fotoFiles.forEach((file) => fd.append("fotoFiles", file));
       }
-
-      // 4. FOTOS NUEVAS SEGUIMIENTO (Corrección) -> fotosSeguimiento
+      // 2) Seguimiento
       if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
         form.fotosSeguimiento.forEach((file) =>
           fd.append("fotosSeguimiento", file)
         );
       }
 
-      // 5. FOTOS EXISTENTES (Solo si es nueva)
+      // (Dejas esto solo para CREATE, lo mantengo)
       if (!editingId) {
         if (form.fotosExistentes.length > 0) {
           fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
@@ -342,7 +329,7 @@ export default function BitacorasPage() {
         }
       }
 
-      // 6. GUARDAR
+      // 3) Guardar
       if (editingId) {
         await apiPatch(`/bitacoras/${editingId}`, fd);
       } else {
@@ -357,6 +344,7 @@ export default function BitacorasPage() {
       setOriginalPhotos([]);
       setOriginalSeguimientoPhotos([]);
       setOpen(false);
+
       await fetchData();
     } catch (error: any) {
       console.error("❌ ERROR:", error);
@@ -366,125 +354,115 @@ export default function BitacorasPage() {
     }
   };
 
-
-
-
   // ===============================
   // ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
   // ===============================
- 
+  const handleEdit = async (bitacora: Bitacora) => {
+    setOriginalPhotos(bitacora.evidencias || []);
+    setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
 
-const handleEdit = async (bitacora: Bitacora) => {
-  setOriginalPhotos(bitacora.evidencias || []);
-  setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
+    let fotosArriba = bitacora.evidencias || [];
+    let fotosAbajoNuevas: File[] = [];
 
-  let fotosArriba = bitacora.evidencias || [];
-  let fotosAbajoNuevas: File[] = [];
+    const varName =
+      bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
+    const isNoConforme =
+      varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
 
-  const varName =
-    bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
-  const isNoConforme =
-    varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
+    if (isNoConforme && fotosArriba.length > 3) {
+      const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
 
-  if (isNoConforme && fotosArriba.length > 3) {
-    const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
+      try {
+        const fotosParaMover = fotosArriba.slice(3);
+        fotosArriba = fotosArriba.slice(0, 3);
 
-    try {
-      const fotosParaMover = fotosArriba.slice(3);
-      fotosArriba = fotosArriba.slice(0, 3);
+        const archivosConvertidos = await Promise.all(
+          fotosParaMover.map(async (f, index) => {
+            const fullUrl = f.url.startsWith("http")
+              ? f.url
+              : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
 
-      const archivosConvertidos = await Promise.all(
-        fotosParaMover.map(async (f, index) => {
-          const fullUrl = f.url.startsWith("http")
-            ? f.url
-            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
+            return urlToFile(
+              fullUrl,
+              `foto_movida_correccion_${index}.jpg`,
+              "image/jpeg"
+            );
+          })
+        );
 
-          return urlToFile(
-            fullUrl,
-            `foto_movida_correccion_${index}.jpg`,
-            "image/jpeg"
-          );
-        })
-      );
+        fotosAbajoNuevas = archivosConvertidos;
+        toast.success(
+          "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
+        );
+      } catch (error) {
+        console.error("No se pudieron mover las fotos automáticamente", error);
+        toast.error("⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual.");
 
-      fotosAbajoNuevas = archivosConvertidos;
-      toast.success(
-        "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
-      );
-    } catch (error) {
-      console.error("No se pudieron mover las fotos automáticamente", error);
-      toast.error("⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual.");
-
-      fotosArriba = bitacora.evidencias || [];
-      fotosAbajoNuevas = [];
-    } finally {
-      toast.dismiss(toastId);
+        fotosArriba = bitacora.evidencias || [];
+        fotosAbajoNuevas = [];
+      } finally {
+        toast.dismiss(toastId);
+      }
     }
-  }
 
-  setEditingId(bitacora.id);
+    setEditingId(bitacora.id);
 
-  setForm({
-    ...createInitialFormState(),
+    setForm({
+      ...createInitialFormState(),
 
-    obraId: bitacora.obraId?.toString() ?? "",
-    contratistaId: bitacora.contratistaId?.toString() ?? "",
-    variableId: bitacora.variableId?.toString() ?? "",
-    medicionId: bitacora.medicionId?.toString() ?? "",
-    unidadId: bitacora.unidadId?.toString() ?? "",
+      obraId: bitacora.obraId?.toString() ?? "",
+      contratistaId: bitacora.contratistaId?.toString() ?? "",
+      variableId: bitacora.variableId?.toString() ?? "",
+      medicionId: bitacora.medicionId?.toString() ?? "",
+      unidadId: bitacora.unidadId?.toString() ?? "",
 
-    estado: bitacora.estado,
+      estado: bitacora.estado,
 
-    fechaCreacion: bitacora.fechaCreacion
-      ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
-      : "",
+      fechaCreacion: bitacora.fechaCreacion
+        ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
+        : "",
 
-    fechaEjecucion: bitacora.fechaEjecucion
-      ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
-      : "",
+      fechaEjecucion: bitacora.fechaEjecucion
+        ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
+        : "",
 
-    fechaMejora: bitacora.fechaMejora
-      ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
-      : "",
+      fechaMejora: bitacora.fechaMejora
+        ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
+        : "",
 
-    ubicacion: bitacora.ubicacion ?? "",
-    observaciones: bitacora.observaciones ?? "",
-    seguimiento: bitacora.seguimiento ?? "",
+      ubicacion: bitacora.ubicacion ?? "",
+      observaciones: bitacora.observaciones ?? "",
+      seguimiento: bitacora.seguimiento ?? "",
 
-    latitud: bitacora.latitud?.toString() ?? "",
-    longitud: bitacora.longitud?.toString() ?? "",
+      latitud: bitacora.latitud?.toString() ?? "",
+      longitud: bitacora.longitud?.toString() ?? "",
 
-    // ⭐ Nuevas fotos (vacías arriba) + fotos movidas a corrección abajo
-    fotoFiles: [],
-    fotosSeguimiento: fotosAbajoNuevas,
+      // ⭐ Nuevas fotos (vacías arriba) + fotos movidas a corrección abajo
+      fotoFiles: [],
+      fotosSeguimiento: fotosAbajoNuevas,
 
-    // ⭐ Fotos existentes arriba (máximo 3)
-    fotosExistentes: fotosArriba.map((f) => ({
-      id: f.id,
-      url: f.url.startsWith("http")
-        ? f.url
-        : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-    })),
-
-    // ✅ FIX: si ya es http (Cloudinary), se deja intacta; si es relativa, se completa
-    fotosSeguimientoExistentes:
-      bitacora.evidenciasSeguimiento?.map((f) => ({
+      // ⭐ Fotos existentes arriba (máximo 3)
+      fotosExistentes: fotosArriba.map((f) => ({
         id: f.id,
         url: f.url.startsWith("http")
           ? f.url
           : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-      })) ?? [],
-  });
+      })),
 
-  setOpen(true);
-};
+      // ✅ FIX: si ya es http (Cloudinary), se deja intacta; si es relativa, se completa
+      fotosSeguimientoExistentes:
+        bitacora.evidenciasSeguimiento?.map((f) => ({
+          id: f.id,
+          url: f.url.startsWith("http")
+            ? f.url
+            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+        })) ?? [],
+    });
 
+    setOpen(true);
+  };
 
-
-
-
-
-  // ✅ FUNCIÓN PARA ABRIR EL MODAL DE DETALLES ok
+  // ✅ VER DETALLE
   const handleView = (bitacora: Bitacora) => {
     setSelectedBitacora(bitacora);
     setViewModalOpen(true);
@@ -501,6 +479,7 @@ const handleEdit = async (bitacora: Bitacora) => {
     return bitacoras.filter(
       (b) =>
         b.id.toString().includes(term) ||
+        (b.codigo?.toLowerCase().includes(term) ?? false) ||
         b.obra?.nombre.toLowerCase().includes(term) ||
         b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
         b.contratista?.nombre.toLowerCase().includes(term) ||
@@ -531,6 +510,8 @@ const handleEdit = async (bitacora: Bitacora) => {
 
   const getSortableValue = (row: Bitacora, key: string) => {
     switch (key) {
+      case "codigo":
+        return row.codigo ?? "";
       case "obra":
         return row.obra?.nombre ?? "";
       case "responsable":
@@ -679,7 +660,6 @@ const handleEdit = async (bitacora: Bitacora) => {
         isEditing={editingId !== null}
       />
 
-      {/* ✅ MODAL DE DETALLE (VER) */}
       <BitacoraDetailsModal
         open={viewModalOpen}
         onOpenChange={setViewModalOpen}
