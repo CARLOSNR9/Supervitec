@@ -29,6 +29,19 @@ import {
 import { createInitialFormState } from "./utils/initialForm";
 import { exportBitacorasToExcel } from "./utils/excel";
 
+// ✅ FUNCIÓN AUXILIAR PARA MOVER FOTOS
+// Convierte una URL de imagen en un objeto File para poder moverlo de sección
+async function urlToFile(url: string, filename: string, mimeType: string) {
+  try {
+    const response = await fetch(url);
+    const blob = await response.blob();
+    return new File([blob], filename, { type: mimeType });
+  } catch (error) {
+    console.error("Error convirtiendo URL a File:", error);
+    throw error;
+  }
+}
+
 export default function BitacorasPage() {
   // =======================
   // STATES
@@ -185,7 +198,7 @@ export default function BitacorasPage() {
     return true;
   };
 
- // ===============================
+  // ===============================
   // 💾 SUBMIT (INTELIGENTE: RESPETA HORAS ORIGINALES)
   // ===============================
   const handleSubmit = async () => {
@@ -194,20 +207,25 @@ export default function BitacorasPage() {
 
     try {
       // 1️⃣ BUSCAR LA BITÁCORA ORIGINAL (Para comparar fechas)
-      const originalBitacora = editingId 
-        ? bitacoras.find((b) => b.id === editingId) 
+      const originalBitacora = editingId
+        ? bitacoras.find((b) => b.id === editingId)
         : null;
 
       // ---------------------------------------------------------
       // 🕒 FUNCIÓN AUXILIAR: GESTIÓN DE FECHAS Y HORAS
       // ---------------------------------------------------------
-      const resolveDateToSend = (formDateString: string, originalIsoString?: string | null) => {
+      const resolveDateToSend = (
+        formDateString: string,
+        originalIsoString?: string | null
+      ) => {
         if (!formDateString) return null;
 
         // A. Si estamos editando y existe una fecha original
         if (originalIsoString) {
           // Extraemos solo la parte "YYYY-MM-DD" de la original
-          const originalDatePart = new Date(originalIsoString).toISOString().slice(0, 10);
+          const originalDatePart = new Date(originalIsoString)
+            .toISOString()
+            .slice(0, 10);
 
           // B. COMPARACIÓN: ¿El usuario cambió la fecha?
           if (formDateString === originalDatePart) {
@@ -218,8 +236,8 @@ export default function BitacorasPage() {
 
         // C. Si es nueva o el usuario cambió el día -> Usamos HORA ACTUAL
         const now = new Date();
-        const [year, month, day] = formDateString.split('-').map(Number);
-        
+        const [year, month, day] = formDateString.split("-").map(Number);
+
         const mixedDate = new Date(
           year,
           month - 1,
@@ -228,7 +246,7 @@ export default function BitacorasPage() {
           now.getMinutes(),
           now.getSeconds()
         );
-        
+
         return mixedDate.toISOString();
       };
       // ---------------------------------------------------------
@@ -271,22 +289,26 @@ export default function BitacorasPage() {
 
       // Fecha Creación (Solo si es nueva)
       if (!editingId) {
-        const fechaC = form.fechaCreacion 
-             ? new Date(form.fechaCreacion).toISOString() 
-             : new Date().toISOString();
+        const fechaC = form.fechaCreacion
+          ? new Date(form.fechaCreacion).toISOString()
+          : new Date().toISOString();
         fd.append("fechaCreacion", fechaC);
       }
 
       // ✅ APLICANDO LA LÓGICA INTELIGENTE A LAS FECHAS
       if (form.fechaMejora) {
-        // Pasamos la fecha del form Y la fecha original de la base de datos
-        const fechaFinal = resolveDateToSend(form.fechaMejora, originalBitacora?.fechaMejora);
+        const fechaFinal = resolveDateToSend(
+          form.fechaMejora,
+          originalBitacora?.fechaMejora
+        );
         if (fechaFinal) fd.append("fechaMejora", fechaFinal);
       }
 
       if (form.fechaEjecucion) {
-        // Pasamos la fecha del form Y la fecha original de la base de datos
-        const fechaFinal = resolveDateToSend(form.fechaEjecucion, originalBitacora?.fechaEjecucion);
+        const fechaFinal = resolveDateToSend(
+          form.fechaEjecucion,
+          originalBitacora?.fechaEjecucion
+        );
         if (fechaFinal) fd.append("fechaEjecucion", fechaFinal);
       }
 
@@ -325,9 +347,7 @@ export default function BitacorasPage() {
         await apiPostForm(`/bitacoras`, fd);
       }
 
-      toast.success(
-        editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada"
-      );
+      toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
 
       // Limpieza
       setForm(createInitialFormState());
@@ -344,17 +364,67 @@ export default function BitacorasPage() {
     }
   };
 
-
   // ===============================
-  // EDITAR (ACTUALIZADO)
+  // ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
   // ===============================
-
-  const handleEdit = (bitacora: Bitacora) => {
-    setEditingId(bitacora.id);
-
-    // 1️⃣ Guardamos las fotos originales en memoria para comparar después
+  const handleEdit = async (bitacora: Bitacora) => {
+    // 1️⃣ Guardamos originales para detectar borrados
     setOriginalPhotos(bitacora.evidencias || []);
     setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
+
+    // 2️⃣ Preparar lógica de movimiento de fotos
+    let fotosArriba = bitacora.evidencias || [];
+    let fotosAbajoNuevas: File[] = []; // Aquí pondremos la foto movida
+
+    // Normalizar nombre de variable para detectar si es NO CONFORME
+    const varName =
+      bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
+    const isNoConforme =
+      varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
+
+    // 🚨 DETECTAR SI HAY EXCESO DE FOTOS (Más de 3)
+    if (isNoConforme && fotosArriba.length > 3) {
+      const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
+
+      try {
+        // Separamos: Las primeras 3 se quedan, el resto se mueven
+        const fotosParaMover = fotosArriba.slice(3);
+        fotosArriba = fotosArriba.slice(0, 3);
+
+        // Convertimos las URLs de las fotos sobrantes en Archivos nuevos para poner abajo
+        const archivosConvertidos = await Promise.all(
+          fotosParaMover.map(async (f, index) => {
+            const fullUrl = f.url.startsWith("http")
+              ? f.url
+              : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
+
+            return urlToFile(
+              fullUrl,
+              `foto_movida_correccion_${index}.jpg`,
+              "image/jpeg"
+            );
+          })
+        );
+
+        fotosAbajoNuevas = archivosConvertidos;
+        toast.success(
+          "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
+        );
+      } catch (error) {
+        console.error("No se pudieron mover las fotos automáticamente", error);
+        toast.error(
+          "⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual."
+        );
+
+        // Si falla, dejamos todo como estaba para no romper nada
+        fotosArriba = bitacora.evidencias || [];
+        fotosAbajoNuevas = [];
+      } finally {
+        toast.dismiss(toastId);
+      }
+    }
+
+    setEditingId(bitacora.id);
 
     setForm({
       ...createInitialFormState(),
@@ -386,18 +456,17 @@ export default function BitacorasPage() {
       latitud: bitacora.latitud?.toString() ?? "",
       longitud: bitacora.longitud?.toString() ?? "",
 
-      // ⭐ Nuevas fotos (vacías)
+      // ⭐ FOTOS RECIÉN MOVIDAS (aparecerán abajo como "Nuevas")
       fotoFiles: [],
-      fotosSeguimiento: [],
+      fotosSeguimiento: fotosAbajoNuevas,
 
-      // ⭐ Fotos existentes
-      fotosExistentes:
-        bitacora.evidencias?.map((f) => ({
-          id: f.id,
-          url: f.url.startsWith("http")
-            ? f.url
-            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-        })) ?? [],
+      // ⭐ FOTOS EXISTENTES (Ya filtradas, máximo 3)
+      fotosExistentes: fotosArriba.map((f) => ({
+        id: f.id,
+        url: f.url.startsWith("http")
+          ? f.url
+          : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+      })),
 
       fotosSeguimientoExistentes:
         bitacora.evidenciasSeguimiento?.map((f) => ({
@@ -425,7 +494,6 @@ export default function BitacorasPage() {
 
     return bitacoras.filter(
       (b) =>
-        // ✅ AQUI AGREGAMOS LA BÚSQUEDA POR ID
         b.id.toString().includes(term) ||
         b.obra?.nombre.toLowerCase().includes(term) ||
         b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
@@ -436,10 +504,8 @@ export default function BitacorasPage() {
 
   const stats = useMemo(() => {
     const total = filteredBitacoras.length;
-    const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA")
-      .length;
-    const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA")
-      .length;
+    const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA").length;
+    const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA").length;
 
     let lastTs = 0;
     for (const b of filteredBitacoras) {
@@ -543,7 +609,6 @@ export default function BitacorasPage() {
     const toastId = toast.loading("Generando PDF...");
 
     try {
-      // 🟢 Generamos el PDF (como array de 1 elemento)
       const blob = await pdf(<BitacoraReportePDF data={[bitacora]} />).toBlob();
 
       const url = URL.createObjectURL(blob);
