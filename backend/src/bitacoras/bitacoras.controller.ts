@@ -11,10 +11,13 @@ import {
   Req,
   ForbiddenException,
   UploadedFiles,
-  UseInterceptors
+  UseInterceptors,
 } from '@nestjs/common';
 
-import { FilesInterceptor } from '@nestjs/platform-express';
+import {
+  FilesInterceptor,
+  AnyFilesInterceptor, // ✅ NUEVO
+} from '@nestjs/platform-express';
 
 import { BitacorasService } from './bitacoras.service';
 import { CreateBitacoraDto } from './dto/create-bitacora.dto';
@@ -85,10 +88,16 @@ export class BitacorasController {
 
   // =====================================================
   //         🚀 EDITAR BITÁCORA + NUEVAS FOTOS
+  //         ✅ AnyFilesInterceptor para múltiples fieldnames
   // =====================================================
   @Patch(':id')
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
-  @UseInterceptors(FilesInterceptor('files', 10))
+  @UseInterceptors(
+    AnyFilesInterceptor({
+      storage: memoryStorage(), // ✅ importante para Cloudinary (buffer)
+      limits: { fileSize: 5 * 1024 * 1024 },
+    }),
+  )
   async update(
     @Param('id', ParseIntPipe) id: number,
     @Body() dto: UpdateBitacoraDto,
@@ -107,11 +116,9 @@ export class BitacorasController {
   // =====================================================
   //   🆕 NUEVO ENDPOINT: BORRAR EVIDENCIA (FOTO)
   // =====================================================
-  // El frontend llamará a: /bitacoras/evidencia/123
   @Delete('evidencia/:id')
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
   async deleteEvidence(@Param('id', ParseIntPipe) id: number) {
-    // Necesitas implementar este método en tu servicio (ver abajo)
     return this.bitacorasService.removeEvidence(id);
   }
 

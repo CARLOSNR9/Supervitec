@@ -28,17 +28,12 @@ export class BitacorasService {
     files: Express.Multer.File[] = [],
   ) {
     try {
-      // ============================================================
-      // 0) VALIDAR OBRA + GENERAR CÓDIGO
-      // ============================================================
       const obraId = dto.obraId;
 
-      // Según el requerimiento nuevo, la obra es necesaria para numerar
       if (!obraId) {
         throw new NotFoundException('Obra no encontrada');
       }
 
-      // 1) Buscar la obra para sacar el prefijo
       const obra = await this.prisma.obra.findUnique({
         where: { id: obraId },
         select: { id: true, prefijo: true },
@@ -48,22 +43,15 @@ export class BitacorasService {
         throw new NotFoundException('Obra no encontrada');
       }
 
-      // 2) Contar cuántas bitácoras lleva esa obra actualmente
       const cantidadActual = await this.prisma.bitacora.count({
         where: { obraId: obraId },
       });
 
-      // 3) Generar consecutivo (ej: 5 -> 05)
       const consecutivo = (cantidadActual + 1).toString().padStart(2, '0');
-
-      // 4) Armar el código final (ej: ED25-01)
       const codigoGenerado = `${obra.prefijo || 'OBRA'}-${consecutivo}`;
 
-      // ============================================================
-      // 1) ARMAR DATA BASE (TU LÓGICA ORIGINAL) + codigo
-      // ============================================================
       const data: any = {
-        codigo: codigoGenerado, // 🔥 NUEVO: guardamos el código generado
+        codigo: codigoGenerado,
         estado: dto.estado as BitacoraEstado,
 
         fechaCreacion: dto.fechaCreacion
@@ -83,8 +71,6 @@ export class BitacorasService {
         longitud: dto.longitud ?? null,
 
         responsable: { connect: { id: responsableId } },
-
-        // 🔥 Mantienes tu relación por connect (y ya validamos arriba)
         obra: { connect: { id: obraId } },
       };
 
@@ -94,21 +80,16 @@ export class BitacorasService {
       if (dto.medicionId) data.medicion = { connect: { id: dto.medicionId } };
       if (dto.unidadId) data.unidadRel = { connect: { id: dto.unidadId } };
 
-      // ============================================================
-      // 2) SUBIR ARCHIVOS A CLOUDINARY (TU LÓGICA ORIGINAL)
-      // ============================================================
       const evidenciasCloud: any[] = [];
-
       this.logger.log(`📦 Files recibidos en create(): ${files?.length ?? 0}`);
 
       if (files?.length > 0) {
         files.forEach((f, i) => {
           this.logger.log(
-            `🖼️ [${i}] ${f.originalname} | mimetype=${f.mimetype} | size=${f.size} | buffer=${f.buffer?.length ?? 0}`,
+            `🖼️ [${i}] ${f.originalname} | fieldname=${f.fieldname} | mimetype=${f.mimetype} | size=${f.size}`,
           );
         });
 
-        // Subida estricta: si Cloudinary falla, que falle la request
         const results = await Promise.all(
           files.map((f) => this.cloudinary.uploadImage(f)),
         );
@@ -129,14 +110,8 @@ export class BitacorasService {
         });
       }
 
-      // ============================================================
-      // 3) CREAR BITÁCORA + GUARDAR IMÁGENES ASOCIADAS
-      //    (manteniendo exactamente tu flujo)
-      // ============================================================
       const bit = await this.prisma.$transaction(async (tx) => {
-        const created = await tx.bitacora.create({
-          data,
-        });
+        const created = await tx.bitacora.create({ data });
 
         if (evidenciasCloud.length > 0) {
           await tx.bitacoraMedia.createMany({
@@ -164,12 +139,7 @@ export class BitacorasService {
     return this.prisma.bitacora.findMany({
       include: {
         obra: {
-          select: {
-            id: true,
-            nombre: true,
-            directorId: true,
-            prefijo: true, // ✅ FIX: enviar prefijo
-          },
+          select: { id: true, nombre: true, directorId: true, prefijo: true },
         },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
@@ -199,12 +169,7 @@ export class BitacorasService {
       },
       include: {
         obra: {
-          select: {
-            id: true,
-            nombre: true,
-            directorId: true,
-            prefijo: true, // ✅ FIX: enviar prefijo
-          },
+          select: { id: true, nombre: true, directorId: true, prefijo: true },
         },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
@@ -246,7 +211,7 @@ export class BitacorasService {
   }
 
   // ============================================================
-  // UPDATE + CLOUDINARY
+  // UPDATE + CLOUDINARY (CON SEPARACIÓN ESTRICTA DE FOTOS)
   // ============================================================
   async update(
     id: number,
@@ -314,35 +279,67 @@ export class BitacorasService {
           : { disconnect: true };
       }
 
-      // === ACTUALIZA BITÁCORA ===
+      // === ACTUALIZA DATOS DE TEXTO ===
       await this.prisma.bitacora.update({
         where: { id },
         data,
       });
 
-      // === SUBIR NUEVAS IMÁGENES A CLOUDINARY ===
+      // ==========================================================
+      // 🚀 MANEJO INTELIGENTE DE IMÁGENES (SEPARACIÓN REAL)
+      // ==========================================================
       if (files?.length > 0) {
-        const uploads = files.map((file) =>
-          this.cloudinary.uploadImage(file).catch((err) => {
-            console.error('❌ Error Cloudinary:', err);
-            return null;
-          }),
+        // Compatibilidad: si aún llega "files" (legacy), lo tratamos como NORMAL
+        const fotosNormales = files.filter(
+          (f) => f.fieldname === 'fotoFiles' || f.fieldname === 'files',
+        );
+        const fotosSeguimiento = files.filter(
+          (f) => f.fieldname === 'fotosSeguimiento',
         );
 
-        const results = await Promise.all(uploads);
+        this.logger.log(
+          `📸 update(): files=${files.length} | normales=${fotosNormales.length} | seguimiento=${fotosSeguimiento.length}`,
+        );
 
-        const nuevas = results
-          .filter((res) => res?.secure_url)
-          .map((res) => ({
-            bitacoraId: id,
-            url: res.secure_url,
-            tipo: 'NORMAL',
-          }));
+        // 1) Subir y guardar FOTOS NORMALES (Iniciales)
+        if (fotosNormales.length > 0) {
+          const uploadsNormal = await Promise.all(
+            fotosNormales.map((f) => this.cloudinary.uploadImage(f)),
+          );
 
-        if (nuevas.length > 0) {
-          await this.prisma.bitacoraMedia.createMany({
-            data: nuevas,
-          });
+          const dataNormal = uploadsNormal
+            .filter((res) => res?.secure_url)
+            .map((res) => ({
+              bitacoraId: id,
+              url: res.secure_url,
+              tipo: 'NORMAL',
+            }));
+
+          if (dataNormal.length > 0) {
+            await this.prisma.bitacoraMedia.createMany({ data: dataNormal });
+          }
+        }
+
+        // 2) Subir y guardar FOTOS SEGUIMIENTO (Corrección)
+        if (fotosSeguimiento.length > 0) {
+          const uploadsSeguimiento = await Promise.all(
+            fotosSeguimiento.map((f) => this.cloudinary.uploadImage(f)),
+          );
+
+          const dataSeguimiento = uploadsSeguimiento
+            .filter((res) => res?.secure_url)
+            .map((res) => ({
+              bitacoraId: id,
+              url: res.secure_url,
+              tipo: 'SEGUIMIENTO',
+            }));
+
+          if (dataSeguimiento.length > 0) {
+            // ⚠️ Guardamos en la tabla correcta: BitacoraSeguimientoMedia
+            await this.prisma.bitacoraSeguimientoMedia.createMany({
+              data: dataSeguimiento,
+            });
+          }
         }
       }
 

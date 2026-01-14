@@ -220,21 +220,16 @@ export default function BitacorasPage() {
       ) => {
         if (!formDateString) return null;
 
-        // A. Si estamos editando y existe una fecha original
         if (originalIsoString) {
-          // Extraemos solo la parte "YYYY-MM-DD" de la original
           const originalDatePart = new Date(originalIsoString)
             .toISOString()
             .slice(0, 10);
 
-          // B. COMPARACIÓN: ¿El usuario cambió la fecha?
           if (formDateString === originalDatePart) {
-            // NO cambió el día -> Mantenemos la fecha ORIGINAL con su HORA ORIGINAL
             return originalIsoString;
           }
         }
 
-        // C. Si es nueva o el usuario cambió el día -> Usamos HORA ACTUAL
         const now = new Date();
         const [year, month, day] = formDateString.split("-").map(Number);
 
@@ -318,16 +313,23 @@ export default function BitacorasPage() {
       if (form.latitud) fd.append("latitud", form.latitud);
       if (form.longitud) fd.append("longitud", form.longitud);
 
-      // 3. FOTOS NUEVAS
+      // ========================================================
+      // 📸 CLAVE: NOMBRES DE CAMPO DIFERENTES (PASO 3)
+      // ========================================================
+
+      // 3. FOTOS NUEVAS INICIALES (Hallazgo) -> fotoFiles
       if (form.fotoFiles && form.fotoFiles.length > 0) {
-        form.fotoFiles.forEach((file) => fd.append("files", file));
+        form.fotoFiles.forEach((file) => fd.append("fotoFiles", file));
       }
 
+      // 4. FOTOS NUEVAS SEGUIMIENTO (Corrección) -> fotosSeguimiento
       if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
-        form.fotosSeguimiento.forEach((file) => fd.append("files", file));
+        form.fotosSeguimiento.forEach((file) =>
+          fd.append("fotosSeguimiento", file)
+        );
       }
 
-      // 4. FOTOS EXISTENTES (Solo si es nueva)
+      // 5. FOTOS EXISTENTES (Solo si es nueva)
       if (!editingId) {
         if (form.fotosExistentes.length > 0) {
           fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
@@ -340,7 +342,7 @@ export default function BitacorasPage() {
         }
       }
 
-      // 5. GUARDAR
+      // 6. GUARDAR
       if (editingId) {
         await apiPatch(`/bitacoras/${editingId}`, fd);
       } else {
@@ -368,30 +370,24 @@ export default function BitacorasPage() {
   // ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
   // ===============================
   const handleEdit = async (bitacora: Bitacora) => {
-    // 1️⃣ Guardamos originales para detectar borrados
     setOriginalPhotos(bitacora.evidencias || []);
     setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
 
-    // 2️⃣ Preparar lógica de movimiento de fotos
     let fotosArriba = bitacora.evidencias || [];
-    let fotosAbajoNuevas: File[] = []; // Aquí pondremos la foto movida
+    let fotosAbajoNuevas: File[] = [];
 
-    // Normalizar nombre de variable para detectar si es NO CONFORME
     const varName =
       bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
     const isNoConforme =
       varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
 
-    // 🚨 DETECTAR SI HAY EXCESO DE FOTOS (Más de 3)
     if (isNoConforme && fotosArriba.length > 3) {
       const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
 
       try {
-        // Separamos: Las primeras 3 se quedan, el resto se mueven
         const fotosParaMover = fotosArriba.slice(3);
         fotosArriba = fotosArriba.slice(0, 3);
 
-        // Convertimos las URLs de las fotos sobrantes en Archivos nuevos para poner abajo
         const archivosConvertidos = await Promise.all(
           fotosParaMover.map(async (f, index) => {
             const fullUrl = f.url.startsWith("http")
@@ -416,7 +412,6 @@ export default function BitacorasPage() {
           "⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual."
         );
 
-        // Si falla, dejamos todo como estaba para no romper nada
         fotosArriba = bitacora.evidencias || [];
         fotosAbajoNuevas = [];
       } finally {
@@ -456,11 +451,9 @@ export default function BitacorasPage() {
       latitud: bitacora.latitud?.toString() ?? "",
       longitud: bitacora.longitud?.toString() ?? "",
 
-      // ⭐ FOTOS RECIÉN MOVIDAS (aparecerán abajo como "Nuevas")
       fotoFiles: [],
       fotosSeguimiento: fotosAbajoNuevas,
 
-      // ⭐ FOTOS EXISTENTES (Ya filtradas, máximo 3)
       fotosExistentes: fotosArriba.map((f) => ({
         id: f.id,
         url: f.url.startsWith("http")
