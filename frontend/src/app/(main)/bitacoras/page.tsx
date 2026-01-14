@@ -484,7 +484,7 @@ const handleEdit = async (bitacora: Bitacora) => {
 
 
 
-  // ✅ FUNCIÓN PARA ABRIR EL MODAL DE DETALLES
+  // ✅ FUNCIÓN PARA ABRIR EL MODAL DE DETALLES ok
   const handleView = (bitacora: Bitacora) => {
     setSelectedBitacora(bitacora);
     setViewModalOpen(true);
