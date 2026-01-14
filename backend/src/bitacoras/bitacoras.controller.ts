@@ -14,10 +14,8 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 
-import {
-  FilesInterceptor,
-  AnyFilesInterceptor, // ✅ NUEVO
-} from '@nestjs/platform-express';
+import { AnyFilesInterceptor } from '@nestjs/platform-express';
+import { memoryStorage } from 'multer';
 
 import { BitacorasService } from './bitacoras.service';
 import { CreateBitacoraDto } from './dto/create-bitacora.dto';
@@ -27,8 +25,6 @@ import { JwtAuthGuard } from '../auth/jwt-auth.guard';
 import { RolesGuard } from '../common/roles.guard';
 import { Roles } from '../common/roles.decorator';
 import { Role } from '@prisma/client';
-
-import { memoryStorage } from 'multer';
 
 @Controller('bitacoras')
 @UseGuards(JwtAuthGuard, RolesGuard)
@@ -68,14 +64,17 @@ export class BitacorasController {
   }
 
   // =====================================================
-  //         🚀 CREAR BITÁCORA + FOTOS
+  //         🚀 CREAR BITÁCORA + FOTOS (AnyFilesInterceptor)
   // =====================================================
   @Post()
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
   @UseInterceptors(
-    FilesInterceptor('files', 10, {
+    AnyFilesInterceptor({
       storage: memoryStorage(),
-      limits: { fileSize: 5 * 1024 * 1024 },
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+        files: 10, // máximo 10 archivos
+      },
     }),
   )
   async create(
@@ -87,15 +86,17 @@ export class BitacorasController {
   }
 
   // =====================================================
-  //         🚀 EDITAR BITÁCORA + NUEVAS FOTOS
-  //         ✅ AnyFilesInterceptor para múltiples fieldnames
+  //         🚀 EDITAR BITÁCORA + NUEVAS FOTOS (AnyFilesInterceptor)
   // =====================================================
   @Patch(':id')
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
   @UseInterceptors(
     AnyFilesInterceptor({
-      storage: memoryStorage(), // ✅ importante para Cloudinary (buffer)
-      limits: { fileSize: 5 * 1024 * 1024 },
+      storage: memoryStorage(),
+      limits: {
+        fileSize: 5 * 1024 * 1024, // 5MB
+        files: 10,
+      },
     }),
   )
   async update(
@@ -114,7 +115,7 @@ export class BitacorasController {
   }
 
   // =====================================================
-  //   🆕 NUEVO ENDPOINT: BORRAR EVIDENCIA (FOTO)
+  //   🆕 BORRAR EVIDENCIA (FOTO)
   // =====================================================
   @Delete('evidencia/:id')
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
