@@ -10,6 +10,7 @@ export const createInitialFormState = (): FormState => ({
   unidadId: "",
   estado: "ABIERTA",
 
+  // Mantenemos tu formato de fecha actual
   fechaCreacion: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
   fechaMejora: "",
   fechaEjecucion: "",
@@ -24,7 +25,10 @@ export const createInitialFormState = (): FormState => ({
   fotoFiles: [],
   fotosSeguimiento: [],
 
-  // 🔥 MUY IMPORTANTE (antes no existían)
   fotosExistentes: [],
   fotosSeguimientoExistentes: [],
+
+  // ✅ AGREGADOS PARA CORREGIR EL ERROR DE BUILD
+  idsToDelete: [],
+  idsToDeleteSeguimiento: [],
 });
