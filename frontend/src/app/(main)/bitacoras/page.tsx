@@ -366,110 +366,123 @@ export default function BitacorasPage() {
     }
   };
 
+
+
+
   // ===============================
   // ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
   // ===============================
-  const handleEdit = async (bitacora: Bitacora) => {
-    setOriginalPhotos(bitacora.evidencias || []);
-    setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
+ 
 
-    let fotosArriba = bitacora.evidencias || [];
-    let fotosAbajoNuevas: File[] = [];
+const handleEdit = async (bitacora: Bitacora) => {
+  setOriginalPhotos(bitacora.evidencias || []);
+  setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
 
-    const varName =
-      bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
-    const isNoConforme =
-      varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
+  let fotosArriba = bitacora.evidencias || [];
+  let fotosAbajoNuevas: File[] = [];
 
-    if (isNoConforme && fotosArriba.length > 3) {
-      const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
+  const varName =
+    bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
+  const isNoConforme =
+    varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
 
-      try {
-        const fotosParaMover = fotosArriba.slice(3);
-        fotosArriba = fotosArriba.slice(0, 3);
+  if (isNoConforme && fotosArriba.length > 3) {
+    const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
 
-        const archivosConvertidos = await Promise.all(
-          fotosParaMover.map(async (f, index) => {
-            const fullUrl = f.url.startsWith("http")
-              ? f.url
-              : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
+    try {
+      const fotosParaMover = fotosArriba.slice(3);
+      fotosArriba = fotosArriba.slice(0, 3);
 
-            return urlToFile(
-              fullUrl,
-              `foto_movida_correccion_${index}.jpg`,
-              "image/jpeg"
-            );
-          })
-        );
+      const archivosConvertidos = await Promise.all(
+        fotosParaMover.map(async (f, index) => {
+          const fullUrl = f.url.startsWith("http")
+            ? f.url
+            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
 
-        fotosAbajoNuevas = archivosConvertidos;
-        toast.success(
-          "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
-        );
-      } catch (error) {
-        console.error("No se pudieron mover las fotos automáticamente", error);
-        toast.error(
-          "⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual."
-        );
+          return urlToFile(
+            fullUrl,
+            `foto_movida_correccion_${index}.jpg`,
+            "image/jpeg"
+          );
+        })
+      );
 
-        fotosArriba = bitacora.evidencias || [];
-        fotosAbajoNuevas = [];
-      } finally {
-        toast.dismiss(toastId);
-      }
+      fotosAbajoNuevas = archivosConvertidos;
+      toast.success(
+        "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
+      );
+    } catch (error) {
+      console.error("No se pudieron mover las fotos automáticamente", error);
+      toast.error("⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual.");
+
+      fotosArriba = bitacora.evidencias || [];
+      fotosAbajoNuevas = [];
+    } finally {
+      toast.dismiss(toastId);
     }
+  }
 
-    setEditingId(bitacora.id);
+  setEditingId(bitacora.id);
 
-    setForm({
-      ...createInitialFormState(),
+  setForm({
+    ...createInitialFormState(),
 
-      obraId: bitacora.obraId?.toString() ?? "",
-      contratistaId: bitacora.contratistaId?.toString() ?? "",
-      variableId: bitacora.variableId?.toString() ?? "",
-      medicionId: bitacora.medicionId?.toString() ?? "",
-      unidadId: bitacora.unidadId?.toString() ?? "",
+    obraId: bitacora.obraId?.toString() ?? "",
+    contratistaId: bitacora.contratistaId?.toString() ?? "",
+    variableId: bitacora.variableId?.toString() ?? "",
+    medicionId: bitacora.medicionId?.toString() ?? "",
+    unidadId: bitacora.unidadId?.toString() ?? "",
 
-      estado: bitacora.estado,
+    estado: bitacora.estado,
 
-      fechaCreacion: bitacora.fechaCreacion
-        ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
-        : "",
+    fechaCreacion: bitacora.fechaCreacion
+      ? new Date(bitacora.fechaCreacion).toISOString().slice(0, 16)
+      : "",
 
-      fechaEjecucion: bitacora.fechaEjecucion
-        ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
-        : "",
+    fechaEjecucion: bitacora.fechaEjecucion
+      ? new Date(bitacora.fechaEjecucion).toISOString().slice(0, 10)
+      : "",
 
-      fechaMejora: bitacora.fechaMejora
-        ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
-        : "",
+    fechaMejora: bitacora.fechaMejora
+      ? new Date(bitacora.fechaMejora).toISOString().slice(0, 10)
+      : "",
 
-      ubicacion: bitacora.ubicacion ?? "",
-      observaciones: bitacora.observaciones ?? "",
-      seguimiento: bitacora.seguimiento ?? "",
+    ubicacion: bitacora.ubicacion ?? "",
+    observaciones: bitacora.observaciones ?? "",
+    seguimiento: bitacora.seguimiento ?? "",
 
-      latitud: bitacora.latitud?.toString() ?? "",
-      longitud: bitacora.longitud?.toString() ?? "",
+    latitud: bitacora.latitud?.toString() ?? "",
+    longitud: bitacora.longitud?.toString() ?? "",
 
-      fotoFiles: [],
-      fotosSeguimiento: fotosAbajoNuevas,
+    // ⭐ Nuevas fotos (vacías arriba) + fotos movidas a corrección abajo
+    fotoFiles: [],
+    fotosSeguimiento: fotosAbajoNuevas,
 
-      fotosExistentes: fotosArriba.map((f) => ({
+    // ⭐ Fotos existentes arriba (máximo 3)
+    fotosExistentes: fotosArriba.map((f) => ({
+      id: f.id,
+      url: f.url.startsWith("http")
+        ? f.url
+        : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+    })),
+
+    // ✅ FIX: si ya es http (Cloudinary), se deja intacta; si es relativa, se completa
+    fotosSeguimientoExistentes:
+      bitacora.evidenciasSeguimiento?.map((f) => ({
         id: f.id,
         url: f.url.startsWith("http")
           ? f.url
           : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-      })),
+      })) ?? [],
+  });
 
-      fotosSeguimientoExistentes:
-        bitacora.evidenciasSeguimiento?.map((f) => ({
-          id: f.id,
-          url: `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-        })) ?? [],
-    });
+  setOpen(true);
+};
 
-    setOpen(true);
-  };
+
+
+
+
 
   // ✅ FUNCIÓN PARA ABRIR EL MODAL DE DETALLES
   const handleView = (bitacora: Bitacora) => {
