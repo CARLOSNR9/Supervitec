@@ -163,7 +163,14 @@ export class BitacorasService {
   async findAll() {
     return this.prisma.bitacora.findMany({
       include: {
-        obra: { select: { id: true, nombre: true, directorId: true } },
+        obra: {
+          select: {
+            id: true,
+            nombre: true,
+            directorId: true,
+            prefijo: true, // ✅ FIX: enviar prefijo
+          },
+        },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
         },
@@ -191,7 +198,14 @@ export class BitacorasService {
         ],
       },
       include: {
-        obra: { select: { id: true, nombre: true, directorId: true } },
+        obra: {
+          select: {
+            id: true,
+            nombre: true,
+            directorId: true,
+            prefijo: true, // ✅ FIX: enviar prefijo
+          },
+        },
         responsable: {
           select: { id: true, nombreCompleto: true, ownerDirectorId: true },
         },
