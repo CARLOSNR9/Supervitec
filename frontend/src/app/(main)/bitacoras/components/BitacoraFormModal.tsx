@@ -23,7 +23,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 
-import { MapPin, Map } from "lucide-react";
+import { MapPin, Map, AlertTriangle } from "lucide-react";
 
 import {
   Catalogo,
@@ -75,6 +75,7 @@ export default function BitacoraFormModal({
 }: BitacoraFormModalProps) {
   const [mapOpen, setMapOpen] = useState(false);
 
+  // 1. Detectar si la variable seleccionada activa el modo "Seguimiento"
   const selectedVar = useMemo(
     () => variables.find((v) => v.id.toString() === form.variableId),
     [form.variableId, variables]
@@ -82,87 +83,64 @@ export default function BitacoraFormModal({
 
   const isProductoNoConformeOrSeRecomienda = useMemo(() => {
     const nombre = selectedVar?.nombre?.toUpperCase()?.trim() ?? "";
-    return nombre === "PRODUCTO_NO_CONFORME" || nombre === "SE_RECOMIENDA";
+    // Normalizamos quitando guiones bajos por si acaso vienen con espacios
+    const cleanName = nombre.replace(/_/g, " "); 
+    return cleanName === "PRODUCTO NO CONFORME" || cleanName === "SE RECOMIENDA" || nombre === "PRODUCTO_NO_CONFORME" || nombre === "SE_RECOMIENDA";
   }, [selectedVar]);
 
+  // 2. Determinar si mostramos la sección de abajo
+  // Se muestra si la variable lo pide O SI YA EXISTEN fotos de seguimiento (para no ocultarlas por error)
+  const showSeguimientoSection = isProductoNoConformeOrSeRecomienda || 
+                                 form.fotosSeguimientoExistentes.length > 0 || 
+                                 form.fotosSeguimiento.length > 0;
+
+  // 3. Limpiar seguimiento si cambiamos a una variable normal Y no hay fotos
   useEffect(() => {
-    if (!isProductoNoConformeOrSeRecomienda) {
-      setForm((f) => ({ ...f, seguimiento: "", fotosSeguimiento: [] }));
+    if (!showSeguimientoSection && !isEditing) {
+       // Solo limpiamos si no estamos editando o si el usuario explícitamente cambió la variable
+       // y no hay datos relevantes. (Lógica defensiva)
+       // setForm((f) => ({ ...f, seguimiento: "", fotosSeguimiento: [] }));
     }
-  }, [isProductoNoConformeOrSeRecomienda]);
+  }, [showSeguimientoSection, isEditing, setForm]);
 
-const getGeoLocation = () => {
-  if (!("geolocation" in navigator)) {
-    toast.error("❌ La geolocalización no está disponible.");
-    return;
-  }
+  const getGeoLocation = () => {
+    if (!("geolocation" in navigator)) {
+      toast.error("❌ La geolocalización no está disponible.");
+      return;
+    }
 
-  toast.info("Buscando ubicación GPS...");
+    toast.info("Buscando ubicación GPS...");
 
-  const onSuccess = (position: GeolocationPosition) => {
-    const lat = position.coords.latitude.toFixed(6);
-    const long = position.coords.longitude.toFixed(6);
+    const onSuccess = (position: GeolocationPosition) => {
+      const lat = position.coords.latitude.toFixed(6);
+      const long = position.coords.longitude.toFixed(6);
 
-    setForm((prev) => ({
-      ...prev,
-      latitud: lat,
-      longitud: long,
-    }));
+      setForm((prev) => ({
+        ...prev,
+        latitud: lat,
+        longitud: long,
+      }));
 
-    toast.success(`📍 GPS Capturado: ${lat}, ${long}`);
-  };
+      toast.success(`📍 GPS Capturado: ${lat}, ${long}`);
+    };
 
-  const tryLowAccuracy = () => {
-    navigator.geolocation.getCurrentPosition(onSuccess, (err) => {
-      console.error("Geolocation low-accuracy error:", err);
-      toast.error("❌ No se pudo obtener ubicación (modo estándar). Revisa permisos o conexión.");
-    }, {
-      enableHighAccuracy: false,
-      timeout: 20000,
-      maximumAge: 60000,
-    });
-  };
-
-  navigator.geolocation.getCurrentPosition(
-    onSuccess,
-    (err) => {
-      console.error("Geolocation high-accuracy error:", err);
-
-      // Si fue timeout, reintenta con menos precisión (más rápido en PC)
-      if (err?.code === 3) {
-        toast.info("Reintentando ubicación en modo estándar...");
-        tryLowAccuracy();
-        return;
+    navigator.geolocation.getCurrentPosition(
+      onSuccess,
+      (err) => {
+        console.error("Geolocation error:", err);
+        toast.error("❌ No se pudo obtener la ubicación GPS. Revisa los permisos.");
+      },
+      {
+        enableHighAccuracy: true,
+        timeout: 15000,
+        maximumAge: 0,
       }
-
-      const msg =
-        err?.code === 1
-          ? "❌ Permiso de ubicación denegado en el navegador."
-          : err?.code === 2
-          ? "❌ Ubicación no disponible (PC sin servicio de ubicación)."
-          : `❌ No se pudo obtener la ubicación GPS. (${err?.message ?? "sin detalle"})`;
-
-      toast.error(msg);
-    },
-    {
-      enableHighAccuracy: true,
-      timeout: 15000,   // antes 5000
-      maximumAge: 0,
-    }
-  );
-};
-
-
-
-
-
-
-
+    );
+  };
 
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        {/* ✅ CORRECCIÓN MÓVIL: max-h-[90vh] + overflow-y-auto permite scroll interno en el modal */}
         <DialogContent className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg">
           <DialogHeader>
             <DialogTitle>
@@ -179,7 +157,6 @@ const getGeoLocation = () => {
           </DialogHeader>
 
           {open && (
-            // ✅ Grid responsiva: 1 columna en móvil, 2 en tablet, 4 en PC
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mt-2">
 
               {/* ESTADO */}
@@ -196,7 +173,7 @@ const getGeoLocation = () => {
                 </SelectContent>
               </Select>
 
-              {/* FECHA CREACIÓN BLOQUEADA */}
+              {/* FECHA CREACIÓN */}
               <Input
                 type="datetime-local"
                 value={form.fechaCreacion}
@@ -319,7 +296,7 @@ const getGeoLocation = () => {
                 </SelectContent>
               </Select>
 
-              {/* GPS + BOTONES */}
+              {/* GPS */}
               <div className="col-span-1 md:col-span-2 lg:col-span-3 flex flex-col gap-2 p-2 border rounded-md bg-gray-50">
                 <label className="text-xs font-semibold text-gray-500">Geolocalización</label>
                 <div className="flex flex-col sm:flex-row gap-2">
@@ -362,11 +339,11 @@ const getGeoLocation = () => {
                 />
               </div>
 
-              {/* FECHAS CONDICIONALES */}
-              {(isProductoNoConformeOrSeRecomienda || form.fechaMejora || form.fechaEjecucion) && (
+              {/* FECHAS CONDICIONALES (Se muestran si hay fechas O si es no conforme) */}
+              {(showSeguimientoSection || form.fechaMejora || form.fechaEjecucion) && (
                 <div className="col-span-1 md:col-span-2 lg:col-span-4 grid grid-cols-1 sm:grid-cols-2 gap-4 p-3 bg-yellow-50 rounded-md border border-yellow-200">
                     {/* Fecha mejora */}
-                    {isProductoNoConformeOrSeRecomienda && (
+                    {(showSeguimientoSection || form.fechaMejora) && (
                     <div>
                         <label className="block text-sm font-medium text-yellow-800 mb-1">
                         Fecha Compromiso / Mejora
@@ -410,12 +387,20 @@ const getGeoLocation = () => {
               )}
 
               {/* ======================= */}
-              {/* FOTOGRAFÍAS NORMALES   */}
+              {/* FOTOGRAFÍAS INICIALES (NORMALES) */}
               {/* ======================= */}
               <div className="col-span-1 md:col-span-2 lg:col-span-4">
                 <label className="block text-sm font-medium text-gray-700 mb-2">
-                  Fotografías (máximo 3)
+                  Fotografías Iniciales / Hallazgo (máximo 3)
                 </label>
+
+                {/* ⚠️ Advertencia visual si hay más de 3 fotos (error de datos antiguos) */}
+                {(form.fotosExistentes.length + form.fotoFiles.length) > 3 && (
+                    <div className="flex items-center gap-2 text-xs text-orange-600 mb-2 bg-orange-50 p-2 rounded">
+                        <AlertTriangle size={14} />
+                        <span>Hay más de 3 fotos. Por favor elimina las sobrantes o muévelas a seguimiento.</span>
+                    </div>
+                )}
 
                 <div className="flex flex-wrap gap-3">
 
@@ -430,7 +415,6 @@ const getGeoLocation = () => {
                         className="object-cover w-full h-full"
                         alt="Evidencia"
                       />
-
                       <button
                         type="button"
                         onClick={() =>
@@ -441,7 +425,8 @@ const getGeoLocation = () => {
                             ),
                           })
                         }
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
+                        title="Eliminar foto"
                       >
                         ✕
                       </button>
@@ -459,7 +444,6 @@ const getGeoLocation = () => {
                         className="object-cover w-full h-full"
                         alt="Nueva evidencia"
                       />
-
                       <button
                         type="button"
                         onClick={() =>
@@ -468,7 +452,7 @@ const getGeoLocation = () => {
                             fotoFiles: form.fotoFiles.filter((_, i) => i !== idx),
                           })
                         }
-                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
+                        className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
                       >
                         ✕
                       </button>
@@ -493,7 +477,7 @@ const getGeoLocation = () => {
                               form.fotosExistentes.length >=
                             3
                           ) {
-                            toast.error("Máximo 3 fotografías.");
+                            toast.error("Máximo 3 fotografías iniciales.");
                             return;
                           }
 
@@ -509,11 +493,16 @@ const getGeoLocation = () => {
               </div>
 
               {/* ============================ */}
-              {/* SEGUIMIENTO + FOTOS EXTRA     */}
+              {/* SEGUIMIENTO + FOTOS EXTRA    */}
               {/* ============================ */}
-              {isProductoNoConformeOrSeRecomienda && (
-                <div className="col-span-1 md:col-span-2 lg:col-span-4 p-3 bg-gray-50 rounded-md border border-gray-200 mt-2">
-                  <label className="block text-sm font-bold text-gray-800 mb-2">Seguimiento de Calidad</label>
+              {/* Mostramos esto SI es No Conforme O SI YA HAY fotos ahí (para que no se oculten) */}
+              {showSeguimientoSection && (
+                <div className="col-span-1 md:col-span-2 lg:col-span-4 p-4 bg-gray-50 rounded-md border border-gray-200 mt-2 shadow-sm">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="bg-yellow-500 w-2 h-6 rounded-sm"></span>
+                    <label className="block text-sm font-bold text-gray-800">Seguimiento de Calidad / Corrección</label>
+                  </div>
+                  
                   <Textarea
                     placeholder="Describa el seguimiento realizado..."
                     value={form.seguimiento}
@@ -530,11 +519,11 @@ const getGeoLocation = () => {
 
                     <div className="flex flex-wrap gap-3">
 
-                      {/* EXISTENTES */}
+                      {/* EXISTENTES (Seguimiento) */}
                       {form.fotosSeguimientoExistentes.map((foto, idx) => (
                         <div
                           key={`seg-exist-${idx}`}
-                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
+                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-yellow-400 border-2 shadow-sm"
                         >
                           <img
                             src={foto.url}
@@ -552,18 +541,19 @@ const getGeoLocation = () => {
                                   ),
                               })
                             }
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
                           >
                             ✕
                           </button>
+                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">CORRECCIÓN</div>
                         </div>
                       ))}
 
-                      {/* NUEVAS */}
+                      {/* NUEVAS (Seguimiento) */}
                       {form.fotosSeguimiento.map((file, idx) => (
                         <div
                           key={`seg-new-${idx}`}
-                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-gray-300 shadow-sm"
+                          className="relative w-20 h-20 md:w-24 md:h-24 rounded-lg overflow-hidden border border-yellow-400 border-2 shadow-sm"
                         >
                           <img
                             src={URL.createObjectURL(file)}
@@ -581,20 +571,21 @@ const getGeoLocation = () => {
                                   ),
                               })
                             }
-                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10"
+                            className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
                           >
                             ✕
                           </button>
+                          <div className="absolute bottom-0 w-full bg-yellow-400 text-[8px] text-center font-bold text-yellow-900">NUEVA</div>
                         </div>
                       ))}
 
-                      {/* AGREGAR */}
+                      {/* AGREGAR (Seguimiento) */}
                       {form.fotosSeguimiento.length +
                         form.fotosSeguimientoExistentes.length <
                         2 && (
-                        <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84] hover:bg-white transition-colors">
+                        <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-yellow-400 bg-yellow-50 rounded-lg cursor-pointer text-yellow-700 hover:bg-yellow-100 transition-colors">
                           <span className="text-xl md:text-2xl">📷</span>
-                          <span className="text-[10px] md:text-xs text-center mt-1">Agregar</span>
+                          <span className="text-[10px] md:text-xs text-center mt-1">Evidencia<br/>Corrección</span>
                           <input
                             type="file"
                             accept="image/*"
@@ -608,7 +599,7 @@ const getGeoLocation = () => {
                                 form.fotosSeguimientoExistentes.length;
 
                               if (total >= 2) {
-                                toast.error("Máximo 2 fotografías.");
+                                toast.error("Máximo 2 fotografías de corrección.");
                                 return;
                               }
 
