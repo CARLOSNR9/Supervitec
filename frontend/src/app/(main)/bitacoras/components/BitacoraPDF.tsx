@@ -1,98 +1,111 @@
-import React from 'react';
-import { Page, Text, View, Document, StyleSheet, Image, Font } from '@react-pdf/renderer';
-import { Bitacora } from '../../types/bitacora';
-import { format } from 'date-fns';
-import { es } from 'date-fns/locale';
+/* src/app/(main)/bitacoras/components/BitacoraPDF.tsx */
 
-// Registramos una fuente estándar (Helvetica viene por defecto, pero esto es por si quieres custom)
-// Font.register({ family: 'Roboto', src: '...' }); 
+import React from "react";
+import {
+  Page,
+  Text,
+  View,
+  Document,
+  StyleSheet,
+  Image,
+} from "@react-pdf/renderer";
+import { Bitacora } from "../types/bitacora";
+import { format } from "date-fns";
+import { es } from "date-fns/locale";
 
+// === ESTILOS PROFESIONALES (TIPO GRID) ===
 const styles = StyleSheet.create({
   page: {
     padding: 30,
-    fontFamily: 'Helvetica',
+    fontFamily: "Helvetica",
     fontSize: 10,
-    color: '#333',
+    color: "#333",
   },
   // --- HEADER ---
   header: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
+    flexDirection: "row",
+    justifyContent: "space-between",
     marginBottom: 10,
-    borderBottomWidth: 1,
-    borderBottomColor: '#0C2D57',
-    paddingBottom: 5,
+    borderBottomWidth: 1.5,
+    borderBottomColor: "#0C2D57",
+    paddingBottom: 6,
   },
   headerLeft: {
-    flexDirection: 'column',
+    flexDirection: "column",
   },
   title: {
-    fontSize: 18,
-    fontWeight: 'bold',
-    color: '#0C2D57',
-    textTransform: 'uppercase',
+    fontSize: 16,
+    fontWeight: "bold",
+    color: "#0C2D57",
+    textTransform: "uppercase",
   },
   subTitle: {
-    fontSize: 10,
-    color: '#666',
+    fontSize: 9,
+    color: "#666",
     marginTop: 2,
   },
   statusBadge: {
-    padding: 4,
-    backgroundColor: '#eee', // Color base, lo cambiamos dinámicamente
+    paddingVertical: 4,
+    paddingHorizontal: 8,
     borderRadius: 4,
     fontSize: 9,
-    fontWeight: 'bold',
-    textTransform: 'uppercase',
+    fontWeight: "bold",
+    textTransform: "uppercase",
+    alignSelf: "flex-start",
   },
-  
-  // --- INFO GRID (Responsable, Obra, etc) ---
-  infoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
+
+  // --- INFO GRID (2 Columnas) ---
+  infoContainer: {
+    flexDirection: "row",
+    flexWrap: "wrap",
     marginBottom: 10,
   },
   infoCol: {
-    width: '50%', // 2 Columnas
+    width: "50%", // 2 Columnas
     marginBottom: 6,
+    paddingRight: 5,
   },
   label: {
-    fontSize: 8,
-    color: '#888',
-    textTransform: 'uppercase',
+    fontSize: 7,
+    color: "#888",
+    textTransform: "uppercase",
     marginBottom: 1,
+    fontWeight: "bold",
   },
   value: {
-    fontSize: 10,
-    fontWeight: 'bold',
-    color: '#000',
+    fontSize: 9,
+    fontWeight: "bold",
+    color: "#000",
   },
   valueSmall: {
     fontSize: 8,
-    color: '#555',
+    color: "#555",
+    marginTop: 1,
   },
-  
-  // --- DATOS CONTROL (Caja Gris) ---
+
+  // --- DATOS CONTROL (Caja Gris - 4 Columnas) ---
   controlBox: {
-    backgroundColor: '#f3f4f6',
+    backgroundColor: "#f3f4f6",
     padding: 8,
     borderRadius: 4,
-    flexDirection: 'row',
-    marginBottom: 15,
+    flexDirection: "row",
+    marginBottom: 12,
+    borderWidth: 1,
+    borderColor: "#e5e7eb",
   },
   controlCol: {
-    width: '25%', // 4 columnas
+    width: "25%",
   },
-  
-  // --- SECCIONES (Observaciones / Seguimiento) ---
+
+  // --- SECCIONES DE TEXTO ---
   sectionHeader: {
-    fontSize: 11,
-    fontWeight: 'bold',
-    color: '#0C2D57',
+    fontSize: 10,
+    fontWeight: "bold",
+    color: "#0C2D57",
     marginBottom: 4,
-    marginTop: 5,
+    marginTop: 6,
     borderBottomWidth: 0.5,
-    borderBottomColor: '#ccc',
+    borderBottomColor: "#ccc",
     paddingBottom: 2,
   },
   textBox: {
@@ -100,203 +113,223 @@ const styles = StyleSheet.create({
     borderRadius: 4,
     marginBottom: 8,
     fontSize: 9,
-    lineHeight: 1.4,
-    textAlign: 'justify',
+    lineHeight: 1.3,
+    textAlign: "justify",
   },
-  blueBox: { backgroundColor: '#eff6ff' }, // Azulito claro
-  yellowBox: { backgroundColor: '#fefce8' }, // Amarillito claro
+  blueBox: { backgroundColor: "#eff6ff", borderColor: "#dbeafe", borderWidth: 1 },
+  yellowBox: { backgroundColor: "#fefce8", borderColor: "#fef9c3", borderWidth: 1 },
 
-  // --- FOTOS ---
+  // --- FOTOS (GRID DE 3) ---
   photoGrid: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 5, // React-PDF a veces ignora gap, usaremos margin
+    flexDirection: "row",
+    flexWrap: "wrap",
+    marginTop: 4,
     marginBottom: 10,
   },
-  photoContainer: {
-    width: '32%', // 3 fotos por fila (aprox)
-    height: 100,  // Altura fija para uniformidad
-    marginRight: '1%',
+  photoWrapper: {
+    width: "32%", // 3 fotos por fila
+    height: 110,
+    marginRight: "1.3%",
     marginBottom: 5,
-    position: 'relative',
+    position: "relative",
+    borderRadius: 3,
+    overflow: "hidden",
   },
   image: {
-    width: '100%',
-    height: '100%',
-    objectFit: 'cover',
-    borderRadius: 4,
+    width: "100%",
+    height: "100%",
+    objectFit: "cover",
   },
-  photoDate: {
-    position: 'absolute',
+  photoLabel: {
+    position: "absolute",
     bottom: 0,
     left: 0,
-    width: '100%',
-    backgroundColor: 'rgba(0,0,0,0.6)',
-    color: '#fff',
+    width: "100%",
+    backgroundColor: "rgba(0,0,0,0.6)",
+    color: "#fff",
     fontSize: 6,
     padding: 2,
-    textAlign: 'center',
+    textAlign: "center",
   },
-  
+  correctionLabel: {
+    backgroundColor: "#eab308", // Amarillo oscuro
+    color: "#000",
+    fontWeight: "bold",
+  },
+
   // --- FOOTER ---
   footer: {
-    position: 'absolute',
+    position: "absolute",
     bottom: 20,
     left: 30,
     right: 30,
-    textAlign: 'center',
+    textAlign: "center",
     fontSize: 8,
-    color: '#aaa',
+    color: "#aaa",
     borderTopWidth: 1,
-    borderTopColor: '#eee',
+    borderTopColor: "#eee",
     paddingTop: 5,
   },
 });
 
-interface BitacoraPDFProps {
-  data: Bitacora;
+interface Props {
+  data: Bitacora[];
 }
 
-const BitacoraPDF: React.FC<BitacoraPDFProps> = ({ data }) => {
+export const BitacoraReportePDF = ({ data }: Props) => {
   
-  // Helpers
+  // Helper para formatear fechas de forma segura
   const formatDate = (dateString?: string | Date | null, withTime = false) => {
-    if (!dateString) return '-';
+    if (!dateString) return "-";
     try {
-      return format(new Date(dateString), withTime ? "dd/MM/yyyy HH:mm aa" : "dd/MM/yyyy", { locale: es });
-    } catch (e) { return dateString.toString(); }
+      const d = new Date(dateString);
+      return format(d, withTime ? "dd/MM/yyyy h:mm a" : "dd/MM/yyyy", { locale: es });
+    } catch (e) {
+      return "-";
+    }
   };
-
-  const isNoConforme = data.variable?.nombre?.toUpperCase().includes('NO_CONFORME') || 
-                       data.variable?.nombre?.toUpperCase().includes('NO CONFORME');
 
   return (
     <Document>
-      <Page size="A4" style={styles.page}>
+      {/* Generamos UNA PÁGINA (o más) POR CADA BITÁCORA */}
+      {data.map((bitacora, index) => {
         
-        {/* === HEADER === */}
-        <View style={styles.header}>
-          <View style={styles.headerLeft}>
-            <Text style={styles.title}>
-              BITÁCORA #{data.id} {data.codigo ? `| ${data.codigo}` : ''}
-            </Text>
-            <Text style={styles.subTitle}>
-              Reporte Generado: {format(new Date(), "dd/MM/yyyy HH:mm aa", { locale: es })}
-            </Text>
-          </View>
-          <View style={[styles.statusBadge, { backgroundColor: data.estado === 'ABIERTA' ? '#dcfce7' : '#fee2e2' }]}>
-            <Text style={{ color: data.estado === 'ABIERTA' ? '#166534' : '#991b1b' }}>
-              {data.estado}
-            </Text>
-          </View>
-        </View>
+        const isNoConforme = bitacora.variable?.nombre?.toUpperCase().includes("NO_CONFORME") || 
+                             bitacora.variable?.nombre?.toUpperCase().includes("NO CONFORME");
 
-        {/* === INFO GRID (2 Columnas) === */}
-        <View style={styles.infoGrid}>
-          {/* Fila 1 */}
-          <View style={styles.infoCol}>
-            <Text style={styles.label}>Responsable</Text>
-            <Text style={styles.value}>{data.responsable?.nombreCompleto || 'N/A'}</Text>
-          </View>
-          <View style={styles.infoCol}>
-            <Text style={styles.label}>Obra</Text>
-            <Text style={styles.value}>{data.obra?.nombre || 'N/A'}</Text>
-            <Text style={styles.valueSmall}>Prefijo: {data.obra?.prefijo || '---'}</Text>
-          </View>
-          
-          {/* Fila 2 (espacio) */}
-          <View style={{ width: '100%', height: 6 }}></View>
-
-          <View style={styles.infoCol}>
-            <Text style={styles.label}>Variable / Tipo</Text>
-            <Text style={[styles.value, { color: isNoConforme ? '#b91c1c' : '#000' }]}>
-              {data.variable?.nombre || 'N/A'}
-            </Text>
-          </View>
-          <View style={styles.infoCol}>
-            <Text style={styles.label}>Ubicación</Text>
-            <Text style={styles.value}>{data.ubicacion || 'Sin registrar'}</Text>
-            {data.latitud && (
-               <Text style={styles.valueSmall}>GPS: {data.latitud}, {data.longitud}</Text>
-            )}
-          </View>
-        </View>
-
-        {/* === DATOS DE CONTROL (Caja Gris - 4 Columnas) === */}
-        <View style={styles.controlBox}>
-          <View style={styles.controlCol}>
-            <Text style={styles.label}>Medición</Text>
-            <Text style={styles.value}>{data.medicion?.nombre || '-'}</Text>
-          </View>
-          <View style={styles.controlCol}>
-             <Text style={styles.label}>Unidad</Text>
-             <Text style={styles.value}>{data.unidadRel?.nombre || '-'}</Text>
-          </View>
-          <View style={styles.controlCol}>
-             <Text style={styles.label}>F. Compromiso</Text>
-             <Text style={[styles.value, { color: '#ea580c' }]}>
-               {formatDate(data.fechaMejora)}
-             </Text>
-          </View>
-          <View style={styles.controlCol}>
-             <Text style={styles.label}>F. Ejecución</Text>
-             <Text style={styles.value}>{formatDate(data.fechaEjecucion)}</Text>
-          </View>
-        </View>
-
-        {/* === OBSERVACIONES / HALLAZGO === */}
-        <Text style={styles.sectionHeader}>1. OBSERVACIONES / HALLAZGO</Text>
-        <View style={[styles.textBox, styles.blueBox]}>
-          <Text>{data.observaciones || 'Sin observaciones registradas.'}</Text>
-        </View>
-
-        {/* FOTOS OBSERVACIONES (Grilla Horizontal) */}
-        <View style={styles.photoGrid}>
-          {data.evidencias?.map((foto, index) => (
-             <View key={index} style={styles.photoContainer}>
-                {/* Usamos una imagen de placeholder si falla, pero react-pdf suele manejar bien las urls */}
-                <Image src={foto.url} style={styles.image} />
-                <Text style={styles.photoDate}>
-                    {formatDate(foto.createdAt || data.fechaCreacion, true)}
-                </Text>
-             </View>
-          ))}
-        </View>
-
-
-        {/* === SEGUIMIENTO / CIERRE (Solo si existe) === */}
-        {(data.seguimiento || (data.evidenciasSeguimiento && data.evidenciasSeguimiento.length > 0)) && (
-          <View wrap={false}> {/* Intentar no romper esta sección entre páginas */}
-            <Text style={[styles.sectionHeader, { marginTop: 10 }]}>2. SEGUIMIENTO DE CALIDAD / CORRECCIÓN</Text>
+        return (
+          <Page key={bitacora.id} size="A4" style={styles.page}>
             
-            <View style={[styles.textBox, styles.yellowBox]}>
-              <Text>{data.seguimiento || 'Sin descripción de seguimiento.'}</Text>
+            {/* === HEADER === */}
+            <View style={styles.header}>
+              <View style={styles.headerLeft}>
+                <Text style={styles.title}>
+                  BITÁCORA #{bitacora.id} {bitacora.codigo ? `| ${bitacora.codigo}` : ""}
+                </Text>
+                <Text style={styles.subTitle}>
+                  Fecha Creación: {formatDate(bitacora.fechaCreacion, true)}
+                </Text>
+              </View>
+              
+              <View style={[
+                  styles.statusBadge, 
+                  { backgroundColor: bitacora.estado === 'ABIERTA' ? '#dcfce7' : '#fee2e2' }
+                ]}>
+                <Text style={{ color: bitacora.estado === 'ABIERTA' ? '#166534' : '#991b1b' }}>
+                  {bitacora.estado}
+                </Text>
+              </View>
             </View>
 
-            {/* FOTOS SEGUIMIENTO (Grilla Horizontal) */}
-            <View style={styles.photoGrid}>
-              {data.evidenciasSeguimiento?.map((foto, index) => (
-                <View key={index} style={[styles.photoContainer, { borderColor: '#eab308', borderWidth: 1 }]}>
+            {/* === INFO GRID (2 COLUMNAS) === */}
+            <View style={styles.infoContainer}>
+              {/* Columna 1 */}
+              <View style={styles.infoCol}>
+                <Text style={styles.label}>RESPONSABLE</Text>
+                <Text style={styles.value}>{bitacora.responsable?.nombreCompleto || "N/A"}</Text>
+              </View>
+              
+              {/* Columna 2 */}
+              <View style={styles.infoCol}>
+                <Text style={styles.label}>OBRA</Text>
+                <Text style={styles.value}>{bitacora.obra?.nombre || "N/A"}</Text>
+                <Text style={styles.valueSmall}>Prefijo: {bitacora.obra?.prefijo || "---"}</Text>
+              </View>
+
+              {/* Espacio visual */}
+              <View style={{ width: '100%', height: 4 }}></View>
+
+              {/* Columna 3 */}
+              <View style={styles.infoCol}>
+                <Text style={styles.label}>VARIABLE / TIPO</Text>
+                <Text style={[styles.value, { color: isNoConforme ? '#b91c1c' : '#000' }]}>
+                  {bitacora.variable?.nombre || "N/A"}
+                </Text>
+              </View>
+
+              {/* Columna 4 */}
+              <View style={styles.infoCol}>
+                <Text style={styles.label}>UBICACIÓN</Text>
+                <Text style={styles.value}>{bitacora.ubicacion || "No registrada"}</Text>
+                {bitacora.latitud && (
+                   <Text style={styles.valueSmall}>GPS: {bitacora.latitud}, {bitacora.longitud}</Text>
+                )}
+              </View>
+            </View>
+
+            {/* === DATOS TÉCNICOS (CAJA GRIS - 4 COLUMNAS) === */}
+            <View style={styles.controlBox}>
+              <View style={styles.controlCol}>
+                <Text style={styles.label}>MEDICIÓN</Text>
+                <Text style={styles.value}>{bitacora.medicion?.nombre || "-"}</Text>
+              </View>
+              <View style={styles.controlCol}>
+                 <Text style={styles.label}>UNIDAD</Text>
+                 <Text style={styles.value}>{bitacora.unidadRel?.nombre || "-"}</Text>
+              </View>
+              <View style={styles.controlCol}>
+                 <Text style={styles.label}>F. COMPROMISO</Text>
+                 <Text style={[styles.value, { color: '#ea580c' }]}>
+                   {formatDate(bitacora.fechaMejora)}
+                 </Text>
+              </View>
+              <View style={styles.controlCol}>
+                 <Text style={styles.label}>F. EJECUCIÓN</Text>
+                 <Text style={styles.value}>{formatDate(bitacora.fechaEjecucion)}</Text>
+              </View>
+            </View>
+
+            {/* === 1. OBSERVACIONES / HALLAZGO === */}
+            <View wrap={false}>
+              <Text style={styles.sectionHeader}>1. OBSERVACIONES / HALLAZGO</Text>
+              <View style={[styles.textBox, styles.blueBox]}>
+                <Text>{bitacora.observaciones || "Sin observaciones registradas."}</Text>
+              </View>
+
+              {/* FOTOS GRID (Evidencias Iniciales) */}
+              <View style={styles.photoGrid}>
+                {bitacora.evidencias?.map((foto, i) => (
+                  <View key={i} style={styles.photoWrapper}>
                     <Image src={foto.url} style={styles.image} />
-                    <View style={[styles.photoDate, { backgroundColor: '#eab308' }]}>
-                       <Text style={{ color: '#000', fontWeight: 'bold' }}>CORRECCIÓN</Text>
-                    </View>
-                </View>
-              ))}
+                    <Text style={styles.photoLabel}>
+                      {formatDate(foto.createdAt || bitacora.fechaCreacion, true)}
+                    </Text>
+                  </View>
+                ))}
+              </View>
             </View>
-          </View>
-        )}
 
-        {/* === FOOTER === */}
-        <View style={styles.footer}>
-          <Text>
-            Reporte generado automáticamente por SUPERVITEC PRO | {format(new Date(), "yyyy")}
-          </Text>
-        </View>
+            {/* === 2. SEGUIMIENTO / CIERRE (Solo si existe) === */}
+            {(bitacora.seguimiento || (bitacora.evidenciasSeguimiento && bitacora.evidenciasSeguimiento.length > 0)) && (
+              <View wrap={false} style={{ marginTop: 5 }}>
+                <Text style={styles.sectionHeader}>2. SEGUIMIENTO DE CALIDAD / CORRECCIÓN</Text>
+                
+                <View style={[styles.textBox, styles.yellowBox]}>
+                  <Text>{bitacora.seguimiento || "Sin descripción de seguimiento."}</Text>
+                </View>
 
-      </Page>
+                {/* FOTOS GRID (Seguimiento) */}
+                <View style={styles.photoGrid}>
+                  {bitacora.evidenciasSeguimiento?.map((foto, i) => (
+                    <View key={i} style={[styles.photoWrapper, { borderColor: '#eab308', borderWidth: 1 }]}>
+                        <Image src={foto.url} style={styles.image} />
+                        <Text style={[styles.photoLabel, styles.correctionLabel]}>
+                           CORRECCIÓN - {formatDate(foto.createdAt || bitacora.fechaCreacion)}
+                        </Text>
+                    </View>
+                  ))}
+                </View>
+              </View>
+            )}
+
+            {/* === FOOTER === */}
+            <Text style={styles.footer}>
+              Generado por SUPERVITEC PRO - {new Date().toLocaleString()} • Página {index + 1} de {data.length}
+            </Text>
+
+          </Page>
+        );
+      })}
     </Document>
   );
 };
-
-export default BitacoraPDF;
