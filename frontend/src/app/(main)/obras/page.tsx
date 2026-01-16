@@ -99,9 +99,18 @@ export default function ObrasPage() {
   const generateSmartPrefix = (name: string) => {
     if (!name) return "";
 
-    const ignoredWords = ["de", "del", "la", "las", "el", "los", "y", "en", "para"];
+    const ignoredWords = [
+      "de",
+      "del",
+      "la",
+      "las",
+      "el",
+      "los",
+      "y",
+      "en",
+      "para",
+    ];
 
-    // Normaliza acentos para que "José" -> "Jose"
     const normalized = name
       .trim()
       .normalize("NFD")
@@ -122,7 +131,6 @@ export default function ObrasPage() {
       if (initials.length >= 3) break;
     }
 
-    // Caso borde: si todo eran conectores, tomamos las primeras 3 letras del string sin espacios
     if (initials.length === 0 && normalized.length > 0) {
       initials = normalized.replace(/\s/g, "").substring(0, 3);
     }
@@ -146,6 +154,7 @@ export default function ObrasPage() {
       }
     }
     fetchData();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   const fetchData = async () => {
@@ -225,7 +234,6 @@ export default function ObrasPage() {
           (u) => u.role && rolesValidos.includes(u.role.toUpperCase())
         );
 
-        // Ordenar: Director primero, luego alfabético
         usuariosFinales.sort((a, b) => {
           if (a.role === "DIRECTOR") return -1;
           if (b.role === "DIRECTOR") return 1;
@@ -274,10 +282,8 @@ export default function ObrasPage() {
     setErrorMsg("");
     setEditingId(null);
 
-    // ✅ NUEVO: al crear, el prefijo va en modo auto
     setIsPrefixLocked(true);
 
-    // Pre-seleccionar al usuario actual (TÚ) por defecto
     if (currentUserId && users.some((u) => u.id === currentUserId)) {
       setForm({ ...initialFormState, responsablesId: [currentUserId] });
     } else {
@@ -291,7 +297,6 @@ export default function ObrasPage() {
     setErrorMsg("");
     setEditingId(obra.id);
 
-    // ✅ NUEVO: al editar, NO auto-cambiar prefijo por seguridad
     setIsPrefixLocked(false);
 
     try {
@@ -370,6 +375,7 @@ export default function ObrasPage() {
           <Button variant="outline" onClick={fetchData} disabled={loading}>
             <RefreshCw className={loading ? "animate-spin" : ""} />
           </Button>
+
           {(currentUserRole === "ADMIN" || currentUserRole === "DIRECTOR") && (
             <Button
               className="bg-[#0C2D57] flex-1 md:flex-none"
@@ -391,6 +397,7 @@ export default function ObrasPage() {
         />
       </div>
 
+      {/* TABLA ESCRITORIO */}
       <div className="bg-white rounded-lg shadow overflow-hidden border border-gray-200 hidden md:block">
         <table className="w-full text-sm">
           <thead className="bg-gray-50 text-gray-700 text-left">
@@ -431,23 +438,30 @@ export default function ObrasPage() {
                     {o.responsables?.map((r) => r.nombreCompleto).join(", ") ||
                       "-"}
                   </td>
+
                   <td className="p-3 text-right">
-                    <div className="flex justify-end gap-2">
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleOpenEdit(o)}
-                      >
-                        <Pencil className="h-4 w-4 text-blue-600" />
-                      </Button>
-                      <Button
-                        size="icon"
-                        variant="ghost"
-                        onClick={() => handleDelete(o.id)}
-                      >
-                        <Trash2 className="h-4 w-4 text-red-600" />
-                      </Button>
-                    </div>
+                    {/* 🔥 CORRECCIÓN: Solo mostramos botones si es ADMIN o DIRECTOR */}
+                    {(currentUserRole === "ADMIN" ||
+                      currentUserRole === "DIRECTOR") && (
+                      <div className="flex justify-end gap-2">
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleOpenEdit(o)}
+                          title="Editar Obra"
+                        >
+                          <Pencil className="h-4 w-4 text-blue-600" />
+                        </Button>
+                        <Button
+                          size="icon"
+                          variant="ghost"
+                          onClick={() => handleDelete(o.id)}
+                          title="Eliminar Obra"
+                        >
+                          <Trash2 className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </div>
+                    )}
                   </td>
                 </tr>
               ))
@@ -475,29 +489,37 @@ export default function ObrasPage() {
                 <h3 className="font-bold text-lg">{o.nombre}</h3>
               </div>
             </CardHeader>
+
             <CardContent className="px-4 pb-4 text-sm text-gray-600">
               <div className="mb-2 flex items-start gap-2">
                 <User className="h-4 w-4 mt-0.5" />
-                <span>{o.responsables?.map((r) => r.nombreCompleto).join(", ")}</span>
+                <span>
+                  {o.responsables?.map((r) => r.nombreCompleto).join(", ")}
+                </span>
               </div>
-              <div className="flex gap-2 mt-4">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleOpenEdit(o)}
-                >
-                  Editar
-                </Button>
-                <Button
-                  variant="destructive"
-                  size="sm"
-                  className="flex-1"
-                  onClick={() => handleDelete(o.id)}
-                >
-                  Eliminar
-                </Button>
-              </div>
+
+              {/* 🔥 CORRECCIÓN: Solo mostramos la barra de botones si es ADMIN o DIRECTOR */}
+              {(currentUserRole === "ADMIN" ||
+                currentUserRole === "DIRECTOR") && (
+                <div className="flex gap-2 mt-4">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleOpenEdit(o)}
+                  >
+                    Editar
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    size="sm"
+                    className="flex-1"
+                    onClick={() => handleDelete(o.id)}
+                  >
+                    Eliminar
+                  </Button>
+                </div>
+              )}
             </CardContent>
           </Card>
         ))}
@@ -565,13 +587,10 @@ export default function ObrasPage() {
                   value={form.nombre}
                   onChange={(e) => {
                     const newVal = e.target.value;
-
                     const nextForm: FormState = { ...form, nombre: newVal };
-
                     if (isPrefixLocked) {
                       nextForm.prefijo = generateSmartPrefix(newVal);
                     }
-
                     setForm(nextForm);
                   }}
                 />
