@@ -13,7 +13,6 @@ import { Bitacora } from "../types/bitacora";
 import { format } from "date-fns";
 import { es } from "date-fns/locale";
 
-// === ESTILOS PROFESIONALES (TIPO GRID) ===
 const styles = StyleSheet.create({
   page: {
     padding: 30,
@@ -21,7 +20,6 @@ const styles = StyleSheet.create({
     fontSize: 10,
     color: "#333",
   },
-  // --- HEADER ---
   header: {
     flexDirection: "row",
     justifyContent: "space-between",
@@ -30,20 +28,14 @@ const styles = StyleSheet.create({
     borderBottomColor: "#0C2D57",
     paddingBottom: 6,
   },
-  headerLeft: {
-    flexDirection: "column",
-  },
+  headerLeft: { flexDirection: "column" },
   title: {
     fontSize: 16,
     fontWeight: "bold",
     color: "#0C2D57",
     textTransform: "uppercase",
   },
-  subTitle: {
-    fontSize: 9,
-    color: "#666",
-    marginTop: 2,
-  },
+  subTitle: { fontSize: 9, color: "#666", marginTop: 2 },
   statusBadge: {
     paddingVertical: 4,
     paddingHorizontal: 8,
@@ -53,15 +45,13 @@ const styles = StyleSheet.create({
     textTransform: "uppercase",
     alignSelf: "flex-start",
   },
-
-  // --- INFO GRID (2 Columnas) ---
   infoContainer: {
     flexDirection: "row",
     flexWrap: "wrap",
     marginBottom: 10,
   },
   infoCol: {
-    width: "50%", // 2 Columnas
+    width: "50%",
     marginBottom: 6,
     paddingRight: 5,
   },
@@ -82,8 +72,6 @@ const styles = StyleSheet.create({
     color: "#555",
     marginTop: 1,
   },
-
-  // --- DATOS CONTROL (Caja Gris - 4 Columnas) ---
   controlBox: {
     backgroundColor: "#f3f4f6",
     padding: 8,
@@ -93,11 +81,7 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: "#e5e7eb",
   },
-  controlCol: {
-    width: "25%",
-  },
-
-  // --- SECCIONES DE TEXTO ---
+  controlCol: { width: "25%" },
   sectionHeader: {
     fontSize: 10,
     fontWeight: "bold",
@@ -118,8 +102,6 @@ const styles = StyleSheet.create({
   },
   blueBox: { backgroundColor: "#eff6ff", borderColor: "#dbeafe", borderWidth: 1 },
   yellowBox: { backgroundColor: "#fefce8", borderColor: "#fef9c3", borderWidth: 1 },
-
-  // --- FOTOS (GRID DE 3) ---
   photoGrid: {
     flexDirection: "row",
     flexWrap: "wrap",
@@ -127,7 +109,7 @@ const styles = StyleSheet.create({
     marginBottom: 10,
   },
   photoWrapper: {
-    width: "32%", // 3 fotos por fila
+    width: "32%",
     height: 110,
     marginRight: "1.3%",
     marginBottom: 5,
@@ -152,12 +134,10 @@ const styles = StyleSheet.create({
     textAlign: "center",
   },
   correctionLabel: {
-    backgroundColor: "#eab308", // Amarillo oscuro
+    backgroundColor: "#eab308",
     color: "#000",
     fontWeight: "bold",
   },
-
-  // --- FOOTER ---
   footer: {
     position: "absolute",
     bottom: 20,
@@ -178,11 +158,12 @@ interface Props {
 
 export const BitacoraReportePDF = ({ data }: Props) => {
   
-  // Helper para formatear fechas de forma segura
+  // Helper para formatear fechas
   const formatDate = (dateString?: string | Date | null, withTime = false) => {
     if (!dateString) return "-";
     try {
       const d = new Date(dateString);
+      // 'P' es fecha corta localizada, 'p' es hora localizada
       return format(d, withTime ? "dd/MM/yyyy h:mm a" : "dd/MM/yyyy", { locale: es });
     } catch (e) {
       return "-";
@@ -191,7 +172,6 @@ export const BitacoraReportePDF = ({ data }: Props) => {
 
   return (
     <Document>
-      {/* Generamos UNA PÁGINA (o más) POR CADA BITÁCORA */}
       {data.map((bitacora, index) => {
         
         const isNoConforme = bitacora.variable?.nombre?.toUpperCase().includes("NO_CONFORME") || 
@@ -221,25 +201,21 @@ export const BitacoraReportePDF = ({ data }: Props) => {
               </View>
             </View>
 
-            {/* === INFO GRID (2 COLUMNAS) === */}
+            {/* === INFO GRID === */}
             <View style={styles.infoContainer}>
-              {/* Columna 1 */}
               <View style={styles.infoCol}>
                 <Text style={styles.label}>RESPONSABLE</Text>
                 <Text style={styles.value}>{bitacora.responsable?.nombreCompleto || "N/A"}</Text>
               </View>
               
-              {/* Columna 2 */}
               <View style={styles.infoCol}>
                 <Text style={styles.label}>OBRA</Text>
                 <Text style={styles.value}>{bitacora.obra?.nombre || "N/A"}</Text>
                 <Text style={styles.valueSmall}>Prefijo: {bitacora.obra?.prefijo || "---"}</Text>
               </View>
 
-              {/* Espacio visual */}
               <View style={{ width: '100%', height: 4 }}></View>
 
-              {/* Columna 3 */}
               <View style={styles.infoCol}>
                 <Text style={styles.label}>VARIABLE / TIPO</Text>
                 <Text style={[styles.value, { color: isNoConforme ? '#b91c1c' : '#000' }]}>
@@ -247,7 +223,6 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 </Text>
               </View>
 
-              {/* Columna 4 */}
               <View style={styles.infoCol}>
                 <Text style={styles.label}>UBICACIÓN</Text>
                 <Text style={styles.value}>{bitacora.ubicacion || "No registrada"}</Text>
@@ -257,7 +232,7 @@ export const BitacoraReportePDF = ({ data }: Props) => {
               </View>
             </View>
 
-            {/* === DATOS TÉCNICOS (CAJA GRIS - 4 COLUMNAS) === */}
+            {/* === DATOS TÉCNICOS (CORREGIDO PARA MOSTRAR HORA) === */}
             <View style={styles.controlBox}>
               <View style={styles.controlCol}>
                 <Text style={styles.label}>MEDICIÓN</Text>
@@ -267,26 +242,28 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                  <Text style={styles.label}>UNIDAD</Text>
                  <Text style={styles.value}>{bitacora.unidadRel?.nombre || "-"}</Text>
               </View>
+              {/* ✅ AQUÍ ESTÁ EL CAMBIO: Se agrega ', true' para mostrar la hora */}
               <View style={styles.controlCol}>
                  <Text style={styles.label}>F. COMPROMISO</Text>
                  <Text style={[styles.value, { color: '#ea580c' }]}>
-                   {formatDate(bitacora.fechaMejora)}
+                   {formatDate(bitacora.fechaMejora, true)} 
                  </Text>
               </View>
               <View style={styles.controlCol}>
                  <Text style={styles.label}>F. EJECUCIÓN</Text>
-                 <Text style={styles.value}>{formatDate(bitacora.fechaEjecucion)}</Text>
+                 <Text style={styles.value}>
+                    {formatDate(bitacora.fechaEjecucion, true)}
+                 </Text>
               </View>
             </View>
 
-            {/* === 1. OBSERVACIONES / HALLAZGO === */}
+            {/* === 1. OBSERVACIONES === */}
             <View wrap={false}>
               <Text style={styles.sectionHeader}>1. OBSERVACIONES / HALLAZGO</Text>
               <View style={[styles.textBox, styles.blueBox]}>
                 <Text>{bitacora.observaciones || "Sin observaciones registradas."}</Text>
               </View>
 
-              {/* FOTOS GRID (Evidencias Iniciales) */}
               <View style={styles.photoGrid}>
                 {bitacora.evidencias?.map((foto, i) => (
                   <View key={i} style={styles.photoWrapper}>
@@ -299,7 +276,7 @@ export const BitacoraReportePDF = ({ data }: Props) => {
               </View>
             </View>
 
-            {/* === 2. SEGUIMIENTO / CIERRE (Solo si existe) === */}
+            {/* === 2. SEGUIMIENTO === */}
             {(bitacora.seguimiento || (bitacora.evidenciasSeguimiento && bitacora.evidenciasSeguimiento.length > 0)) && (
               <View wrap={false} style={{ marginTop: 5 }}>
                 <Text style={styles.sectionHeader}>2. SEGUIMIENTO DE CALIDAD / CORRECCIÓN</Text>
@@ -308,13 +285,12 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                   <Text>{bitacora.seguimiento || "Sin descripción de seguimiento."}</Text>
                 </View>
 
-                {/* FOTOS GRID (Seguimiento) */}
                 <View style={styles.photoGrid}>
                   {bitacora.evidenciasSeguimiento?.map((foto, i) => (
                     <View key={i} style={[styles.photoWrapper, { borderColor: '#eab308', borderWidth: 1 }]}>
                         <Image src={foto.url} style={styles.image} />
                         <Text style={[styles.photoLabel, styles.correctionLabel]}>
-                           CORRECCIÓN - {formatDate(foto.createdAt || bitacora.fechaCreacion)}
+                           CORRECCIÓN - {formatDate(foto.createdAt || bitacora.fechaCreacion, true)}
                         </Text>
                     </View>
                   ))}
@@ -322,7 +298,6 @@ export const BitacoraReportePDF = ({ data }: Props) => {
               </View>
             )}
 
-            {/* === FOOTER === */}
             <Text style={styles.footer}>
               Generado por SUPERVITEC PRO - {new Date().toLocaleString()} • Página {index + 1} de {data.length}
             </Text>
