@@ -179,6 +179,35 @@ export class BitacorasService {
     });
   }
 
+  // =================================================================
+  // 🔍 BUSCAR SOLO POR OBRAS ASIGNADAS (Para Supervisor/Residente)
+  // =================================================================
+  async findAllByAsignacionObra(userId: number) {
+    return this.prisma.bitacora.findMany({
+      where: {
+        obra: {
+          // ✅ En tu schema se llama "responsables"
+          responsables: {
+            some: {
+              id: userId,
+            },
+          },
+        },
+      },
+      include: {
+        responsable: { select: { id: true, nombreCompleto: true, role: true } },
+        obra: { select: { id: true, nombre: true, prefijo: true } },
+        variable: true,
+        contratista: true,
+        medicion: true,
+        unidadRel: true,
+        evidencias: true,
+        evidenciasSeguimiento: true,
+      },
+      orderBy: { id: 'desc' },
+    });
+  }
+
   // ============================================================
   // FIND ONE
   // ============================================================
@@ -279,7 +308,7 @@ export class BitacorasService {
       });
 
       // ==========================================================
-      // 🗑️ FASE DE ELIMINACIÓN (NUEVO)
+      // 🗑️ FASE DE ELIMINACIÓN
       // ==========================================================
       const parseIds = (raw?: string) => {
         if (!raw) return [];
@@ -294,28 +323,20 @@ export class BitacorasService {
         }
       };
 
-      // 1) Borrar fotos normales
       if (dto.idsToDelete) {
         const ids = parseIds(dto.idsToDelete);
         if (ids.length > 0) {
           await this.prisma.bitacoraMedia.deleteMany({
-            where: {
-              id: { in: ids },
-              bitacoraId: id, // ✅ seguridad: solo de esta bitácora
-            },
+            where: { id: { in: ids }, bitacoraId: id },
           });
         }
       }
 
-      // 2) Borrar fotos seguimiento
       if (dto.idsToDeleteSeguimiento) {
         const ids = parseIds(dto.idsToDeleteSeguimiento);
         if (ids.length > 0) {
           await this.prisma.bitacoraSeguimientoMedia.deleteMany({
-            where: {
-              id: { in: ids },
-              bitacoraId: id, // ✅ seguridad
-            },
+            where: { id: { in: ids }, bitacoraId: id },
           });
         }
       }
@@ -324,7 +345,6 @@ export class BitacorasService {
       // 📸 FASE DE SUBIDA (SEPARACIÓN REAL)
       // ==========================================================
       if (files?.length > 0) {
-        // Compatibilidad: si aún llega "files" (legacy), lo tratamos como NORMAL
         const fotosNormales = files.filter(
           (f) => f.fieldname === 'fotoFiles' || f.fieldname === 'files',
         );
@@ -336,7 +356,6 @@ export class BitacorasService {
           `📸 update(): files=${files.length} | normales=${fotosNormales.length} | seguimiento=${fotosSeguimiento.length}`,
         );
 
-        // Subir y guardar normales
         if (fotosNormales.length > 0) {
           const uploadsNormal = await Promise.all(
             fotosNormales.map((f) => this.cloudinary.uploadImage(f)),
@@ -355,7 +374,6 @@ export class BitacorasService {
           }
         }
 
-        // Subir y guardar seguimiento (tabla correcta)
         if (fotosSeguimiento.length > 0) {
           const uploadsSeguimiento = await Promise.all(
             fotosSeguimiento.map((f) => this.cloudinary.uploadImage(f)),
