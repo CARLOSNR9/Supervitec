@@ -6,7 +6,21 @@ import { jwtDecode } from "jwt-decode";
 import Cookies from "js-cookie";
 import NavbarUserMenu from "./navbar-user-menu";
 import { Button } from "@/components/ui/button";
-import { Menu, X, FileText } from "lucide-react"; // Agregamos FileText
+import { 
+  Menu, 
+  X, 
+  FileText, 
+  ClipboardList, 
+  ChevronDown 
+} from "lucide-react"; 
+
+// ✅ IMPORTAMOS EL DROPDOWN DE SHADCN
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface User {
   username: string;
@@ -14,11 +28,13 @@ interface User {
   sub: number;
 }
 
+// ✅ Actualizamos la interfaz para soportar sub-menús (Dropdown)
 interface MenuItem {
   name: string;
   path: string;
   requiredRole: keyof typeof roleRank;
-  icon?: React.ReactNode; // Propiedad opcional para íconos
+  icon?: React.ReactNode;
+  children?: MenuItem[]; // Nueva propiedad para hijos
 }
 
 // 🔢 Ranking de roles
@@ -36,14 +52,27 @@ const roleRank = {
 const getMenuItems = (role: string): MenuItem[] => {
   const allItems: MenuItem[] = [
     { name: "Dashboard", path: "/dashboard", requiredRole: "RESIDENTE" },
-    { name: "Bitácoras", path: "/bitacoras", requiredRole: "RESIDENTE" },
     
-    // ✅ AQUÍ ESTÁ EL NUEVO ENLACE A INFORMES
+    // ✅ MODIFICADO: Bitácoras ahora es un DROPDOWN con hijos
     { 
-      name: "Informes", 
-      path: "/bitacoras/informes", 
+      name: "Bitácoras", 
+      path: "/bitacoras", 
       requiredRole: "RESIDENTE",
-      icon: <FileText className="h-4 w-4 inline-block mr-1 mb-0.5" /> 
+      icon: <ClipboardList className="h-4 w-4" />,
+      children: [
+        { 
+          name: "Gestionar Registros", 
+          path: "/bitacoras", 
+          requiredRole: "RESIDENTE",
+          icon: <ClipboardList className="h-4 w-4 mr-2 text-blue-600" />
+        },
+        { 
+          name: "Informes / PDF", 
+          path: "/bitacoras/informes", 
+          requiredRole: "RESIDENTE",
+          icon: <FileText className="h-4 w-4 mr-2 text-orange-600" />
+        },
+      ]
     },
 
     { name: "Órdenes de Trabajo", path: "/orden-trabajo", requiredRole: "RESIDENTE" },
@@ -92,7 +121,6 @@ export default function Navbar() {
         
         {/* 1. IZQUIERDA: Logo y Botón Móvil */}
         <div className="flex items-center gap-3">
-          {/* Botón Hamburguesa */}
           <button 
             className="md:hidden focus:outline-none" 
             onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
@@ -107,14 +135,42 @@ export default function Navbar() {
 
         {/* 2. CENTRO: Menú Escritorio */}
         <div className="hidden md:flex items-center gap-6 text-sm">
-          {menuItems.map((item) => (
-            <Link key={item.path} href={item.path}>
-              <span className={`hover:text-gray-300 transition-colors cursor-pointer font-medium flex items-center gap-1 ${item.name === 'Informes' ? 'text-blue-200' : ''}`}>
-                {item.icon && item.icon}
-                {item.name}
-              </span>
-            </Link>
-          ))}
+          {menuItems.map((item) => {
+            
+            // CASO A: Es un Dropdown (Tiene hijos)
+            if (item.children) {
+              return (
+                <DropdownMenu key={item.name}>
+                  <DropdownMenuTrigger className="flex items-center gap-1 hover:text-gray-300 transition-colors font-medium focus:outline-none">
+                    {item.icon && item.icon}
+                    {item.name}
+                    <ChevronDown className="h-3 w-3 opacity-70" />
+                  </DropdownMenuTrigger>
+                  
+                  <DropdownMenuContent align="start" className="w-48 bg-white text-gray-800 border-gray-200">
+                    {item.children.map((child) => (
+                      <DropdownMenuItem key={child.path} asChild>
+                        <Link href={child.path} className="cursor-pointer flex items-center w-full font-medium">
+                          {child.icon}
+                          {child.name}
+                        </Link>
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              );
+            }
+
+            // CASO B: Es un enlace normal
+            return (
+              <Link key={item.path} href={item.path}>
+                <span className="hover:text-gray-300 transition-colors cursor-pointer font-medium flex items-center gap-1">
+                  {item.icon && item.icon}
+                  {item.name}
+                </span>
+              </Link>
+            );
+          })}
         </div>
 
         {/* 3. DERECHA: Usuario */}
@@ -138,19 +194,47 @@ export default function Navbar() {
       {/* 4. MENÚ DESPLEGABLE MÓVIL */}
       {isMobileMenuOpen && (
         <div className="md:hidden bg-[#092344] border-t border-[#1e457a]">
-          <div className="flex flex-col p-4 space-y-3">
-            {menuItems.map((item) => (
-              <Link 
-                key={item.path} 
-                href={item.path}
-                onClick={() => setIsMobileMenuOpen(false)} 
-              >
-                <span className="flex items-center gap-2 px-4 py-2 hover:bg-[#0C2D57] rounded-md transition-colors text-sm font-medium">
-                  {item.icon && item.icon}
-                  {item.name}
-                </span>
-              </Link>
-            ))}
+          <div className="flex flex-col p-4 space-y-2">
+            {menuItems.map((item) => {
+              
+              // Móvil: Si tiene hijos, los mostramos indentados
+              if (item.children) {
+                return (
+                  <div key={item.name} className="flex flex-col space-y-1">
+                    <span className="flex items-center gap-2 px-4 py-2 text-gray-400 text-xs font-bold uppercase tracking-wider">
+                      {item.name}
+                    </span>
+                    {item.children.map((child) => (
+                      <Link 
+                        key={child.path} 
+                        href={child.path}
+                        onClick={() => setIsMobileMenuOpen(false)} 
+                      >
+                         <span className="flex items-center gap-2 px-4 py-2 pl-8 hover:bg-[#0C2D57] rounded-md transition-colors text-sm font-medium text-white">
+                          {child.icon}
+                          {child.name}
+                        </span>
+                      </Link>
+                    ))}
+                  </div>
+                );
+              }
+
+              // Móvil: Enlace normal
+              return (
+                <Link 
+                  key={item.path} 
+                  href={item.path}
+                  onClick={() => setIsMobileMenuOpen(false)} 
+                >
+                  <span className="flex items-center gap-2 px-4 py-2 hover:bg-[#0C2D57] rounded-md transition-colors text-sm font-medium text-white">
+                    {item.icon && item.icon}
+                    {item.name}
+                  </span>
+                </Link>
+              );
+            })}
+            
             {menuItems.length === 0 && (
               <p className="text-gray-400 text-xs px-4">No tienes permisos asignados.</p>
             )}
