@@ -37,11 +37,20 @@ export class BitacorasController {
   async findAll(@Req() req) {
     const user = req.user;
 
-    if (user.role === Role.ADMIN) return this.bitacorasService.findAll();
-    if (user.role === Role.DIRECTOR)
-      return this.bitacorasService.findAllByDirector(user.userId);
+    // 1. ADMIN y DIRECTOR ven TODO (o lógica de director si la tienes separada)
+    if (user.role === Role.ADMIN || user.role === Role.DIRECTOR) {
+      // Si tienes lógica especial para Director, úsala aquí.
+      // Si no, que vean todo:
+      return this.bitacorasService.findAll();
+    }
 
-    return this.bitacorasService.findAllByDirector(user.ownerDirectorId);
+    // 2. SUPERVISOR y RESIDENTE ven SOLO LO DE SUS OBRAS
+    if (user.role === Role.SUPERVISOR || user.role === Role.RESIDENTE) {
+      return this.bitacorasService.findAllByAsignacionObra(user.userId);
+    }
+
+    // 3. Fallback por seguridad (si entra otro rol, no ve nada o ve todo según decidas)
+    return [];
   }
 
   // =====================================================
