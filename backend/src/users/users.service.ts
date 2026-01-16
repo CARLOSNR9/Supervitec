@@ -2,10 +2,12 @@ import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  ConflictException, // ✅ NUEVO: duplicados
+  InternalServerErrorException, // ✅ NUEVO: otros errores
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import * as bcrypt from 'bcryptjs';
-import { Role } from '@prisma/client';
+import { Role, Prisma } from '@prisma/client'; // ✅ NUEVO: Prisma para detectar P2002
 
 @Injectable()
 export class UsersService {
@@ -15,13 +17,11 @@ export class UsersService {
   // 0. Resolver ID de usuario a partir del currentUser del token
   // ===============================================================
   private async resolveUserId(currentUser: any): Promise<number | null> {
-    // Si ya viene en el token, lo usamos
     const directId =
       currentUser?.userId ?? currentUser?.id ?? currentUser?.sub;
 
     if (directId) return directId;
 
-    // Si no, buscamos por username (que sí viene en tu token)
     if (currentUser?.username) {
       const user = await this.prisma.user.findUnique({
         where: { username: currentUser.username },
@@ -73,7 +73,6 @@ export class UsersService {
       const directorId = await this.resolveUserId(currentUser);
 
       if (!directorId) {
-        // si no podemos resolver, devolvemos lista vacía
         return [];
       }
 
@@ -94,7 +93,6 @@ export class UsersService {
       });
     }
 
-    // Otros roles → no ven la lista de usuarios
     throw new ForbiddenException('No tienes permisos para ver usuarios.');
   }
 
@@ -126,6 +124,7 @@ export class UsersService {
 
   // ===============================================================
   // 4. Crear usuario (ADMIN ilimitado, DIRECTOR con límite)
+  //    ✅ AHORA CON TRY/CATCH + P2002 + DEFAULTS
   // ===============================================================
   async create(
     data: {
@@ -149,22 +148,17 @@ export class UsersService {
 
     // 1️⃣ Si el creador es DIRECTOR → validar roles y límite
     if (creatorRole === Role.DIRECTOR) {
-      // No puede crear ADMIN ni DIRECTOR
       if (data.role === Role.ADMIN || data.role === Role.DIRECTOR) {
         throw new ForbiddenException(
           'Un Director no puede crear usuarios ADMIN o DIRECTOR.',
         );
       }
 
-      // Resolvemos su ID real desde DB
       const directorId = await this.resolveUserId(creator);
       if (!directorId) {
-        throw new ForbiddenException(
-          'No se pudo determinar el ID del director.',
-        );
+        throw new ForbiddenException('No se pudo determinar el ID del director.');
       }
 
-      // Límite de usuarios (por token o por DB, o 3 por defecto)
       const directorEntity = await this.prisma.user.findUnique({
         where: { id: directorId },
         select: { maxUsers: true },
@@ -181,20 +175,21 @@ export class UsersService {
           `Has alcanzado el límite de ${maxUsers} usuarios permitidos.`,
         );
       }
-
-      // guardamos luego ownerDirectorId = directorId
     }
 
     // 2️⃣ Hash de contraseña
     const hash = await bcrypt.hash(data.password, 10);
 
     // 3️⃣ Datos base del usuario
+    // ✅ Defaults por seguridad: evita errores si la DB exige valores
     const userData: any = {
       username: data.username,
       nombreCompleto: data.nombreCompleto,
       hash,
       role: data.role,
       active: data.active,
+      maxUsers: 0,
+      maxObras: 0,
     };
 
     if (data.email && data.email.trim() !== '') {
@@ -219,23 +214,51 @@ export class UsersService {
       }
     }
 
-    // 6️⃣ Crear usuario
-    return this.prisma.user.create({
-      data: userData,
-      select: {
-        id: true,
-        username: true,
-        nombreCompleto: true,
-        email: true,
-        phone: true,
-        role: true,
-        active: true,
-      },
-    });
+    // 6️⃣ Crear usuario con manejo de errores
+    try {
+      return await this.prisma.user.create({
+        data: userData,
+        select: {
+          id: true,
+          username: true,
+          nombreCompleto: true,
+          email: true,
+          phone: true,
+          role: true,
+          active: true,
+        },
+      });
+    } catch (error: any) {
+      // ✅ Prisma unique constraint violation
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          const target = (error.meta?.target as string[]) || [];
+
+          if (target.includes('email')) {
+            throw new ConflictException('El correo electrónico ya está registrado.');
+          }
+          if (target.includes('username')) {
+            throw new ConflictException('El usuario ya existe.');
+          }
+          if (target.includes('phone')) {
+            throw new ConflictException('El teléfono ya está registrado.');
+          }
+
+          throw new ConflictException(
+            'Ya existe un registro con estos datos (correo/usuario/teléfono).',
+          );
+        }
+      }
+
+      console.error('❌ ERROR CRÍTICO AL CREAR USUARIO:', error);
+      throw new InternalServerErrorException(
+        'Error interno al guardar usuario. Revisa la consola.',
+      );
+    }
   }
 
   // ===============================================================
-  // 5. Actualizar usuario
+  // 5. Actualizar usuario (SIN CAMBIOS FUNCIONALES)
   // ===============================================================
   async update(
     id: number,
