@@ -53,6 +53,9 @@ export default function BitacoraDetailsModal({
     return { fotosArriba: arriba, fotosAbajo: abajo, isNoConforme: esNoConforme };
   }, [data]);
 
+  // 2) Estado para Imagen Ampliada (Lightbox)
+  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+
   if (!data) return null;
 
   const getImageUrl = (path: string) => {
@@ -80,228 +83,183 @@ export default function BitacoraDetailsModal({
     formatDateTime(foto?.createdAt ?? data.fechaCreacion);
 
   return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg p-0">
-        <DialogHeader className="p-4 bg-gray-50 border-b sticky top-0 z-10">
-          <div className="flex justify-between items-start gap-3">
-            <div>
-              <DialogTitle className="text-xl md:text-2xl font-bold text-[#0C2D57] flex items-center gap-2 flex-wrap">
-                Detalle de Bitácora {data.codigo ? data.codigo : `#${data.id}`}
-                {data.codigo && (
-                  <span className="text-base text-gray-500 font-normal">
-                    | #{data.id}
-                  </span>
-                )}
-              </DialogTitle>
-              <p className="text-sm text-gray-500 mt-1">
-                Creado el {formatDateTime(data.fechaCreacion)}
-              </p>
-            </div>
-
-            <Badge
-              className={`text-sm px-3 py-1 ${data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"
-                }`}
-            >
-              {data.estado}
-            </Badge>
-          </div>
-        </DialogHeader>
-
-        <div className="p-4 space-y-8">
-          {/* 1. FICHA TÉCNICA */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
-            <div className="flex items-center gap-3">
-              <div className="bg-blue-50 p-2 rounded-full text-blue-600">
-                <User size={18} />
-              </div>
+    <>
+      <Dialog open={open} onOpenChange={onOpenChange}>
+        <DialogContent className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg p-0">
+          <DialogHeader className="p-4 bg-gray-50 border-b sticky top-0 z-10">
+            <div className="flex justify-between items-start gap-3">
               <div>
-                <p className="text-xs text-gray-500 font-bold uppercase">
-                  Responsable
-                </p>
-                <p className="font-medium text-gray-800">
-                  {data.responsable?.nombreCompleto || "N/A"}
+                <DialogTitle className="text-xl md:text-2xl font-bold text-[#0C2D57] flex items-center gap-2 flex-wrap">
+                  Detalle de Bitácora {data.codigo ? data.codigo : `#${data.id}`}
+                  {data.codigo && (
+                    <span className="text-base text-gray-500 font-normal">
+                      | #{data.id}
+                    </span>
+                  )}
+                </DialogTitle>
+                <p className="text-sm text-gray-500 mt-1">
+                  Creado el {formatDateTime(data.fechaCreacion)}
                 </p>
               </div>
-            </div>
 
-            <div className="flex items-center gap-3">
-              <div className="bg-orange-50 p-2 rounded-full text-orange-600">
-                <FileText size={18} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase">Obra</p>
-                <p className="font-medium text-gray-800">
-                  {data.obra?.nombre || "N/A"}
-                </p>
-                <p className="text-xs text-gray-400">
-                  Prefijo: {data.obra?.prefijo || "Sin prefijo"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div
-                className={`p-2 rounded-full ${isNoConforme
-                    ? "bg-red-50 text-red-600"
-                    : "bg-green-50 text-green-600"
+              <Badge
+                className={`text-sm px-3 py-1 ${data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"
                   }`}
               >
-                <Tag size={18} />
+                {data.estado}
+              </Badge>
+            </div>
+          </DialogHeader>
+
+          <div className="p-4 space-y-8">
+            {/* 1. FICHA TÉCNICA */}
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-8 gap-y-4 text-sm">
+              <div className="flex items-center gap-3">
+                <div className="bg-blue-50 p-2 rounded-full text-blue-600">
+                  <User size={18} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase">
+                    Responsable
+                  </p>
+                  <p className="font-medium text-gray-800">
+                    {data.responsable?.nombreCompleto || "N/A"}
+                  </p>
+                </div>
               </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase">
-                  Variable
-                </p>
-                <p
-                  className={`font-bold ${isNoConforme ? "text-red-700" : "text-gray-800"
+
+              <div className="flex items-center gap-3">
+                <div className="bg-orange-50 p-2 rounded-full text-orange-600">
+                  <FileText size={18} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase">Obra</p>
+                  <p className="font-medium text-gray-800">
+                    {data.obra?.nombre || "N/A"}
+                  </p>
+                  <p className="text-xs text-gray-400">
+                    Prefijo: {data.obra?.prefijo || "Sin prefijo"}
+                  </p>
+                </div>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <div
+                  className={`p-2 rounded-full ${isNoConforme
+                      ? "bg-red-50 text-red-600"
+                      : "bg-green-50 text-green-600"
                     }`}
                 >
-                  {data.variable?.nombre || "N/A"}
-                </p>
-              </div>
-            </div>
-
-            <div className="flex items-center gap-3">
-              <div className="bg-gray-100 p-2 rounded-full text-gray-600">
-                <MapPin size={18} />
-              </div>
-              <div>
-                <p className="text-xs text-gray-500 font-bold uppercase">
-                  Ubicación
-                </p>
-                <p className="font-medium text-gray-800">
-                  {data.ubicacion || "No registrada"}
-                </p>
-                {data.latitud && data.longitud && (
-                  <span className="text-[10px] text-gray-400">
-                    {data.latitud}, {data.longitud}
-                  </span>
-                )}
-              </div>
-            </div>
-          </div>
-
-          {/* 2. DATOS DE CONTROL */}
-          <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
-            <h3 className="text-xs font-bold text-[#0C2D57] uppercase tracking-wide mb-4 border-b pb-2">
-              Datos de Control
-            </h3>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Medición</p>
-                <p className="font-semibold text-gray-900">
-                  {data.medicion?.nombre || "-"}
-                </p>
-              </div>
-
-              <div>
-                <p className="text-xs text-gray-500 mb-1">Unidad</p>
-                <p className="font-semibold text-gray-900">
-                  {data.unidadRel?.nombre || "-"}
-                </p>
-              </div>
-
-              {/* ✅ FECHA MEJORA con nowrap */}
-              <div>
-                <p className="text-xs text-gray-500 mb-1">
-                  Fecha Compromiso / Mejora
-                </p>
-                <p className="font-bold text-orange-600 whitespace-nowrap">
-                  {formatDateTime(data.fechaMejora)}
-                </p>
-              </div>
-
-              {/* ✅ FECHA EJECUCIÓN con nowrap */}
-              <div>
-                <p className="text-xs text-gray-500 mb-1">
-                  Fecha Real Ejecución
-                </p>
-                <p className="font-semibold text-gray-900 whitespace-nowrap">
-                  {formatDateTime(data.fechaEjecucion)}
-                </p>
-              </div>
-            </div>
-          </div>
-
-          {/* 3. OBSERVACIONES + FOTOS INICIALES (fotosArriba) */}
-          <div className="space-y-3">
-            <div className="flex items-center gap-2 border-b pb-2">
-              <AlertTriangle size={18} className="text-orange-500" />
-              <h3 className="text-sm font-bold text-[#0C2D57]">
-                Observaciones / Hallazgo
-              </h3>
-            </div>
-
-            <div className="bg-blue-50/40 p-4 rounded-lg border border-blue-100 text-sm text-gray-700 leading-relaxed">
-              {data.observaciones ? (
-                data.observaciones
-              ) : (
-                <span className="italic text-gray-400">
-                  Sin observaciones registradas.
-                </span>
-              )}
-            </div>
-
-            {fotosArriba.length > 0 ? (
-              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-3">
-                {fotosArriba.map((foto: any) => (
-                  <div
-                    key={foto.id}
-                    className="relative aspect-square rounded-lg overflow-hidden border shadow-sm group bg-gray-100"
+                  <Tag size={18} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase">
+                    Variable
+                  </p>
+                  <p
+                    className={`font-bold ${isNoConforme ? "text-red-700" : "text-gray-800"
+                      }`}
                   >
-                    <img
-                      src={getImageUrl(foto.url)}
-                      alt="Evidencia Inicial"
-                      className="object-cover w-full h-full transition-transform group-hover:scale-105"
-                    />
-                    <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex items-center justify-center">
-                      <span className="text-[10px] text-gray-100 font-medium">
-                        {getEvidenceDateTime(foto)}
-                      </span>
-                    </div>
-                  </div>
-                ))}
+                    {data.variable?.nombre || "N/A"}
+                  </p>
+                </div>
               </div>
-            ) : (
-              <p className="text-xs text-gray-400 italic mt-2 pl-1">
-                No hay fotos iniciales.
-              </p>
-            )}
-          </div>
 
-          {/* 4. SEGUIMIENTO + FOTOS CORRECCIÓN (fotosAbajo) */}
-          {(data.seguimiento || fotosAbajo.length > 0) && (
-            <div className="space-y-3 pt-4 border-t border-dashed">
+              <div className="flex items-center gap-3">
+                <div className="bg-gray-100 p-2 rounded-full text-gray-600">
+                  <MapPin size={18} />
+                </div>
+                <div>
+                  <p className="text-xs text-gray-500 font-bold uppercase">
+                    Ubicación
+                  </p>
+                  <p className="font-medium text-gray-800">
+                    {data.ubicacion || "No registrada"}
+                  </p>
+                  {data.latitud && data.longitud && (
+                    <span className="text-[10px] text-gray-400">
+                      {data.latitud}, {data.longitud}
+                    </span>
+                  )}
+                </div>
+              </div>
+            </div>
+
+            {/* 2. DATOS DE CONTROL */}
+            <div className="bg-gray-50 p-5 rounded-xl border border-gray-200">
+              <h3 className="text-xs font-bold text-[#0C2D57] uppercase tracking-wide mb-4 border-b pb-2">
+                Datos de Control
+              </h3>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Medición</p>
+                  <p className="font-semibold text-gray-900">
+                    {data.medicion?.nombre || "-"}
+                  </p>
+                </div>
+
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">Unidad</p>
+                  <p className="font-semibold text-gray-900">
+                    {data.unidadRel?.nombre || "-"}
+                  </p>
+                </div>
+
+                {/* ✅ FECHA MEJORA con nowrap */}
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Fecha Compromiso / Mejora
+                  </p>
+                  <p className="font-bold text-orange-600 whitespace-nowrap">
+                    {formatDateTime(data.fechaMejora)}
+                  </p>
+                </div>
+
+                {/* ✅ FECHA EJECUCIÓN con nowrap */}
+                <div>
+                  <p className="text-xs text-gray-500 mb-1">
+                    Fecha Real Ejecución
+                  </p>
+                  <p className="font-semibold text-gray-900 whitespace-nowrap">
+                    {formatDateTime(data.fechaEjecucion)}
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* 3. OBSERVACIONES + FOTOS INICIALES (fotosArriba) */}
+            <div className="space-y-3">
               <div className="flex items-center gap-2 border-b pb-2">
-                <CheckCircle2 size={18} className="text-green-600" />
+                <AlertTriangle size={18} className="text-orange-500" />
                 <h3 className="text-sm font-bold text-[#0C2D57]">
-                  Seguimiento de Calidad / Corrección
+                  Observaciones / Hallazgo
                 </h3>
               </div>
 
-              <div className="bg-yellow-50/50 p-4 rounded-lg border border-yellow-100 text-sm text-gray-700 leading-relaxed">
-                {data.seguimiento ? (
-                  data.seguimiento
+              <div className="bg-blue-50/40 p-4 rounded-lg border border-blue-100 text-sm text-gray-700 leading-relaxed">
+                {data.observaciones ? (
+                  data.observaciones
                 ) : (
                   <span className="italic text-gray-400">
-                    Sin descripción de seguimiento.
+                    Sin observaciones registradas.
                   </span>
                 )}
               </div>
 
-              {fotosAbajo.length > 0 ? (
+              {fotosArriba.length > 0 ? (
                 <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-3">
-                  {fotosAbajo.map((foto: any) => (
+                  {fotosArriba.map((foto: any) => (
                     <div
                       key={foto.id}
-                      className="relative aspect-square rounded-lg overflow-hidden border-2 border-yellow-400 shadow-sm group bg-gray-100"
+                      className="relative aspect-square rounded-lg overflow-hidden border shadow-sm group bg-gray-100 cursor-pointer"
+                      onClick={() => setSelectedImage(getImageUrl(foto.url))}
                     >
                       <img
                         src={getImageUrl(foto.url)}
-                        alt="Corrección"
+                        alt="Evidencia Inicial"
                         className="object-cover w-full h-full transition-transform group-hover:scale-105"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex items-center justify-center">
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex items-center justify-center pointer-events-none">
                         <span className="text-[10px] text-gray-100 font-medium">
                           {getEvidenceDateTime(foto)}
                         </span>
@@ -311,19 +269,95 @@ export default function BitacoraDetailsModal({
                 </div>
               ) : (
                 <p className="text-xs text-gray-400 italic mt-2 pl-1">
-                  No hay fotos de corrección.
+                  No hay fotos iniciales.
                 </p>
               )}
             </div>
-          )}
-        </div>
 
-        <div className="p-4 border-t bg-gray-50 flex justify-end">
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cerrar
-          </Button>
+            {/* 4. SEGUIMIENTO + FOTOS CORRECCIÓN (fotosAbajo) */}
+            {(data.seguimiento || fotosAbajo.length > 0) && (
+              <div className="space-y-3 pt-4 border-t border-dashed">
+                <div className="flex items-center gap-2 border-b pb-2">
+                  <CheckCircle2 size={18} className="text-green-600" />
+                  <h3 className="text-sm font-bold text-[#0C2D57]">
+                    Seguimiento de Calidad / Corrección
+                  </h3>
+                </div>
+
+                <div className="bg-yellow-50/50 p-4 rounded-lg border border-yellow-100 text-sm text-gray-700 leading-relaxed">
+                  {data.seguimiento ? (
+                    data.seguimiento
+                  ) : (
+                    <span className="italic text-gray-400">
+                      Sin descripción de seguimiento.
+                    </span>
+                  )}
+                </div>
+
+                {fotosAbajo.length > 0 ? (
+                  <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mt-3">
+                    {fotosAbajo.map((foto: any) => (
+                      <div
+                        key={foto.id}
+                        className="relative aspect-square rounded-lg overflow-hidden border-2 border-yellow-400 shadow-sm group bg-gray-100 cursor-pointer"
+                        onClick={() => setSelectedImage(getImageUrl(foto.url))}
+                      >
+                        <img
+                          src={getImageUrl(foto.url)}
+                          alt="Corrección"
+                          className="object-cover w-full h-full transition-transform group-hover:scale-105"
+                        />
+                        <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex items-center justify-center pointer-events-none">
+                          <span className="text-[10px] text-gray-100 font-medium">
+                            {getEvidenceDateTime(foto)}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400 italic mt-2 pl-1">
+                    No hay fotos de corrección.
+                  </p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="p-4 border-t bg-gray-50 flex justify-end">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cerrar
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      {/* ✅ LIGHTBOX: VISOR DE IMAGEN AMPLIADA */}
+      {selectedImage && (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
+          onClick={() => setSelectedImage(null)}
+        >
+          {/* Botón cerrar flotante */}
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 rounded-full bg-black/50 hover:bg-black/80 transition-all"
+          >
+            <span className="text-2xl font-bold">&times;</span>
+          </button>
+
+          <div
+            className="relative w-full max-w-5xl max-h-[90vh] flex items-center justify-center"
+            onClick={(e) => e.stopPropagation()} // Evitar cierre al clic en la imagen
+          >
+            <img
+              src={selectedImage}
+              alt="Evidencia ampliada"
+              className="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl"
+            />
+          </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      )}
+    </>
   );
 }
