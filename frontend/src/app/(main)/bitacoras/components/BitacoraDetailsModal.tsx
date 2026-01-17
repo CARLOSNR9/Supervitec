@@ -194,7 +194,7 @@ export default function BitacoraDetailsModal({
               <h3 className="text-xs font-bold text-[#0C2D57] uppercase tracking-wide mb-4 border-b pb-2">
                 Datos de Control
               </h3>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-6">
+              <div className="grid grid-cols-2 lg:grid-flow-col lg:auto-cols-auto gap-6">
                 <div>
                   <p className="text-xs text-gray-500 mb-1">Medición</p>
                   <p className="font-semibold text-gray-900">
@@ -209,25 +209,29 @@ export default function BitacoraDetailsModal({
                   </p>
                 </div>
 
-                {/* ✅ FECHA MEJORA con nowrap */}
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">
-                    Fecha Compromiso / Mejora
-                  </p>
-                  <p className="font-bold text-orange-600 whitespace-nowrap">
-                    {formatDateTime(data.fechaMejora)}
-                  </p>
-                </div>
+                {/* ✅ FECHA MEJORA con nowrap (SOLO SI EXISTE) */}
+                {data.fechaMejora && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">
+                      Fecha Compromiso / Mejora
+                    </p>
+                    <p className="font-bold text-orange-600 whitespace-nowrap">
+                      {formatDateTime(data.fechaMejora)}
+                    </p>
+                  </div>
+                )}
 
-                {/* ✅ FECHA EJECUCIÓN con nowrap */}
-                <div>
-                  <p className="text-xs text-gray-500 mb-1">
-                    Fecha Real Ejecución
-                  </p>
-                  <p className="font-semibold text-gray-900 whitespace-nowrap">
-                    {formatDateTime(data.fechaEjecucion)}
-                  </p>
-                </div>
+                {/* ✅ FECHA EJECUCIÓN con nowrap (SOLO SI EXISTE) */}
+                {data.fechaEjecucion && (
+                  <div>
+                    <p className="text-xs text-gray-500 mb-1">
+                      Fecha Real Ejecución
+                    </p>
+                    <p className="font-semibold text-gray-900 whitespace-nowrap">
+                      {formatDateTime(data.fechaEjecucion)}
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
