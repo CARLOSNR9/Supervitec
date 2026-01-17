@@ -266,18 +266,24 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <Text style={styles.label}>UNIDAD</Text>
                 <Text style={styles.value}>{bitacora.unidadRel?.nombre || "-"}</Text>
               </View>
-              <View style={styles.controlCol}>
-                <Text style={styles.label}>F. COMPROMISO</Text>
-                <Text style={[styles.value, { color: '#ea580c' }]}>
-                  {formatDate(bitacora.fechaMejora, true)}
-                </Text>
-              </View>
-              <View style={styles.controlCol}>
-                <Text style={styles.label}>F. EJECUCIÓN</Text>
-                <Text style={styles.value}>
-                  {formatDate(bitacora.fechaEjecucion, true)}
-                </Text>
-              </View>
+
+              {bitacora.fechaMejora && (
+                <View style={styles.controlCol}>
+                  <Text style={styles.label}>F. COMPROMISO</Text>
+                  <Text style={[styles.value, { color: '#ea580c' }]}>
+                    {formatDate(bitacora.fechaMejora, true)}
+                  </Text>
+                </View>
+              )}
+
+              {bitacora.fechaEjecucion && (
+                <View style={styles.controlCol}>
+                  <Text style={styles.label}>F. EJECUCIÓN</Text>
+                  <Text style={styles.value}>
+                    {formatDate(bitacora.fechaEjecucion, true)}
+                  </Text>
+                </View>
+              )}
             </View>
 
             {/* === 1. OBSERVACIONES === */}
@@ -333,14 +339,20 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <Text style={styles.summaryLabel}>Fecha Creación</Text>
                 <Text style={styles.summaryValue}>{formatDate(bitacora.fechaCreacion, true)}</Text>
               </View>
-              <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
-                <Text style={styles.summaryLabel}>F. Compromiso</Text>
-                <Text style={[styles.summaryValue, { color: '#ea580c' }]}>{formatDate(bitacora.fechaMejora, true)}</Text>
-              </View>
-              <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
-                <Text style={styles.summaryLabel}>F. Ejecución</Text>
-                <Text style={styles.summaryValue}>{formatDate(bitacora.fechaEjecucion, true)}</Text>
-              </View>
+
+              {bitacora.fechaMejora && (
+                <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                  <Text style={styles.summaryLabel}>F. Compromiso</Text>
+                  <Text style={[styles.summaryValue, { color: '#ea580c' }]}>{formatDate(bitacora.fechaMejora, true)}</Text>
+                </View>
+              )}
+
+              {bitacora.fechaEjecucion && (
+                <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                  <Text style={styles.summaryLabel}>F. Ejecución</Text>
+                  <Text style={styles.summaryValue}>{formatDate(bitacora.fechaEjecucion, true)}</Text>
+                </View>
+              )}
             </View>
 
             <Text style={styles.footer}>
