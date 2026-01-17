@@ -333,27 +333,29 @@ export const BitacoraReportePDF = ({ data }: Props) => {
               </View>
             )}
 
-            {/* ✅ RESUMEN DE FECHAS AL FINAL */}
-            <View wrap={false} style={styles.summaryBox}>
-              <View style={styles.summaryCol}>
-                <Text style={styles.summaryLabel}>Fecha Creación</Text>
-                <Text style={styles.summaryValue}>{formatDate(bitacora.fechaCreacion, true)}</Text>
+            {/* ✅ RESUMEN DE FECHAS AL FINAL (Solo si hay fechas adicionales) */}
+            {(bitacora.fechaMejora || bitacora.fechaEjecucion) && (
+              <View wrap={false} style={styles.summaryBox}>
+                <View style={styles.summaryCol}>
+                  <Text style={styles.summaryLabel}>Fecha Creación</Text>
+                  <Text style={styles.summaryValue}>{formatDate(bitacora.fechaCreacion, true)}</Text>
+                </View>
+
+                {bitacora.fechaMejora && (
+                  <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                    <Text style={styles.summaryLabel}>F. Compromiso</Text>
+                    <Text style={[styles.summaryValue, { color: '#ea580c' }]}>{formatDate(bitacora.fechaMejora, true)}</Text>
+                  </View>
+                )}
+
+                {bitacora.fechaEjecucion && (
+                  <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                    <Text style={styles.summaryLabel}>F. Ejecución</Text>
+                    <Text style={styles.summaryValue}>{formatDate(bitacora.fechaEjecucion, true)}</Text>
+                  </View>
+                )}
               </View>
-
-              {bitacora.fechaMejora && (
-                <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
-                  <Text style={styles.summaryLabel}>F. Compromiso</Text>
-                  <Text style={[styles.summaryValue, { color: '#ea580c' }]}>{formatDate(bitacora.fechaMejora, true)}</Text>
-                </View>
-              )}
-
-              {bitacora.fechaEjecucion && (
-                <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
-                  <Text style={styles.summaryLabel}>F. Ejecución</Text>
-                  <Text style={styles.summaryValue}>{formatDate(bitacora.fechaEjecucion, true)}</Text>
-                </View>
-              )}
-            </View>
+            )}
 
             <Text style={styles.footer}>
               Generado por SUPERVITEC PRO - {new Date().toLocaleString()} • Página {index + 1} de {data.length}
