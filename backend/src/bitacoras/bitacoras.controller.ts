@@ -83,7 +83,7 @@ export class BitacorasController {
     AnyFilesInterceptor({
       storage: memoryStorage(),
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 50 * 1024 * 1024, // 50MB
         files: 10, // máximo 10 archivos
       },
     }),
@@ -105,7 +105,7 @@ export class BitacorasController {
     AnyFilesInterceptor({
       storage: memoryStorage(),
       limits: {
-        fileSize: 5 * 1024 * 1024, // 5MB
+        fileSize: 50 * 1024 * 1024, // 50MB
         files: 10,
       },
     }),

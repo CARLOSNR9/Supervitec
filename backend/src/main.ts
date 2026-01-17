@@ -10,9 +10,15 @@ import { ValidationPipe } from '@nestjs/common';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
 
+import { json, urlencoded } from 'express';
+
 async function bootstrap() {
   // ⭐ NECESARIO PARA SERVIR ARCHIVOS ESTÁTICOS
   const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Aumentar el límite de tamaño del cuerpo (payload)
+  app.use(json({ limit: '50mb' }));
+  app.use(urlencoded({ extended: true, limit: '50mb' }));
 
   // ================================
   // 🌍 CORS
