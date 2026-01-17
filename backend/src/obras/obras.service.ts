@@ -1,3 +1,4 @@
+import {
   Injectable,
   NotFoundException,
   ForbiddenException,
@@ -9,7 +10,7 @@ import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class ObrasService {
-  constructor(private prisma: PrismaService) {}
+  constructor(private prisma: PrismaService) { }
 
   // ====================================================================
   // 1. OBTENER OBRAS (TODAS)
@@ -178,12 +179,23 @@ export class ObrasService {
       }),
     };
 
-    return this.prisma.obra.create({
-      data,
-      include: {
-        responsables: true,
-      },
-    });
+    try {
+      return await this.prisma.obra.create({
+        data,
+        include: {
+          responsables: true,
+        },
+      });
+    } catch (error) {
+      if (error instanceof Prisma.PrismaClientKnownRequestError) {
+        if (error.code === 'P2002') {
+          throw new BadRequestException(
+            `El prefijo '${dto.prefijo}' ya está en uso. Intenta con una variación.`,
+          );
+        }
+      }
+      throw error;
+    }
   }
 
   // ====================================================================
@@ -233,12 +245,18 @@ export class ObrasService {
       });
     } catch (error) {
       if (
-        error instanceof Prisma.PrismaClientKnownRequestError &&
-        error.code === 'P2025'
+        error instanceof Prisma.PrismaClientKnownRequestError
       ) {
-        throw new NotFoundException(
-          `Obra con ID ${id} no encontrada para actualizar.`,
-        );
+        if (error.code === 'P2025') {
+          throw new NotFoundException(
+            `Obra con ID ${id} no encontrada para actualizar.`,
+          );
+        }
+        if (error.code === 'P2002') {
+          throw new BadRequestException(
+            `El prefijo '${dto.prefijo}' ya está en uso. Intenta con una variación.`,
+          );
+        }
       }
       throw error;
     }
