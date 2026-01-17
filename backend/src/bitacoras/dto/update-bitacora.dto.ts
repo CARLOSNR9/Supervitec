@@ -72,6 +72,15 @@ export class UpdateBitacoraDto {
   @Transform(toNumber)
   longitud?: number;
 
+  // ✅ Metadata de fotos (JSON string)
+  @IsOptional()
+  @IsString()
+  fotoMetadata?: string;
+
+  @IsOptional()
+  @IsString()
+  fotosSeguimientoMetadata?: string;
+
   // Ignorar archivos en DTO
   @IsOptional()
   files?: any;

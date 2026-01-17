@@ -465,6 +465,7 @@ export default function BitacoraFormModal({
                           setForm({
                             ...form,
                             fotoFiles: form.fotoFiles.filter((_, i) => i !== idx),
+                            fotoFilesMetadata: (form.fotoFilesMetadata || []).filter((_, i) => i !== idx),
                           })
                         }
                         className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
@@ -474,7 +475,7 @@ export default function BitacoraFormModal({
                     </div>
                   ))}
 
-                  {/* --- BOTÓN AGREGAR --- */}
+                  {/* --- BOTÓN AGREGAR (NORMALES) --- */}
                   {form.fotoFiles.length + form.fotosExistentes.length < 3 && (
                     <label className="w-20 h-20 md:w-24 md:h-24 flex flex-col items-center justify-center border-2 border-dashed border-gray-300 rounded-lg cursor-pointer text-gray-500 hover:border-[#113a84] hover:text-[#113a84] hover:bg-blue-50 transition-colors">
                       <span className="text-xl md:text-2xl">📷</span>
@@ -494,10 +495,40 @@ export default function BitacoraFormModal({
                             return;
                           }
 
-                          setForm({
-                            ...form,
-                            fotoFiles: [...form.fotoFiles, file],
-                          });
+                          // 🚀 CAPTURAR GPS AL MOMENTO DE SUBIR
+                          // Intentamos obtener posición.
+                          const onPos = (pos: GeolocationPosition) => {
+                            const lat = pos.coords.latitude.toFixed(6);
+                            const lng = pos.coords.longitude.toFixed(6);
+                            toast.success("Foto geolocalizada exitosamente 📍");
+
+                            setForm((prev) => ({
+                              ...prev,
+                              fotoFiles: [...prev.fotoFiles, file],
+                              fotoFilesMetadata: [...(prev.fotoFilesMetadata || []), { lat, lng }]
+                            }));
+                          };
+
+                          const onErr = (err: any) => {
+                            console.error("GPS error foto", err);
+                            toast.warning("Foto agregada sin ubicación (GPS no disponible o denegado).");
+                            // Agregamos sin metadata
+                            setForm((prev) => ({
+                              ...prev,
+                              fotoFiles: [...prev.fotoFiles, file],
+                              fotoFilesMetadata: [...(prev.fotoFilesMetadata || []), {}] // Empty object
+                            }));
+                          };
+
+                          if ("geolocation" in navigator) {
+                            toast.info("Obteniendo ubicación para la foto...");
+                            navigator.geolocation.getCurrentPosition(onPos, onErr, {
+                              enableHighAccuracy: true,
+                              timeout: 10000
+                            });
+                          } else {
+                            onErr(null);
+                          }
                         }}
                       />
                     </label>
@@ -583,6 +614,7 @@ export default function BitacoraFormModal({
                               setForm({
                                 ...form,
                                 fotosSeguimiento: form.fotosSeguimiento.filter((_, i) => i !== idx),
+                                fotosSeguimientoMetadata: (form.fotosSeguimientoMetadata || []).filter((_, i) => i !== idx),
                               })
                             }
                             className="absolute top-1 right-1 bg-red-600 text-white rounded-full w-6 h-6 flex items-center justify-center text-xs shadow-md z-10 hover:bg-red-700"
@@ -619,10 +651,37 @@ export default function BitacoraFormModal({
                                 return;
                               }
 
-                              setForm({
-                                ...form,
-                                fotosSeguimiento: [...form.fotosSeguimiento, file],
-                              });
+                              // 🚀 CAPTURAR GPS SEGUIMIENTO
+                              const onPos = (pos: GeolocationPosition) => {
+                                const lat = pos.coords.latitude.toFixed(6);
+                                const lng = pos.coords.longitude.toFixed(6);
+                                toast.success("Foto corrección geolocalizada 📍");
+
+                                setForm((prev) => ({
+                                  ...prev,
+                                  fotosSeguimiento: [...prev.fotosSeguimiento, file],
+                                  fotosSeguimientoMetadata: [...(prev.fotosSeguimientoMetadata || []), { lat, lng }]
+                                }));
+                              };
+
+                              const onErr = (err: any) => {
+                                toast.warning("Foto corrección sin ubicación.");
+                                setForm((prev) => ({
+                                  ...prev,
+                                  fotosSeguimiento: [...prev.fotosSeguimiento, file],
+                                  fotosSeguimientoMetadata: [...(prev.fotosSeguimientoMetadata || []), {}]
+                                }));
+                              };
+
+                              if ("geolocation" in navigator) {
+                                toast.info("Obteniendo ubicación...");
+                                navigator.geolocation.getCurrentPosition(onPos, onErr, {
+                                  enableHighAccuracy: true,
+                                  timeout: 10000
+                                });
+                              } else {
+                                onErr(null);
+                              }
                             }}
                           />
                         </label>
@@ -648,8 +707,8 @@ export default function BitacoraFormModal({
             {loading
               ? "Guardando..."
               : isEditing
-              ? "Guardar Cambios"
-              : "Registrar Bitácora"}
+                ? "Guardar Cambios"
+                : "Registrar Bitácora"}
           </Button>
         </DialogContent>
       </Dialog>

@@ -17,7 +17,7 @@ export class BitacorasService {
   constructor(
     private prisma: PrismaService,
     private cloudinary: CloudinaryService,
-  ) {}
+  ) { }
 
   // ============================================================
   // CREATE + CLOUDINARY + CÓDIGO (NUMERACIÓN POR OBRA)
@@ -108,11 +108,31 @@ export class BitacorasService {
         const created = await tx.bitacora.create({ data });
 
         if (evidenciasCloud.length > 0) {
+          // Parsear metadata si existe
+          let metaMap: any[] = [];
+          if (dto.fotoMetadata) {
+            try {
+              metaMap = JSON.parse(dto.fotoMetadata);
+            } catch (e) {
+              this.logger.error('Error parseando fotoMetadata', e);
+            }
+          }
+
           await tx.bitacoraMedia.createMany({
-            data: evidenciasCloud.map((e) => ({
-              ...e,
-              bitacoraId: created.id,
-            })),
+            data: evidenciasCloud.map((e, index) => {
+              // Intentar cruzar por nombre o índice.
+              // Como multer processa en orden, asumimos indice.
+              // Ojo: CloudinaryService no devuelve el originalFilename a menos que lo configuremos
+              // Pero asumamos que el frontend manda el array en el mismo orden que el backend lo recibe.
+
+              const meta = metaMap[index] || {};
+              return {
+                ...e,
+                bitacoraId: created.id,
+                latitud: meta.lat ? parseFloat(meta.lat) : null,
+                longitud: meta.lng ? parseFloat(meta.lng) : null,
+              };
+            }),
           });
         }
 
@@ -361,13 +381,27 @@ export class BitacorasService {
             fotosNormales.map((f) => this.cloudinary.uploadImage(f)),
           );
 
+          let metaMap: any[] = [];
+          if (dto.fotoMetadata) {
+            try {
+              metaMap = JSON.parse(dto.fotoMetadata);
+            } catch (e) {
+              this.logger.error('Error parseando fotoMetadata update', e);
+            }
+          }
+
           const dataNormal = uploadsNormal
             .filter((res) => res?.secure_url)
-            .map((res) => ({
-              bitacoraId: id,
-              url: res.secure_url,
-              tipo: 'NORMAL',
-            }));
+            .map((res, i) => {
+              const meta = metaMap[i] || {};
+              return {
+                bitacoraId: id,
+                url: res.secure_url,
+                tipo: 'NORMAL',
+                latitud: meta.lat ? parseFloat(meta.lat) : null,
+                longitud: meta.lng ? parseFloat(meta.lng) : null,
+              };
+            });
 
           if (dataNormal.length > 0) {
             await this.prisma.bitacoraMedia.createMany({ data: dataNormal });
@@ -379,13 +413,27 @@ export class BitacorasService {
             fotosSeguimiento.map((f) => this.cloudinary.uploadImage(f)),
           );
 
+          let metaMapSeg: any[] = [];
+          if (dto.fotosSeguimientoMetadata) {
+            try {
+              metaMapSeg = JSON.parse(dto.fotosSeguimientoMetadata);
+            } catch (e) {
+              this.logger.error('Error parseando fotosSeguimientoMetadata update', e);
+            }
+          }
+
           const dataSeguimiento = uploadsSeguimiento
             .filter((res) => res?.secure_url)
-            .map((res) => ({
-              bitacoraId: id,
-              url: res.secure_url,
-              tipo: 'SEGUIMIENTO',
-            }));
+            .map((res, i) => {
+              const meta = metaMapSeg[i] || {};
+              return {
+                bitacoraId: id,
+                url: res.secure_url,
+                tipo: 'SEGUIMIENTO',
+                latitud: meta.lat ? parseFloat(meta.lat) : null,
+                longitud: meta.lng ? parseFloat(meta.lng) : null,
+              };
+            });
 
           if (dataSeguimiento.length > 0) {
             await this.prisma.bitacoraSeguimientoMedia.createMany({

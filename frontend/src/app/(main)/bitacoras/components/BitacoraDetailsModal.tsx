@@ -355,15 +355,25 @@ export default function BitacoraDetailsModal({
           {/* Área de la imagen */}
           {selectedImage && (
             <div
-              className="w-full h-full flex items-center justify-center p-4"
-              onClick={() => setSelectedImage(null)} // Clic en el fondo también cierra
+              className="w-full h-full flex flex-col items-center justify-center p-4 relative"
+              onClick={() => setSelectedImage(null)}
             >
               <img
-                src={selectedImage}
+                src={typeof selectedImage === 'string' ? selectedImage : selectedImage.url}
                 alt="Imagen Ampliada"
-                className="max-w-full max-h-full object-contain rounded-md"
-                onClick={(e) => e.stopPropagation()} // Clic en imagen no cierra
+                className="max-w-full max-h-[85vh] object-contain rounded-md"
+                onClick={(e) => e.stopPropagation()}
               />
+
+              {/* 📍 COORDENADAS en Lightbox */}
+              {typeof selectedImage !== 'string' && (selectedImage.latitud || selectedImage.longitud) && (
+                <div className="absolute bottom-6 bg-black/60 text-white px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2 pointer-events-none">
+                  <MapPin size={16} className="text-red-400" />
+                  <span className="text-sm font-mono">
+                    GPS: {selectedImage.latitud}, {selectedImage.longitud}
+                  </span>
+                </div>
+              )}
             </div>
           )}
         </DialogContent>

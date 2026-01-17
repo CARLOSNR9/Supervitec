@@ -46,12 +46,16 @@ export interface MedicionRel {
 export interface BitacoraMedia {
   id: number;
   url: string;
-  createdAt?: string; // ✅ AGREGADO (con ? por si acaso viene vacío en algun caso raro)
+  tipo?: string;
+  createdAt?: string;
+  // ✅ Coordenadas de la foto
+  latitud?: number | null;
+  longitud?: number | null;
 }
 
 export interface Bitacora {
   id: number;
-  codigo?: string | null; // 🔥 NUEVO CAMPO AGREGADO
+  codigo?: string | null;
   obraId: number;
   responsableId: number;
   contratistaId: number | null;
@@ -110,8 +114,12 @@ export interface FormState {
   fotoFiles: File[];
   fotosSeguimiento: File[];
 
-  fotosExistentes: { id: number; url: string }[];
-  fotosSeguimientoExistentes: { id: number; url: string }[];
+  // ✅ Metadata capturada al momento de agregar la foto
+  fotoFilesMetadata: { lat?: string; lng?: string }[];
+  fotosSeguimientoMetadata: { lat?: string; lng?: string }[];
+
+  fotosExistentes: { id: number; url: string; latitud?: number; longitud?: number }[];
+  fotosSeguimientoExistentes: { id: number; url: string; latitud?: number; longitud?: number }[];
 
   // ✅ NUEVOS CAMPOS PARA BORRADO DIFERIDO
   idsToDelete: number[]; // Para fotos normales

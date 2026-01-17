@@ -56,6 +56,15 @@ export class CreateBitacoraDto {
   @Transform(({ value }) => (value ? parseFloat(value) : undefined))
   longitud?: number;
 
+  // ✅ Metadata de fotos (JSON string)
+  @IsOptional()
+  @IsString()
+  fotoMetadata?: string; // '[{"originalName": "...", "lat": 1.2, "lng": -5.6}, ...]'
+
+  @IsOptional()
+  @IsString()
+  fotosSeguimientoMetadata?: string; // igual para seguimiento
+
   @IsOptional()
   @Transform(({ value }) => (value ? parseInt(value) : undefined))
   medicionId?: number;

@@ -147,6 +147,11 @@ model BitacoraMedia {
   url        String
   tipo       String
   metadata   Json?
+  
+  // ✅ Coordenadas de la foto
+  latitud    Float?
+  longitud   Float?
+
   createdAt  DateTime @default(now())
   bitacora   Bitacora @relation(fields: [bitacoraId], references: [id])
 }
@@ -156,6 +161,11 @@ model BitacoraSeguimientoMedia {
   bitacoraId Int
   url        String
   tipo       String
+
+  // ✅ Coordenadas de la foto
+  latitud    Float?
+  longitud   Float?
+
   createdAt  DateTime @default(now())
   bitacora   Bitacora @relation(fields: [bitacoraId], references: [id])
 }
