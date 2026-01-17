@@ -325,281 +325,273 @@ export default function BitacorasPage() {
         }
       }
 
-      form.fotoFiles.forEach((file) => fd.append("fotoFiles", file));
-    }
-      // 2) Seguimiento
-      if (form.fotosSeguimiento && form.fotosSeguimiento.length > 0) {
-      form.fotosSeguimiento.forEach((file) =>
-        fd.append("fotosSeguimiento", file)
-      );
-    }
 
-    // (Dejas esto solo para CREATE, lo mantengo)
-    if (!editingId) {
-      if (form.fotosExistentes.length > 0) {
-        fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
-      }
-      if (form.fotosSeguimientoExistentes.length > 0) {
-        fd.append(
-          "fotosSeguimientoExistentes",
-          JSON.stringify(form.fotosSeguimientoExistentes)
-        );
-      }
-    }
-
-    // 3) Guardar
-    if (editingId) {
-      await apiPatch(`/bitacoras/${editingId}`, fd);
-    } else {
-      await apiPostForm(`/bitacoras`, fd);
-    }
-
-    toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
-
-    // Limpieza
-    setForm(createInitialFormState());
-    setEditingId(null);
-    setOriginalPhotos([]);
-    setOriginalSeguimientoPhotos([]);
-    setOpen(false);
-
-    await fetchData();
-  } catch (error: any) {
-    console.error("❌ ERROR:", error);
-    toast.error(error?.response?.data?.message ?? "Error al guardar.");
-  } finally {
-    setLoading(false);
-  }
-};
-
-// ===============================
-// ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
-// ===============================
-
-const handleEdit = async (bitacora: Bitacora) => {
-  setOriginalPhotos(bitacora.evidencias || []);
-  setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
-
-  let fotosArriba = bitacora.evidencias || [];
-  let fotosAbajoNuevas: File[] = [];
-
-  const varName =
-    bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
-  const isNoConforme =
-    varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
-
-  if (isNoConforme && fotosArriba.length > 3) {
-    const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
-
-    try {
-      const fotosParaMover = fotosArriba.slice(3);
-      fotosArriba = fotosArriba.slice(0, 3);
-
-      const archivosConvertidos = await Promise.all(
-        fotosParaMover.map(async (f, index) => {
-          const fullUrl = f.url.startsWith("http")
-            ? f.url
-            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
-
-          return urlToFile(
-            fullUrl,
-            `foto_movida_correccion_${index}.jpg`,
-            "image/jpeg"
+      // (Dejas esto solo para CREATE, lo mantengo)
+      if (!editingId) {
+        if (form.fotosExistentes.length > 0) {
+          fd.append("fotosExistentes", JSON.stringify(form.fotosExistentes));
+        }
+        if (form.fotosSeguimientoExistentes.length > 0) {
+          fd.append(
+            "fotosSeguimientoExistentes",
+            JSON.stringify(form.fotosSeguimientoExistentes)
           );
-        })
-      );
+        }
+      }
 
-      fotosAbajoNuevas = archivosConvertidos;
-      toast.success(
-        "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
-      );
-    } catch (error) {
-      console.error("No se pudieron mover las fotos automáticamente", error);
-      toast.error("⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual.");
+      // 3) Guardar
+      if (editingId) {
+        await apiPatch(`/bitacoras/${editingId}`, fd);
+      } else {
+        await apiPostForm(`/bitacoras`, fd);
+      }
 
-      fotosArriba = bitacora.evidencias || [];
-      fotosAbajoNuevas = [];
+      toast.success(editingId ? "✔️ Bitácora actualizada" : "✔️ Bitácora creada");
+
+      // Limpieza
+      setForm(createInitialFormState());
+      setEditingId(null);
+      setOriginalPhotos([]);
+      setOriginalSeguimientoPhotos([]);
+      setOpen(false);
+
+      await fetchData();
+    } catch (error: any) {
+      console.error("❌ ERROR:", error);
+      toast.error(error?.response?.data?.message ?? "Error al guardar.");
     } finally {
-      toast.dismiss(toastId);
+      setLoading(false);
     }
-  }
+  };
 
-  setEditingId(bitacora.id);
+  // ===============================
+  // ✏️ EDITAR (CON CORRECCIÓN AUTOMÁTICA DE FOTOS)
+  // ===============================
 
-  setForm({
-    ...createInitialFormState(),
+  const handleEdit = async (bitacora: Bitacora) => {
+    setOriginalPhotos(bitacora.evidencias || []);
+    setOriginalSeguimientoPhotos(bitacora.evidenciasSeguimiento || []);
 
-    obraId: bitacora.obraId?.toString() ?? "",
-    contratistaId: bitacora.contratistaId?.toString() ?? "",
-    variableId: bitacora.variableId?.toString() ?? "",
-    medicionId: bitacora.medicionId?.toString() ?? "",
-    unidadId: bitacora.unidadId?.toString() ?? "",
+    let fotosArriba = bitacora.evidencias || [];
+    let fotosAbajoNuevas: File[] = [];
 
-    estado: bitacora.estado,
+    const varName =
+      bitacora.variable?.nombre?.toUpperCase().replace(/_/g, " ") || "";
+    const isNoConforme =
+      varName.includes("PRODUCTO NO CONFORME") || varName.includes("SE RECOMIENDA");
 
-    // ✅ FIX: respeta hora local (Colombia) para datetime-local
-    fechaCreacion: bitacora.fechaCreacion
-      ? format(new Date(bitacora.fechaCreacion), "yyyy-MM-dd'T'HH:mm")
-      : "",
+    if (isNoConforme && fotosArriba.length > 3) {
+      const toastId = toast.loading("🔄 Reorganizando fotos mal ubicadas...");
 
-    // ✅ Recomendado: también en formato local para evitar corrimientos
-    fechaEjecucion: bitacora.fechaEjecucion
-      ? format(new Date(bitacora.fechaEjecucion), "yyyy-MM-dd")
-      : "",
+      try {
+        const fotosParaMover = fotosArriba.slice(3);
+        fotosArriba = fotosArriba.slice(0, 3);
 
-    fechaMejora: bitacora.fechaMejora
-      ? format(new Date(bitacora.fechaMejora), "yyyy-MM-dd")
-      : "",
+        const archivosConvertidos = await Promise.all(
+          fotosParaMover.map(async (f, index) => {
+            const fullUrl = f.url.startsWith("http")
+              ? f.url
+              : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`;
 
-    ubicacion: bitacora.ubicacion ?? "",
-    observaciones: bitacora.observaciones ?? "",
-    seguimiento: bitacora.seguimiento ?? "",
+            return urlToFile(
+              fullUrl,
+              `foto_movida_correccion_${index}.jpg`,
+              "image/jpeg"
+            );
+          })
+        );
 
-    latitud: bitacora.latitud?.toString() ?? "",
-    longitud: bitacora.longitud?.toString() ?? "",
+        fotosAbajoNuevas = archivosConvertidos;
+        toast.success(
+          "✅ La 4ta foto se movió a 'Corrección' automáticamente. Guarda para aplicar."
+        );
+      } catch (error) {
+        console.error("No se pudieron mover las fotos automáticamente", error);
+        toast.error("⚠️ No se pudieron mover las fotos automáticamente. Hazlo manual.");
 
-    // ⭐ Nuevas fotos (vacías arriba) + fotos movidas a corrección abajo
-    fotoFiles: [],
-    fotosSeguimiento: fotosAbajoNuevas,
+        fotosArriba = bitacora.evidencias || [];
+        fotosAbajoNuevas = [];
+      } finally {
+        toast.dismiss(toastId);
+      }
+    }
 
-    // ⭐ Fotos existentes arriba (máximo 3)
-    fotosExistentes: fotosArriba.map((f) => ({
-      id: f.id,
-      url: f.url.startsWith("http")
-        ? f.url
-        : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-    })),
+    setEditingId(bitacora.id);
 
-    // ✅ FIX: si ya es http (Cloudinary), se deja intacta; si es relativa, se completa
-    fotosSeguimientoExistentes:
-      bitacora.evidenciasSeguimiento?.map((f) => ({
+    setForm({
+      ...createInitialFormState(),
+
+      obraId: bitacora.obraId?.toString() ?? "",
+      contratistaId: bitacora.contratistaId?.toString() ?? "",
+      variableId: bitacora.variableId?.toString() ?? "",
+      medicionId: bitacora.medicionId?.toString() ?? "",
+      unidadId: bitacora.unidadId?.toString() ?? "",
+
+      estado: bitacora.estado,
+
+      // ✅ FIX: respeta hora local (Colombia) para datetime-local
+      fechaCreacion: bitacora.fechaCreacion
+        ? format(new Date(bitacora.fechaCreacion), "yyyy-MM-dd'T'HH:mm")
+        : "",
+
+      // ✅ Recomendado: también en formato local para evitar corrimientos
+      fechaEjecucion: bitacora.fechaEjecucion
+        ? format(new Date(bitacora.fechaEjecucion), "yyyy-MM-dd")
+        : "",
+
+      fechaMejora: bitacora.fechaMejora
+        ? format(new Date(bitacora.fechaMejora), "yyyy-MM-dd")
+        : "",
+
+      ubicacion: bitacora.ubicacion ?? "",
+      observaciones: bitacora.observaciones ?? "",
+      seguimiento: bitacora.seguimiento ?? "",
+
+      latitud: bitacora.latitud?.toString() ?? "",
+      longitud: bitacora.longitud?.toString() ?? "",
+
+      // ⭐ Nuevas fotos (vacías arriba) + fotos movidas a corrección abajo
+      fotoFiles: [],
+      fotosSeguimiento: fotosAbajoNuevas,
+
+      // ⭐ Fotos existentes arriba (máximo 3)
+      fotosExistentes: fotosArriba.map((f) => ({
         id: f.id,
         url: f.url.startsWith("http")
           ? f.url
           : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
-      })) ?? [],
-  });
+      })),
 
-  setOpen(true);
-};
+      // ✅ FIX: si ya es http (Cloudinary), se deja intacta; si es relativa, se completa
+      fotosSeguimientoExistentes:
+        bitacora.evidenciasSeguimiento?.map((f) => ({
+          id: f.id,
+          url: f.url.startsWith("http")
+            ? f.url
+            : `${process.env.NEXT_PUBLIC_API_URL}${f.url}`,
+        })) ?? [],
+    });
 
-
-
-
-
-
-
-
-// ✅ VER DETALLE
-const handleView = (bitacora: Bitacora) => {
-  setSelectedBitacora(bitacora);
-  setViewModalOpen(true);
-};
-
-// =====================================================================
-// 🔍 FILTROS, SORT, ESTADÍSTICAS, PAGINACIÓN, EXPORT, RENDER...
-// =====================================================================
-
-const filteredBitacoras = useMemo(() => {
-  if (!searchTerm) return bitacoras;
-  const term = searchTerm.toLowerCase();
-
-  return bitacoras.filter(
-    (b) =>
-      b.id.toString().includes(term) ||
-      (b.codigo?.toLowerCase().includes(term) ?? false) ||
-      b.obra?.nombre.toLowerCase().includes(term) ||
-      b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
-      b.contratista?.nombre.toLowerCase().includes(term) ||
-      b.registro?.toLowerCase().includes(term)
-  );
-}, [bitacoras, searchTerm]);
-
-const stats = useMemo(() => {
-  const total = filteredBitacoras.length;
-  const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA").length;
-  const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA").length;
-
-  let lastTs = 0;
-  for (const b of filteredBitacoras) {
-    const fechas: number[] = [];
-    if (b.fechaCreacion) fechas.push(new Date(b.fechaCreacion).getTime());
-    if (b.fechaEjecucion) fechas.push(new Date(b.fechaEjecucion).getTime());
-    if (fechas.length) lastTs = Math.max(lastTs, ...fechas);
-  }
-
-  return {
-    total,
-    abiertas,
-    cerradas,
-    ultimaActualizada: lastTs ? new Date(lastTs) : null,
+    setOpen(true);
   };
-}, [filteredBitacoras]);
 
-const getSortableValue = (row: Bitacora, key: string) => {
-  switch (key) {
-    case "codigo":
-      return row.codigo ?? "";
-    case "obra":
-      return row.obra?.nombre ?? "";
-    case "responsable":
-      return row.responsable?.nombreCompleto ?? "";
-    case "variable":
-      return row.variable?.nombre ?? "";
-    case "medicion":
-      return row.medicion?.nombre ?? "";
-    case "unidad":
-      return row.unidadRel?.nombre ?? row.unidad ?? "";
-    case "estado":
-      return row.estado ?? "";
-    case "fechaCreacion":
-      return row.fechaCreacion ?? "";
-    case "fechaEjecucion":
-      return row.fechaEjecucion ?? "";
-    case "id":
-      return row.id;
-    default:
-      // @ts-ignore
-      return row[key] ?? "";
-  }
-};
 
-const sortedBitacoras = useMemo(() => {
-  const sorted = [...filteredBitacoras];
-  sorted.sort((a, b) => {
-    const valA = getSortableValue(a, sortConfig.key);
-    const valB = getSortableValue(b, sortConfig.key);
 
-    if (sortConfig.direction === "asc") return valA > valB ? 1 : -1;
-    return valA < valB ? 1 : -1;
-  });
-  return sorted;
-}, [filteredBitacoras, sortConfig]);
 
-useEffect(() => setCurrentPage(1), [searchTerm, sortConfig]);
 
-const totalPages = Math.ceil(sortedBitacoras.length / itemsPerPage);
 
-const paginatedBitacoras = useMemo(() => {
-  const start = (currentPage - 1) * itemsPerPage;
-  return sortedBitacoras.slice(start, start + itemsPerPage);
-}, [sortedBitacoras, currentPage]);
 
-const handleSort = (key: string) => {
-  setSortConfig((prev) => ({
-    key,
-    direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
-  }));
-};
 
-const printReport = () => {
-  const html = document.querySelector("table")?.outerHTML;
-  if (!html) {
-    toast.error("No hay tabla.");
-    return;
-  }
-  const win = window.open("", "_blank");
-  win!.document.write(`
+  // ✅ VER DETALLE
+  const handleView = (bitacora: Bitacora) => {
+    setSelectedBitacora(bitacora);
+    setViewModalOpen(true);
+  };
+
+  // =====================================================================
+  // 🔍 FILTROS, SORT, ESTADÍSTICAS, PAGINACIÓN, EXPORT, RENDER...
+  // =====================================================================
+
+  const filteredBitacoras = useMemo(() => {
+    if (!searchTerm) return bitacoras;
+    const term = searchTerm.toLowerCase();
+
+    return bitacoras.filter(
+      (b) =>
+        b.id.toString().includes(term) ||
+        (b.codigo?.toLowerCase().includes(term) ?? false) ||
+        b.obra?.nombre.toLowerCase().includes(term) ||
+        b.responsable?.nombreCompleto.toLowerCase().includes(term) ||
+        b.contratista?.nombre.toLowerCase().includes(term) ||
+        b.registro?.toLowerCase().includes(term)
+    );
+  }, [bitacoras, searchTerm]);
+
+  const stats = useMemo(() => {
+    const total = filteredBitacoras.length;
+    const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA").length;
+    const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA").length;
+
+    let lastTs = 0;
+    for (const b of filteredBitacoras) {
+      const fechas: number[] = [];
+      if (b.fechaCreacion) fechas.push(new Date(b.fechaCreacion).getTime());
+      if (b.fechaEjecucion) fechas.push(new Date(b.fechaEjecucion).getTime());
+      if (fechas.length) lastTs = Math.max(lastTs, ...fechas);
+    }
+
+    return {
+      total,
+      abiertas,
+      cerradas,
+      ultimaActualizada: lastTs ? new Date(lastTs) : null,
+    };
+  }, [filteredBitacoras]);
+
+  const getSortableValue = (row: Bitacora, key: string) => {
+    switch (key) {
+      case "codigo":
+        return row.codigo ?? "";
+      case "obra":
+        return row.obra?.nombre ?? "";
+      case "responsable":
+        return row.responsable?.nombreCompleto ?? "";
+      case "variable":
+        return row.variable?.nombre ?? "";
+      case "medicion":
+        return row.medicion?.nombre ?? "";
+      case "unidad":
+        return row.unidadRel?.nombre ?? row.unidad ?? "";
+      case "estado":
+        return row.estado ?? "";
+      case "fechaCreacion":
+        return row.fechaCreacion ?? "";
+      case "fechaEjecucion":
+        return row.fechaEjecucion ?? "";
+      case "id":
+        return row.id;
+      default:
+        // @ts-ignore
+        return row[key] ?? "";
+    }
+  };
+
+  const sortedBitacoras = useMemo(() => {
+    const sorted = [...filteredBitacoras];
+    sorted.sort((a, b) => {
+      const valA = getSortableValue(a, sortConfig.key);
+      const valB = getSortableValue(b, sortConfig.key);
+
+      if (sortConfig.direction === "asc") return valA > valB ? 1 : -1;
+      return valA < valB ? 1 : -1;
+    });
+    return sorted;
+  }, [filteredBitacoras, sortConfig]);
+
+  useEffect(() => setCurrentPage(1), [searchTerm, sortConfig]);
+
+  const totalPages = Math.ceil(sortedBitacoras.length / itemsPerPage);
+
+  const paginatedBitacoras = useMemo(() => {
+    const start = (currentPage - 1) * itemsPerPage;
+    return sortedBitacoras.slice(start, start + itemsPerPage);
+  }, [sortedBitacoras, currentPage]);
+
+  const handleSort = (key: string) => {
+    setSortConfig((prev) => ({
+      key,
+      direction: prev.key === key && prev.direction === "asc" ? "desc" : "asc",
+    }));
+  };
+
+  const printReport = () => {
+    const html = document.querySelector("table")?.outerHTML;
+    if (!html) {
+      toast.error("No hay tabla.");
+      return;
+    }
+    const win = window.open("", "_blank");
+    win!.document.write(`
       <html>
         <head>
           <title>Reporte</title>
@@ -613,86 +605,86 @@ const printReport = () => {
         <body>${html}</body>
       </html>
     `);
-  win!.document.close();
-  win!.print();
-};
+    win!.document.close();
+    win!.print();
+  };
 
-// ===============================
-// 🖨️ PDF INDIVIDUAL
-// ===============================
-const handleGeneratePDF = async (bitacora: Bitacora) => {
-  const toastId = toast.loading("Generando PDF...");
+  // ===============================
+  // 🖨️ PDF INDIVIDUAL
+  // ===============================
+  const handleGeneratePDF = async (bitacora: Bitacora) => {
+    const toastId = toast.loading("Generando PDF...");
 
-  try {
-    const blob = await pdf(<BitacoraReportePDF data={[bitacora]} />).toBlob();
+    try {
+      const blob = await pdf(<BitacoraReportePDF data={[bitacora]} />).toBlob();
 
-    const url = URL.createObjectURL(blob);
-    const link = document.createElement("a");
-    link.href = url;
-    link.download = `Bitacora_${bitacora.id}.pdf`;
-    document.body.appendChild(link);
-    link.click();
+      const url = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.download = `Bitacora_${bitacora.id}.pdf`;
+      document.body.appendChild(link);
+      link.click();
 
-    document.body.removeChild(link);
-    URL.revokeObjectURL(url);
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
 
-    toast.dismiss(toastId);
-    toast.success("PDF descargado correctamente");
-  } catch (error) {
-    console.error("Error generando PDF:", error);
-    toast.dismiss(toastId);
-    toast.error("Error generando PDF. Intenta de nuevo.");
-  }
-};
+      toast.dismiss(toastId);
+      toast.success("PDF descargado correctamente");
+    } catch (error) {
+      console.error("Error generando PDF:", error);
+      toast.dismiss(toastId);
+      toast.error("Error generando PDF. Intenta de nuevo.");
+    }
+  };
 
-return (
-  <main className="p-4 md:p-8">
-    <BitacoraTable
-      bitacoras={paginatedBitacoras}
-      stats={stats}
-      sortConfig={sortConfig}
-      onSort={handleSort}
-      currentPage={currentPage}
-      totalPages={totalPages}
-      onPageChange={setCurrentPage}
-      loading={loading}
-      onRefresh={fetchData}
-      onNew={() => {
-        setEditingId(null);
-        setForm(createInitialFormState());
-        setOpen(true);
-      }}
-      onExportExcel={() => exportBitacorasToExcel(bitacoras)}
-      onPrint={printReport}
-      searchTerm={searchTerm}
-      onSearchChange={setSearchTerm}
-      onEdit={handleEdit}
-      onGeneratePDF={handleGeneratePDF}
-      onView={handleView}
-    />
+  return (
+    <main className="p-4 md:p-8">
+      <BitacoraTable
+        bitacoras={paginatedBitacoras}
+        stats={stats}
+        sortConfig={sortConfig}
+        onSort={handleSort}
+        currentPage={currentPage}
+        totalPages={totalPages}
+        onPageChange={setCurrentPage}
+        loading={loading}
+        onRefresh={fetchData}
+        onNew={() => {
+          setEditingId(null);
+          setForm(createInitialFormState());
+          setOpen(true);
+        }}
+        onExportExcel={() => exportBitacorasToExcel(bitacoras)}
+        onPrint={printReport}
+        searchTerm={searchTerm}
+        onSearchChange={setSearchTerm}
+        onEdit={handleEdit}
+        onGeneratePDF={handleGeneratePDF}
+        onView={handleView}
+      />
 
-    <BitacoraFormModal
-      open={open}
-      onOpenChange={setOpen}
-      form={form}
-      setForm={setForm}
-      obras={obras}
-      contratistas={contratistas}
-      variables={variables}
-      mediciones={mediciones}
-      unidades={unidades}
-      userInfo={currentUser}
-      loading={loading}
-      errorMsg={errorMsg}
-      onSubmit={handleSubmit}
-      isEditing={editingId !== null}
-    />
+      <BitacoraFormModal
+        open={open}
+        onOpenChange={setOpen}
+        form={form}
+        setForm={setForm}
+        obras={obras}
+        contratistas={contratistas}
+        variables={variables}
+        mediciones={mediciones}
+        unidades={unidades}
+        userInfo={currentUser}
+        loading={loading}
+        errorMsg={errorMsg}
+        onSubmit={handleSubmit}
+        isEditing={editingId !== null}
+      />
 
-    <BitacoraDetailsModal
-      open={viewModalOpen}
-      onOpenChange={setViewModalOpen}
-      data={selectedBitacora}
-    />
-  </main>
-);
+      <BitacoraDetailsModal
+        open={viewModalOpen}
+        onOpenChange={setViewModalOpen}
+        data={selectedBitacora}
+      />
+    </main>
+  );
 }

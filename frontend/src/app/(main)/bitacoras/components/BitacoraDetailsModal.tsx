@@ -54,7 +54,7 @@ export default function BitacoraDetailsModal({
   }, [data]);
 
   // 2) Estado para Imagen Ampliada (Lightbox)
-  const [selectedImage, setSelectedImage] = React.useState<string | null>(null);
+  const [selectedImage, setSelectedImage] = React.useState<any | null>(null);
 
   if (!data) return null;
 
