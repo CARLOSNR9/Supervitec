@@ -97,9 +97,15 @@ export default function InformesPage() {
     loadData();
   }, []);
 
-  // 2. FILTRADO EN TIEMPO REAL
+  // 2.5 ESTADO DE ORDENAMIENTO
+  const [sortConfig, setSortConfig] = useState<{
+    key: string;
+    direction: "asc" | "desc";
+  } | null>({ key: "id", direction: "desc" }); // Default: ID descendente
+
+  // 2. FILTRADO Y ORDENAMIENTO
   const datosFiltrados = useMemo(() => {
-    return data.filter((item) => {
+    let filtered = data.filter((item) => {
       if (filtroObra !== "todos" && item.obra?.nombre !== filtroObra) return false;
       if (
         filtroResponsable !== "todos" &&
@@ -133,6 +139,55 @@ export default function InformesPage() {
 
       return true;
     });
+
+    // APLICAR ORDENAMIENTO
+    if (sortConfig) {
+      filtered.sort((a, b) => {
+        let aValue: any = "";
+        let bValue: any = "";
+
+        switch (sortConfig.key) {
+          case "id":
+            aValue = a.id;
+            bValue = b.id;
+            break;
+          case "codigo":
+            aValue = a.codigo || "";
+            bValue = b.codigo || "";
+            break;
+          case "fecha":
+            aValue = new Date(a.fechaCreacion).getTime();
+            bValue = new Date(b.fechaCreacion).getTime();
+            break;
+          case "variable":
+            aValue = a.variable?.nombre || "";
+            bValue = b.variable?.nombre || "";
+            break;
+          case "observacion":
+            aValue = a.observaciones || "";
+            bValue = b.observaciones || "";
+            break;
+          case "evidencias":
+            aValue =
+              (a.evidencias?.length || 0) + (a.evidenciasSeguimiento?.length || 0);
+            bValue =
+              (b.evidencias?.length || 0) + (b.evidenciasSeguimiento?.length || 0);
+            break;
+          case "estado":
+            aValue = a.estado;
+            bValue = b.estado;
+            break;
+          default:
+            return 0;
+        }
+
+        if (aValue < bValue) return sortConfig.direction === "asc" ? -1 : 1;
+        if (aValue > bValue) return sortConfig.direction === "asc" ? 1 : -1;
+        return 0;
+      });
+    }
+
+    return filtered;
   }, [
     data,
     filtroObra,
@@ -142,7 +197,29 @@ export default function InformesPage() {
     filtroContratista,
     fechaInicio,
     fechaFin,
+    sortConfig,
   ]);
+
+  const handleSort = (key: string) => {
+    setSortConfig((current) => {
+      if (current?.key === key) {
+        return {
+          key,
+          direction: current.direction === "asc" ? "desc" : "asc",
+        };
+      }
+      return { key, direction: "asc" };
+    });
+  };
+
+  const RenderSortIcon = ({ columnKey }: { columnKey: string }) => {
+    if (sortConfig?.key !== columnKey) return <div className="w-4" />;
+    return sortConfig.direction === "asc" ? (
+      <ChevronUp className="w-4 h-4" />
+    ) : (
+      <ChevronDown className="w-4 h-4" />
+    );
+  };
 
   // 3. GENERAR PDF
   const handleDownloadReport = async () => {
@@ -357,12 +434,62 @@ export default function InformesPage() {
           <table className="w-full text-sm text-left text-gray-500">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
               <tr>
-                <th className="px-6 py-3 w-[70px]">ID</th>
-                <th className="px-6 py-3 w-[120px]">Fecha</th>
-                <th className="px-6 py-3 w-[240px]">Datos Clave</th>
-                <th className="px-6 py-3">Observación</th>
-                <th className="px-6 py-3 w-[160px]">Evidencias</th>
-                <th className="px-6 py-3 w-[120px]">Estado</th>
+                <th
+                  className="px-6 py-3 w-[70px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("id")}
+                >
+                  <div className="flex items-center gap-1">
+                    ID <RenderSortIcon columnKey="id" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 w-[100px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("codigo")}
+                >
+                  <div className="flex items-center gap-1">
+                    COD <RenderSortIcon columnKey="codigo" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 w-[120px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("fecha")}
+                >
+                  <div className="flex items-center gap-1">
+                    Fecha <RenderSortIcon columnKey="fecha" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 w-[240px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("variable")}
+                >
+                  <div className="flex items-center gap-1">
+                    Datos Clave <RenderSortIcon columnKey="variable" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("observacion")}
+                >
+                  <div className="flex items-center gap-1">
+                    Observación <RenderSortIcon columnKey="observacion" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 w-[160px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("evidencias")}
+                >
+                  <div className="flex items-center gap-1">
+                    Evidencias <RenderSortIcon columnKey="evidencias" />
+                  </div>
+                </th>
+                <th
+                  className="px-6 py-3 w-[120px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  onClick={() => handleSort("estado")}
+                >
+                  <div className="flex items-center gap-1">
+                    Estado <RenderSortIcon columnKey="estado" />
+                  </div>
+                </th>
               </tr>
             </thead>
 
@@ -380,6 +507,11 @@ export default function InformesPage() {
                     >
                       <td className="px-6 py-4 font-bold text-[#0C2D57]">
                         #{bit.id}
+                      </td>
+
+                      {/* COLUMNA CODIGO NUEVA */}
+                      <td className="px-6 py-4 font-medium text-gray-600">
+                        {bit.codigo || <span className="text-gray-300">-</span>}
                       </td>
 
                       <td className="px-6 py-4">
@@ -445,7 +577,7 @@ export default function InformesPage() {
                 })
               ) : (
                 <tr>
-                  <td colSpan={6} className="px-6 py-12 text-center text-gray-500">
+                  <td colSpan={7} className="px-6 py-12 text-center text-gray-500">
                     <div className="flex flex-col items-center gap-2">
                       <Filter className="h-8 w-8 text-gray-300" />
                       <p>No hay datos que coincidan con los filtros.</p>
@@ -487,11 +619,10 @@ export default function InformesPage() {
                     </div>
 
                     <Badge
-                      className={`${
-                        bit.estado === "ABIERTA"
+                      className={`${bit.estado === "ABIERTA"
                           ? "bg-green-100 text-green-700 hover:bg-green-200"
                           : "bg-red-100 text-red-700 hover:bg-red-200"
-                      } border-0`}
+                        } border-0`}
                     >
                       {bit.estado}
                     </Badge>
