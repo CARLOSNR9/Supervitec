@@ -336,32 +336,57 @@ export default function BitacoraDetailsModal({
         </DialogContent>
       </Dialog>
 
-      {/* ✅ LIGHTBOX: VISOR DE IMAGEN AMPLIADA */}
+      {/* ✅ LIGHTBOX: VISOR DE IMAGEN AMPLIADA (USANDO PORTAL) */}
       {selectedImage && (
-        <div
-          className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/90 backdrop-blur-sm p-4 animate-in fade-in duration-200"
-          onClick={() => setSelectedImage(null)}
-        >
-          {/* Botón cerrar flotante */}
-          <button
-            onClick={() => setSelectedImage(null)}
-            className="absolute top-4 right-4 text-white hover:text-gray-300 p-2 rounded-full bg-black/50 hover:bg-black/80 transition-all"
-          >
-            <span className="text-2xl font-bold">&times;</span>
-          </button>
-
-          <div
-            className="relative w-full max-w-5xl max-h-[90vh] flex items-center justify-center"
-            onClick={(e) => e.stopPropagation()} // Evitar cierre al clic en la imagen
-          >
-            <img
-              src={selectedImage}
-              alt="Evidencia ampliada"
-              className="max-w-full max-h-[90vh] object-contain rounded-md shadow-2xl"
-            />
-          </div>
-        </div>
+        <ImageLightbox
+          src={selectedImage}
+          onClose={() => setSelectedImage(null)}
+        />
       )}
     </>
+  );
+}
+
+// Subcomponente para el Lightbox usando Portal
+function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
+  const [mounted, setMounted] = React.useState(false);
+
+  React.useEffect(() => {
+    setMounted(true);
+    return () => setMounted(false);
+  }, []);
+
+  if (!mounted) return null;
+
+  // Renderizamos en el body para estar SEGUROS de estar encima del Dialog
+  return React.createPortal(
+    <div
+      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in duration-200"
+      onClick={onClose}
+    >
+      {/* Botón cerrar flotante */}
+      <button
+        onClick={(e) => {
+          e.stopPropagation(); // Evitar doble evento
+          onClose();
+        }}
+        className="absolute top-6 right-6 text-white text-opacity-80 hover:text-opacity-100 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"
+      >
+        <span className="text-3xl font-light leading-none">&times;</span>
+      </button>
+
+      <div
+        className="relative w-full h-full flex items-center justify-center p-4"
+        onClick={onClose} // Clic en el área vacía alrededor de la imagen también cierra
+      >
+        <img
+          src={src}
+          alt="Evidencia ampliada"
+          className="max-w-full max-h-full object-contain rounded shadow-2xl cursor-default"
+          onClick={(e) => e.stopPropagation()} // Clic en la imagen NO cierra
+        />
+      </div>
+    </div>,
+    document.body
   );
 }
