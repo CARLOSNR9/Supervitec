@@ -256,17 +256,23 @@ export default function BitacoraDetailsModal({
                     <div
                       key={foto.id}
                       className="relative aspect-square rounded-lg overflow-hidden border shadow-sm group bg-gray-100 cursor-pointer"
-                      onClick={() => setSelectedImage(getImageUrl(foto.url))}
+                      onClick={() => setSelectedImage(foto)}
                     >
                       <img
                         src={getImageUrl(foto.url)}
                         alt="Evidencia Inicial"
                         className="object-cover w-full h-full transition-transform group-hover:scale-105"
                       />
-                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 text-center flex items-center justify-center pointer-events-none">
-                        <span className="text-[10px] text-gray-100 font-medium">
+                      <div className="absolute bottom-0 left-0 right-0 bg-black/70 text-white p-1 flex flex-col items-center justify-center pointer-events-none">
+                        <span className="text-[10px] text-gray-100 font-medium leading-tight">
                           {getEvidenceDateTime(foto)}
                         </span>
+                        {/* 📍 COORDENADAS en Thumbnail */}
+                        {foto.latitud && foto.longitud && (
+                          <span className="text-[8px] text-gray-300 font-mono leading-tight">
+                            {Number(foto.latitud).toFixed(6)}, {Number(foto.longitud).toFixed(6)}
+                          </span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -304,17 +310,23 @@ export default function BitacoraDetailsModal({
                       <div
                         key={foto.id}
                         className="relative aspect-square rounded-lg overflow-hidden border-2 border-yellow-400 shadow-sm group bg-gray-100 cursor-pointer"
-                        onClick={() => setSelectedImage(getImageUrl(foto.url))}
+                        onClick={() => setSelectedImage(foto)}
                       >
                         <img
                           src={getImageUrl(foto.url)}
                           alt="Corrección"
                           className="object-cover w-full h-full transition-transform group-hover:scale-105"
                         />
-                        <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 text-center flex items-center justify-center pointer-events-none">
-                          <span className="text-[10px] text-gray-100 font-medium">
+                        <div className="absolute bottom-0 left-0 right-0 bg-yellow-600/90 text-white p-1 flex flex-col items-center justify-center pointer-events-none">
+                          <span className="text-[10px] text-gray-100 font-medium leading-tight">
                             {getEvidenceDateTime(foto)}
                           </span>
+                          {/* 📍 COORDENADAS en Thumbnail */}
+                          {foto.latitud && foto.longitud && (
+                            <span className="text-[8px] text-yellow-100 font-mono leading-tight">
+                              {Number(foto.latitud).toFixed(6)}, {Number(foto.longitud).toFixed(6)}
+                            </span>
+                          )}
                         </div>
                       </div>
                     ))}
