@@ -1,7 +1,7 @@
-import {
   Injectable,
   NotFoundException,
   ForbiddenException,
+  BadRequestException,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateObraDto, UpdateObraDto } from './obras.dto';
@@ -154,6 +154,16 @@ export class ObrasService {
       }
     }
 
+    // ✅ VALIDAR PREFIJO ÚNICO
+    const existingPrefix = await this.prisma.obra.findUnique({
+      where: { prefijo: dto.prefijo },
+    });
+    if (existingPrefix) {
+      throw new BadRequestException(
+        `El prefijo '${dto.prefijo}' ya está en uso por otra obra.`,
+      );
+    }
+
     const { responsablesId, observaciones, ...obraData } = dto;
 
     const data: Prisma.ObraCreateInput = {
@@ -180,6 +190,21 @@ export class ObrasService {
   // 4. ACTUALIZAR OBRA
   // ====================================================================
   async update(id: number, dto: UpdateObraDto) {
+    // ✅ VALIDAR PREFIJO ÚNICO AL EDITAR
+    if (dto.prefijo) {
+      const existing = await this.prisma.obra.findFirst({
+        where: {
+          prefijo: dto.prefijo,
+          id: { not: id }, // Excluir la propia obra
+        },
+      });
+      if (existing) {
+        throw new BadRequestException(
+          `El prefijo '${dto.prefijo}' ya está en uso por otra obra.`,
+        );
+      }
+    }
+
     const { responsablesId, observaciones, ...obraData } = dto;
 
     let responsablesUpdate:
