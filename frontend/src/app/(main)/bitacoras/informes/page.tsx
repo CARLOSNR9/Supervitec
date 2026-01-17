@@ -765,11 +765,11 @@ export default function InformesPage() {
 
           {/* Paginación Mobile */}
           {datosFiltrados.length > 0 && (
-            <div className="flex justify-center gap-4 mt-4 pb-4">
+            <div className="flex items-center justify-between gap-4 mt-4 px-4 pb-8">
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="flex-1"
                 onClick={handlePrevPage}
                 disabled={currentPage === 1}
               >
@@ -778,7 +778,7 @@ export default function InformesPage() {
               <Button
                 variant="outline"
                 size="sm"
-                className="w-full"
+                className="flex-1"
                 onClick={handleNextPage}
                 disabled={currentPage === totalPages}
               >
