@@ -336,57 +336,38 @@ export default function BitacoraDetailsModal({
         </DialogContent>
       </Dialog>
 
-      {/* ✅ LIGHTBOX: VISOR DE IMAGEN AMPLIADA (USANDO PORTAL) */}
-      {selectedImage && (
-        <ImageLightbox
-          src={selectedImage}
-          onClose={() => setSelectedImage(null)}
-        />
-      )}
-    </>
-  );
-}
-
-// Subcomponente para el Lightbox usando Portal
-function ImageLightbox({ src, onClose }: { src: string; onClose: () => void }) {
-  const [mounted, setMounted] = React.useState(false);
-
-  React.useEffect(() => {
-    setMounted(true);
-    return () => setMounted(false);
-  }, []);
-
-  if (!mounted) return null;
-
-  // Renderizamos en el body para estar SEGUROS de estar encima del Dialog
-  return React.createPortal(
-    <div
-      className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/95 backdrop-blur-md p-4 animate-in fade-in duration-200"
-      onClick={onClose}
-    >
-      {/* Botón cerrar flotante */}
-      <button
-        onClick={(e) => {
-          e.stopPropagation(); // Evitar doble evento
-          onClose();
+      {/* ✅ LIGHTBOX: VISOR DE IMAGEN AMPLIADA (USANDO NESTED DIALOG) */}
+      <Dialog
+        open={!!selectedImage}
+        onOpenChange={(open) => {
+          if (!open) setSelectedImage(null);
         }}
-        className="absolute top-6 right-6 text-white text-opacity-80 hover:text-opacity-100 p-2 rounded-full bg-white/10 hover:bg-white/20 transition-all"
       >
-        <span className="text-3xl font-light leading-none">&times;</span>
-      </button>
+        <DialogContent className="max-w-[95vw] sm:max-w-screen-lg h-[90vh] bg-black/95 border-none p-0 flex items-center justify-center shadow-none focus:outline-none focus-visible:ring-0">
+          <button
+            onClick={() => setSelectedImage(null)}
+            className="absolute top-4 right-4 z-[99999] text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors cursor-pointer"
+          >
+            <span className="sr-only">Cerrar</span>
+            <span className="text-2xl font-light leading-none">&times;</span>
+          </button>
 
-      <div
-        className="relative w-full h-full flex items-center justify-center p-4"
-        onClick={onClose} // Clic en el área vacía alrededor de la imagen también cierra
-      >
-        <img
-          src={src}
-          alt="Evidencia ampliada"
-          className="max-w-full max-h-full object-contain rounded shadow-2xl cursor-default"
-          onClick={(e) => e.stopPropagation()} // Clic en la imagen NO cierra
-        />
-      </div>
-    </div>,
-    document.body
+          {/* Área de la imagen */}
+          {selectedImage && (
+            <div
+              className="w-full h-full flex items-center justify-center p-4"
+              onClick={() => setSelectedImage(null)} // Clic en el fondo también cierra
+            >
+              <img
+                src={selectedImage}
+                alt="Imagen Ampliada"
+                className="max-w-full max-h-full object-contain rounded-md"
+                onClick={(e) => e.stopPropagation()} // Clic en imagen no cierra
+              />
+            </div>
+          )}
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
