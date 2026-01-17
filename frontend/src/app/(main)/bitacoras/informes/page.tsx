@@ -37,6 +37,10 @@ export default function InformesPage() {
   // ✅ Estado para colapsar filtros en móvil
   const [showFilters, setShowFilters] = useState(false);
 
+  // --- ESTADOS DE PAGINACIÓN ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 20;
+
   // --- ESTADOS DE FILTROS ---
   const [filtroObra, setFiltroObra] = useState("todos");
   const [filtroResponsable, setFiltroResponsable] = useState("todos");
@@ -53,11 +57,12 @@ export default function InformesPage() {
   const [variablesList, setVariablesList] = useState<string[]>([]);
   const [contratistasList, setContratistasList] = useState<string[]>([]);
 
-  // 1. CARGAR DATOS
+  // 1. CARGAR DATOS (Inicialmente los últimos 100)
   useEffect(() => {
     const loadData = async () => {
       try {
-        const res: Bitacora[] = await apiGet("/bitacoras");
+        // Cargar solo los últimos 100
+        const res: Bitacora[] = await apiGet("/bitacoras?limit=100");
         setData(res);
 
         const obras = Array.from(
@@ -219,6 +224,35 @@ export default function InformesPage() {
     ) : (
       <ChevronDown className="w-4 h-4" />
     );
+  };
+
+  // 3. PAGINACIÓN
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [
+    filtroObra,
+    filtroResponsable,
+    filtroEstado,
+    filtroVariable,
+    filtroContratista,
+    fechaInicio,
+    fechaFin,
+    sortConfig,
+  ]);
+
+  const paginatedData = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return datosFiltrados.slice(startIndex, startIndex + itemsPerPage);
+  }, [datosFiltrados, currentPage]);
+
+  const totalPages = Math.ceil(datosFiltrados.length / itemsPerPage);
+
+  const handleNextPage = () => {
+    if (currentPage < totalPages) setCurrentPage((prev) => prev + 1);
+  };
+
+  const handlePrevPage = () => {
+    if (currentPage > 1) setCurrentPage((prev) => prev - 1);
   };
 
   // 3. GENERAR PDF
@@ -494,8 +528,8 @@ export default function InformesPage() {
             </thead>
 
             <tbody>
-              {datosFiltrados.length > 0 ? (
-                datosFiltrados.map((bit) => {
+              {paginatedData.length > 0 ? (
+                paginatedData.map((bit) => {
                   const numFotos =
                     (bit.evidencias?.length || 0) +
                     (bit.evidenciasSeguimiento?.length || 0);
@@ -587,12 +621,39 @@ export default function InformesPage() {
               )}
             </tbody>
           </table>
+
+          {/* Paginación Desktop */}
+          {datosFiltrados.length > 0 && (
+            <div className="flex justify-between items-center bg-gray-50 px-6 py-4 border-t">
+              <span className="text-xs text-gray-500">
+                Mostrando {((currentPage - 1) * itemsPerPage) + 1} a {Math.min(currentPage * itemsPerPage, datosFiltrados.length)} de {datosFiltrados.length} registros
+              </span>
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handlePrevPage}
+                  disabled={currentPage === 1}
+                >
+                  Anterior
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleNextPage}
+                  disabled={currentPage === totalPages}
+                >
+                  Siguiente
+                </Button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* --- CARDS (MÓVIL) --- */}
         <div className="md:hidden space-y-4">
-          {datosFiltrados.length > 0 ? (
-            datosFiltrados.map((bit) => {
+          {paginatedData.length > 0 ? (
+            paginatedData.map((bit) => {
               const fecha = new Date(bit.fechaCreacion).toLocaleDateString();
               const variable = (bit.variable?.nombre ?? "—").replace(/_/g, " ");
               const ubicacion = bit.ubicacion || "Sin ubicación";
@@ -620,8 +681,8 @@ export default function InformesPage() {
 
                     <Badge
                       className={`${bit.estado === "ABIERTA"
-                          ? "bg-green-100 text-green-700 hover:bg-green-200"
-                          : "bg-red-100 text-red-700 hover:bg-red-200"
+                        ? "bg-green-100 text-green-700 hover:bg-green-200"
+                        : "bg-red-100 text-red-700 hover:bg-red-200"
                         } border-0`}
                     >
                       {bit.estado}
@@ -699,6 +760,30 @@ export default function InformesPage() {
                 <Filter className="h-8 w-8 text-gray-300" />
                 <p>No hay datos que coincidan con los filtros.</p>
               </div>
+            </div>
+          )}
+
+          {/* Paginación Mobile */}
+          {datosFiltrados.length > 0 && (
+            <div className="flex justify-center gap-4 mt-4 pb-4">
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handlePrevPage}
+                disabled={currentPage === 1}
+              >
+                Anterior
+              </Button>
+              <Button
+                variant="outline"
+                size="sm"
+                className="w-full"
+                onClick={handleNextPage}
+                disabled={currentPage === totalPages}
+              >
+                Siguiente
+              </Button>
             </div>
           )}
         </div>

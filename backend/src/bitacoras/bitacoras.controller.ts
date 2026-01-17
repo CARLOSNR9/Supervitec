@@ -12,6 +12,7 @@ import {
   ForbiddenException,
   UploadedFiles,
   UseInterceptors,
+  Query,
 } from '@nestjs/common';
 
 import { AnyFilesInterceptor } from '@nestjs/platform-express';
@@ -29,24 +30,25 @@ import { Role } from '@prisma/client';
 @Controller('bitacoras')
 @UseGuards(JwtAuthGuard, RolesGuard)
 export class BitacorasController {
-  constructor(private readonly bitacorasService: BitacorasService) {}
+  constructor(private readonly bitacorasService: BitacorasService) { }
 
   // =====================================================
   @Get()
   @Roles(Role.ADMIN, Role.DIRECTOR, Role.SUPERVISOR, Role.RESIDENTE)
-  async findAll(@Req() req) {
+  async findAll(@Req() req, @Query('limit') limit?: string) {
     const user = req.user;
+    const limitInt = limit ? parseInt(limit, 10) : undefined;
 
     // 1. ADMIN y DIRECTOR ven TODO (o lógica de director si la tienes separada)
     if (user.role === Role.ADMIN || user.role === Role.DIRECTOR) {
       // Si tienes lógica especial para Director, úsala aquí.
       // Si no, que vean todo:
-      return this.bitacorasService.findAll();
+      return this.bitacorasService.findAll(limitInt);
     }
 
     // 2. SUPERVISOR y RESIDENTE ven SOLO LO DE SUS OBRAS
     if (user.role === Role.SUPERVISOR || user.role === Role.RESIDENTE) {
-      return this.bitacorasService.findAllByAsignacionObra(user.userId);
+      return this.bitacorasService.findAllByAsignacionObra(user.userId, limitInt);
     }
 
     // 3. Fallback por seguridad (si entra otro rol, no ve nada o ve todo según decidas)

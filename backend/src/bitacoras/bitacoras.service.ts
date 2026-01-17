@@ -149,8 +149,8 @@ export class BitacorasService {
   // ============================================================
   // FIND ALL (ADMIN)
   // ============================================================
-  async findAll() {
-    return this.prisma.bitacora.findMany({
+  async findAll(limit?: number) {
+    const query: any = {
       include: {
         obra: {
           select: { id: true, nombre: true, directorId: true, prefijo: true },
@@ -165,8 +165,14 @@ export class BitacorasService {
         evidencias: true,
         evidenciasSeguimiento: true,
       },
-      orderBy: { id: 'desc' },
-    });
+      orderBy: { fechaCreacion: 'desc' },
+    };
+
+    if (limit && limit > 0) {
+      query.take = limit;
+    }
+
+    return this.prisma.bitacora.findMany(query);
   }
 
   // ============================================================
@@ -202,8 +208,8 @@ export class BitacorasService {
   // =================================================================
   // 🔍 BUSCAR SOLO POR OBRAS ASIGNADAS (Para Supervisor/Residente)
   // =================================================================
-  async findAllByAsignacionObra(userId: number) {
-    return this.prisma.bitacora.findMany({
+  async findAllByAsignacionObra(userId: number, limit?: number) {
+    const query: any = {
       where: {
         obra: {
           // ✅ En tu schema se llama "responsables"
@@ -224,8 +230,14 @@ export class BitacorasService {
         evidencias: true,
         evidenciasSeguimiento: true,
       },
-      orderBy: { id: 'desc' },
-    });
+      orderBy: { fechaCreacion: 'desc' },
+    };
+
+    if (limit && limit > 0) {
+      query.take = limit;
+    }
+
+    return this.prisma.bitacora.findMany(query);
   }
 
   // ============================================================
