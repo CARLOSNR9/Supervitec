@@ -86,10 +86,10 @@ export default function BitacoraDetailsModal({
           <div className="flex justify-between items-start gap-3">
             <div>
               <DialogTitle className="text-xl md:text-2xl font-bold text-[#0C2D57] flex items-center gap-2 flex-wrap">
-                Detalle de Bitácora #{data.id}
+                Detalle de Bitácora {data.codigo ? data.codigo : `#${data.id}`}
                 {data.codigo && (
                   <span className="text-base text-gray-500 font-normal">
-                    | {data.codigo}
+                    | #{data.id}
                   </span>
                 )}
               </DialogTitle>
@@ -99,9 +99,8 @@ export default function BitacoraDetailsModal({
             </div>
 
             <Badge
-              className={`text-sm px-3 py-1 ${
-                data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"
-              }`}
+              className={`text-sm px-3 py-1 ${data.estado === "ABIERTA" ? "bg-green-600" : "bg-red-600"
+                }`}
             >
               {data.estado}
             </Badge>
@@ -142,11 +141,10 @@ export default function BitacoraDetailsModal({
 
             <div className="flex items-center gap-3">
               <div
-                className={`p-2 rounded-full ${
-                  isNoConforme
+                className={`p-2 rounded-full ${isNoConforme
                     ? "bg-red-50 text-red-600"
                     : "bg-green-50 text-green-600"
-                }`}
+                  }`}
               >
                 <Tag size={18} />
               </div>
@@ -155,9 +153,8 @@ export default function BitacoraDetailsModal({
                   Variable
                 </p>
                 <p
-                  className={`font-bold ${
-                    isNoConforme ? "text-red-700" : "text-gray-800"
-                  }`}
+                  className={`font-bold ${isNoConforme ? "text-red-700" : "text-gray-800"
+                    }`}
                 >
                   {data.variable?.nombre || "N/A"}
                 </p>
