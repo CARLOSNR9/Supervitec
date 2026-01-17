@@ -469,7 +469,7 @@ export default function InformesPage() {
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
               <tr>
                 <th
-                  className="px-6 py-3 w-[70px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[60px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("id")}
                 >
                   <div className="flex items-center gap-1">
@@ -477,7 +477,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 w-[100px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[90px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("codigo")}
                 >
                   <div className="flex items-center gap-1">
@@ -485,7 +485,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 w-[120px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[100px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("fecha")}
                 >
                   <div className="flex items-center gap-1">
@@ -493,7 +493,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 w-[240px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[200px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("variable")}
                 >
                   <div className="flex items-center gap-1">
@@ -501,7 +501,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("observacion")}
                 >
                   <div className="flex items-center gap-1">
@@ -509,7 +509,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 w-[160px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[130px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("evidencias")}
                 >
                   <div className="flex items-center gap-1">
@@ -517,7 +517,7 @@ export default function InformesPage() {
                   </div>
                 </th>
                 <th
-                  className="px-6 py-3 w-[120px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
+                  className="px-3 py-3 w-[100px] cursor-pointer hover:bg-gray-100 transition-colors select-none"
                   onClick={() => handleSort("estado")}
                 >
                   <div className="flex items-center gap-1">
@@ -539,27 +539,27 @@ export default function InformesPage() {
                       key={bit.id}
                       className="bg-white border-b hover:bg-gray-50"
                     >
-                      <td className="px-6 py-4 font-bold text-[#0C2D57]">
+                      <td className="px-3 py-4 font-bold text-[#0C2D57]">
                         #{bit.id}
                       </td>
 
                       {/* COLUMNA CODIGO NUEVA */}
-                      <td className="px-6 py-4 font-medium text-gray-600">
+                      <td className="px-3 py-4 font-medium text-gray-600">
                         {bit.codigo || <span className="text-gray-300">-</span>}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         {new Date(bit.fechaCreacion).toLocaleDateString()}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         <p className="font-bold text-xs text-[#0C2D57]">
                           {bit.variable?.nombre ?? "—"}
                         </p>
                         <p className="text-xs flex items-center gap-1 mt-1">
                           <MapPin size={10} />{" "}
                           <span
-                            className="truncate max-w-[200px]"
+                            className="truncate max-w-[180px]"
                             title={bit.ubicacion || ""}
                           >
                             {bit.ubicacion || "Sin ubicación"}
@@ -576,7 +576,7 @@ export default function InformesPage() {
                         )}
                       </td>
 
-                      <td className="px-6 py-4 max-w-md truncate" title={bit.observaciones || ""}>
+                      <td className="px-3 py-4 max-w-md truncate" title={bit.observaciones || ""}>
                         {bit.observaciones || (
                           <span className="italic text-gray-400">
                             Sin observaciones...
@@ -584,7 +584,7 @@ export default function InformesPage() {
                         )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         {numFotos > 0 ? (
                           <Badge variant="secondary" className="gap-1">
                             <ImageIcon size={12} /> {numFotos} Fotos
@@ -597,7 +597,7 @@ export default function InformesPage() {
                         )}
                       </td>
 
-                      <td className="px-6 py-4">
+                      <td className="px-3 py-4">
                         <Badge
                           className={
                             bit.estado === "ABIERTA" ? "bg-green-500" : "bg-red-500"
