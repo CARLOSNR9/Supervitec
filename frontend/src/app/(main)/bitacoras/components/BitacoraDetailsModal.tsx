@@ -85,7 +85,11 @@ export default function BitacoraDetailsModal({
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg p-0">
+        <DialogContent
+          className="w-[95%] max-w-4xl max-h-[90vh] overflow-y-auto rounded-lg p-0"
+          onPointerDownOutside={(e) => e.preventDefault()}
+          onInteractOutside={(e) => e.preventDefault()}
+        >
           <DialogHeader className="p-4 bg-gray-50 border-b sticky top-0 z-10">
             <div className="flex justify-between items-start gap-3">
               <div>
@@ -146,8 +150,8 @@ export default function BitacoraDetailsModal({
               <div className="flex items-center gap-3">
                 <div
                   className={`p-2 rounded-full ${isNoConforme
-                      ? "bg-red-50 text-red-600"
-                      : "bg-green-50 text-green-600"
+                    ? "bg-red-50 text-red-600"
+                    : "bg-green-50 text-green-600"
                     }`}
                 >
                   <Tag size={18} />
