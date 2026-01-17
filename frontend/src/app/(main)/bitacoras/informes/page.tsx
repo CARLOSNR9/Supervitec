@@ -464,7 +464,7 @@ export default function InformesPage() {
         </div>
 
         {/* --- TABLA (DESKTOP) --- */}
-        <div className="hidden md:block bg-white rounded-lg shadow border overflow-hidden">
+        <div className="hidden md:block bg-white rounded-lg shadow border overflow-x-auto">
           <table className="w-full text-sm text-left text-gray-500">
             <thead className="text-xs text-gray-700 uppercase bg-gray-50 border-b">
               <tr>
