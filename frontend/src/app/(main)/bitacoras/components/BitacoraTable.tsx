@@ -278,6 +278,35 @@ export default function BitacoraTable({
         )}
       </div>
 
+      {/* 📱 PAGINACIÓN MÓVIL */}
+      <div className="md:hidden mt-4 pb-8 px-2">
+        {totalPages > 1 && (
+          <div className="flex items-center justify-between gap-4">
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={currentPage === 1}
+              onClick={() => onPageChange(currentPage - 1)}
+            >
+              Anterior
+            </Button>
+            <span className="text-xs text-gray-500 font-medium">
+              {currentPage} / {totalPages}
+            </span>
+            <Button
+              variant="outline"
+              size="sm"
+              className="flex-1"
+              disabled={currentPage === totalPages}
+              onClick={() => onPageChange(currentPage + 1)}
+            >
+              Siguiente
+            </Button>
+          </div>
+        )}
+      </div>
+
       {/* 💻 VISTA ESCRITORIO: TABLA */}
       <div className="hidden md:block p-1 w-full">
         <div className="overflow-x-auto bg-white shadow-md rounded-2xl border border-gray-200">
