@@ -340,8 +340,26 @@ export class BitacorasService {
       });
 
       // ==========================================================
-      // 🗑️ FASE DE ELIMINACIÓN
+      // 🗑️ FASE DE ELIMINACIÓN (CON CLOUDINARY)
       // ==========================================================
+      const extractPublicId = (url: string) => {
+        try {
+          // Ejemplo: https://res.cloudinary.com/.../upload/v1234/supervitec-bitacoras/foto.jpg
+          // Queremos: supervitec-bitacoras/foto
+          const parts = url.split('/');
+          const folderIndex = parts.indexOf('supervitec-bitacoras');
+          if (folderIndex !== -1) {
+            const filename = parts[parts.length - 1]; // foto.jpg
+            const id = filename.split('.')[0]; // foto
+            return `supervitec-bitacoras/${id}`;
+          }
+          // Fallback si la carpeta no es esa o la estructura cambia
+          return null;
+        } catch (e) {
+          return null;
+        }
+      };
+
       const parseIds = (raw?: string) => {
         if (!raw) return [];
         try {
@@ -355,18 +373,58 @@ export class BitacorasService {
         }
       };
 
+      // 1. FOTOS NORMALES
       if (dto.idsToDelete) {
         const ids = parseIds(dto.idsToDelete);
         if (ids.length > 0) {
+          // A) Buscar URLs antes de borrar
+          const fotosToDelete = await this.prisma.bitacoraMedia.findMany({
+            where: { id: { in: ids }, bitacoraId: id },
+            select: { id: true, url: true }
+          });
+
+          // B) Borrar de Cloudinary
+          for (const f of fotosToDelete) {
+            if (f.url && f.url.includes('cloudinary')) {
+              const publicId = extractPublicId(f.url);
+              if (publicId) {
+                await this.cloudinary.deleteImage(publicId).catch(e =>
+                  this.logger.error(`Error borrando img cloudinary ${publicId}`, e)
+                );
+              }
+            }
+          }
+
+          // C) Borrar de BD
           await this.prisma.bitacoraMedia.deleteMany({
             where: { id: { in: ids }, bitacoraId: id },
           });
         }
       }
 
+      // 2. FOTOS SEGUIMIENTO
       if (dto.idsToDeleteSeguimiento) {
         const ids = parseIds(dto.idsToDeleteSeguimiento);
         if (ids.length > 0) {
+          // A) Buscar URLs
+          const fotosToDelete = await this.prisma.bitacoraSeguimientoMedia.findMany({
+            where: { id: { in: ids }, bitacoraId: id },
+            select: { id: true, url: true }
+          });
+
+          // B) Borrar Cloudinary
+          for (const f of fotosToDelete) {
+            if (f.url && f.url.includes('cloudinary')) {
+              const publicId = extractPublicId(f.url);
+              if (publicId) {
+                await this.cloudinary.deleteImage(publicId).catch(e =>
+                  this.logger.error(`Error borrando img seguimiento cloudinary ${publicId}`, e)
+                );
+              }
+            }
+          }
+
+          // C) Borrar BD
           await this.prisma.bitacoraSeguimientoMedia.deleteMany({
             where: { id: { in: ids }, bitacoraId: id },
           });
