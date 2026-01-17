@@ -138,6 +138,30 @@ const styles = StyleSheet.create({
     color: "#000",
     fontWeight: "bold",
   },
+  summaryBox: {
+    marginTop: 15,
+    padding: 8,
+    borderWidth: 1,
+    borderColor: "#0C2D57",
+    borderRadius: 4,
+    backgroundColor: "#f8fafc",
+    flexDirection: "row",
+    justifyContent: "space-between",
+  },
+  summaryCol: {
+    width: "32%",
+  },
+  summaryLabel: {
+    fontSize: 7,
+    fontWeight: "bold",
+    color: "#0C2D57",
+    marginBottom: 2,
+    textTransform: "uppercase",
+  },
+  summaryValue: {
+    fontSize: 8,
+    color: "#333",
+  },
   footer: {
     position: "absolute",
     bottom: 20,
@@ -157,7 +181,7 @@ interface Props {
 }
 
 export const BitacoraReportePDF = ({ data }: Props) => {
-  
+
   // Helper para formatear fechas
   const formatDate = (dateString?: string | Date | null, withTime = false) => {
     if (!dateString) return "-";
@@ -173,28 +197,28 @@ export const BitacoraReportePDF = ({ data }: Props) => {
   return (
     <Document>
       {data.map((bitacora, index) => {
-        
-        const isNoConforme = bitacora.variable?.nombre?.toUpperCase().includes("NO_CONFORME") || 
-                             bitacora.variable?.nombre?.toUpperCase().includes("NO CONFORME");
+
+        const isNoConforme = bitacora.variable?.nombre?.toUpperCase().includes("NO_CONFORME") ||
+          bitacora.variable?.nombre?.toUpperCase().includes("NO CONFORME");
 
         return (
           <Page key={bitacora.id} size="A4" style={styles.page}>
-            
+
             {/* === HEADER === */}
             <View style={styles.header}>
               <View style={styles.headerLeft}>
                 <Text style={styles.title}>
-                  BITÁCORA #{bitacora.id} {bitacora.codigo ? `| ${bitacora.codigo}` : ""}
+                  BITÁCORA  {bitacora.codigo ? `${bitacora.codigo} | ` : ""} #{bitacora.id}
                 </Text>
                 <Text style={styles.subTitle}>
                   Fecha Creación: {formatDate(bitacora.fechaCreacion, true)}
                 </Text>
               </View>
-              
+
               <View style={[
-                  styles.statusBadge, 
-                  { backgroundColor: bitacora.estado === 'ABIERTA' ? '#dcfce7' : '#fee2e2' }
-                ]}>
+                styles.statusBadge,
+                { backgroundColor: bitacora.estado === 'ABIERTA' ? '#dcfce7' : '#fee2e2' }
+              ]}>
                 <Text style={{ color: bitacora.estado === 'ABIERTA' ? '#166534' : '#991b1b' }}>
                   {bitacora.estado}
                 </Text>
@@ -207,7 +231,7 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <Text style={styles.label}>RESPONSABLE</Text>
                 <Text style={styles.value}>{bitacora.responsable?.nombreCompleto || "N/A"}</Text>
               </View>
-              
+
               <View style={styles.infoCol}>
                 <Text style={styles.label}>OBRA</Text>
                 <Text style={styles.value}>{bitacora.obra?.nombre || "N/A"}</Text>
@@ -227,7 +251,7 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <Text style={styles.label}>UBICACIÓN</Text>
                 <Text style={styles.value}>{bitacora.ubicacion || "No registrada"}</Text>
                 {bitacora.latitud && (
-                   <Text style={styles.valueSmall}>GPS: {bitacora.latitud}, {bitacora.longitud}</Text>
+                  <Text style={styles.valueSmall}>GPS: {bitacora.latitud}, {bitacora.longitud}</Text>
                 )}
               </View>
             </View>
@@ -239,21 +263,20 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <Text style={styles.value}>{bitacora.medicion?.nombre || "-"}</Text>
               </View>
               <View style={styles.controlCol}>
-                 <Text style={styles.label}>UNIDAD</Text>
-                 <Text style={styles.value}>{bitacora.unidadRel?.nombre || "-"}</Text>
-              </View>
-              {/* ✅ AQUÍ ESTÁ EL CAMBIO: Se agrega ', true' para mostrar la hora */}
-              <View style={styles.controlCol}>
-                 <Text style={styles.label}>F. COMPROMISO</Text>
-                 <Text style={[styles.value, { color: '#ea580c' }]}>
-                   {formatDate(bitacora.fechaMejora, true)} 
-                 </Text>
+                <Text style={styles.label}>UNIDAD</Text>
+                <Text style={styles.value}>{bitacora.unidadRel?.nombre || "-"}</Text>
               </View>
               <View style={styles.controlCol}>
-                 <Text style={styles.label}>F. EJECUCIÓN</Text>
-                 <Text style={styles.value}>
-                    {formatDate(bitacora.fechaEjecucion, true)}
-                 </Text>
+                <Text style={styles.label}>F. COMPROMISO</Text>
+                <Text style={[styles.value, { color: '#ea580c' }]}>
+                  {formatDate(bitacora.fechaMejora, true)}
+                </Text>
+              </View>
+              <View style={styles.controlCol}>
+                <Text style={styles.label}>F. EJECUCIÓN</Text>
+                <Text style={styles.value}>
+                  {formatDate(bitacora.fechaEjecucion, true)}
+                </Text>
               </View>
             </View>
 
@@ -268,9 +291,12 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 {bitacora.evidencias?.map((foto, i) => (
                   <View key={i} style={styles.photoWrapper}>
                     <Image src={foto.url} style={styles.image} />
-                    <Text style={styles.photoLabel}>
-                      {formatDate(foto.createdAt || bitacora.fechaCreacion, true)}
-                    </Text>
+                    <View style={styles.photoLabel}>
+                      <Text>{formatDate(foto.createdAt || bitacora.fechaCreacion, true)}</Text>
+                      {foto.latitud && foto.longitud && (
+                        <Text style={{ fontSize: 5, marginTop: 1 }}>GPS: {Number(foto.latitud).toFixed(5)}, {Number(foto.longitud).toFixed(5)}</Text>
+                      )}
+                    </View>
                   </View>
                 ))}
               </View>
@@ -280,7 +306,7 @@ export const BitacoraReportePDF = ({ data }: Props) => {
             {(bitacora.seguimiento || (bitacora.evidenciasSeguimiento && bitacora.evidenciasSeguimiento.length > 0)) && (
               <View wrap={false} style={{ marginTop: 5 }}>
                 <Text style={styles.sectionHeader}>2. SEGUIMIENTO DE CALIDAD / CORRECCIÓN</Text>
-                
+
                 <View style={[styles.textBox, styles.yellowBox]}>
                   <Text>{bitacora.seguimiento || "Sin descripción de seguimiento."}</Text>
                 </View>
@@ -288,15 +314,34 @@ export const BitacoraReportePDF = ({ data }: Props) => {
                 <View style={styles.photoGrid}>
                   {bitacora.evidenciasSeguimiento?.map((foto, i) => (
                     <View key={i} style={[styles.photoWrapper, { borderColor: '#eab308', borderWidth: 1 }]}>
-                        <Image src={foto.url} style={styles.image} />
-                        <Text style={[styles.photoLabel, styles.correctionLabel]}>
-                           CORRECCIÓN - {formatDate(foto.createdAt || bitacora.fechaCreacion, true)}
-                        </Text>
+                      <Image src={foto.url} style={styles.image} />
+                      <View style={[styles.photoLabel, styles.correctionLabel]}>
+                        <Text>CORRECCIÓN - {formatDate(foto.createdAt || bitacora.fechaCreacion, true)}</Text>
+                        {foto.latitud && foto.longitud && (
+                          <Text style={{ fontSize: 5, marginTop: 1 }}>GPS: {Number(foto.latitud).toFixed(5)}, {Number(foto.longitud).toFixed(5)}</Text>
+                        )}
+                      </View>
                     </View>
                   ))}
                 </View>
               </View>
             )}
+
+            {/* ✅ RESUMEN DE FECHAS AL FINAL */}
+            <View wrap={false} style={styles.summaryBox}>
+              <View style={styles.summaryCol}>
+                <Text style={styles.summaryLabel}>Fecha Creación</Text>
+                <Text style={styles.summaryValue}>{formatDate(bitacora.fechaCreacion, true)}</Text>
+              </View>
+              <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                <Text style={styles.summaryLabel}>F. Compromiso</Text>
+                <Text style={[styles.summaryValue, { color: '#ea580c' }]}>{formatDate(bitacora.fechaMejora, true)}</Text>
+              </View>
+              <View style={[styles.summaryCol, { borderLeftWidth: 1, borderLeftColor: '#eee', paddingLeft: 8 }]}>
+                <Text style={styles.summaryLabel}>F. Ejecución</Text>
+                <Text style={styles.summaryValue}>{formatDate(bitacora.fechaEjecucion, true)}</Text>
+              </View>
+            </View>
 
             <Text style={styles.footer}>
               Generado por SUPERVITEC PRO - {new Date().toLocaleString()} • Página {index + 1} de {data.length}
