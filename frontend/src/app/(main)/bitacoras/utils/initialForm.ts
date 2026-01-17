@@ -25,6 +25,9 @@ export const createInitialFormState = (): FormState => ({
   fotoFiles: [],
   fotosSeguimiento: [],
 
+  fotoFilesMetadata: [],
+  fotosSeguimientoMetadata: [],
+
   fotosExistentes: [],
   fotosSeguimientoExistentes: [],
 
