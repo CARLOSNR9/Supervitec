@@ -377,15 +377,7 @@ export default function BitacoraDetailsModal({
                 onClick={(e) => e.stopPropagation()}
               />
 
-              {/* 📍 COORDENADAS en Lightbox */}
-              {typeof selectedImage !== 'string' && (selectedImage.latitud || selectedImage.longitud) && (
-                <div className="absolute bottom-6 bg-black/60 text-white px-4 py-2 rounded-full backdrop-blur-sm flex items-center gap-2 pointer-events-none">
-                  <MapPin size={16} className="text-red-400" />
-                  <span className="text-sm font-mono">
-                    GPS: {selectedImage.latitud}, {selectedImage.longitud}
-                  </span>
-                </div>
-              )}
+
             </div>
           )}
         </DialogContent>
