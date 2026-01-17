@@ -12,7 +12,7 @@ interface Stats {
   total: number;
   abiertas: number;
   cerradas: number;
-  ultimaActualizada: Date | null;
+  creadasHoy: number;
 }
 
 interface SortConfig {
@@ -401,12 +401,7 @@ export default function BitacoraTable({
             <StatCard label="Total" value={stats.total} />
             <StatCard label="Abiertas" value={stats.abiertas} className="text-green-600" />
             <StatCard label="Cerradas" value={stats.cerradas} className="text-rose-600" />
-            <div className="bg-white p-2 rounded-md text-center border shadow-sm">
-              <div className="text-[10px] uppercase tracking-wide text-gray-500">Última</div>
-              <div className="text-[12px] font-semibold text-violet-700">
-                {stats.ultimaActualizada ? stats.ultimaActualizada.toLocaleDateString() : "—"}
-              </div>
-            </div>
+            <StatCard label="Creadas Hoy" value={stats.creadasHoy} className="text-violet-700" />
           </div>
 
           {/* PAGINACIÓN */}

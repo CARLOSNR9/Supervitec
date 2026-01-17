@@ -512,19 +512,16 @@ export default function BitacorasPage() {
     const abiertas = filteredBitacoras.filter((b) => b.estado === "ABIERTA").length;
     const cerradas = filteredBitacoras.filter((b) => b.estado === "CERRADA").length;
 
-    let lastTs = 0;
-    for (const b of filteredBitacoras) {
-      const fechas: number[] = [];
-      if (b.fechaCreacion) fechas.push(new Date(b.fechaCreacion).getTime());
-      if (b.fechaEjecucion) fechas.push(new Date(b.fechaEjecucion).getTime());
-      if (fechas.length) lastTs = Math.max(lastTs, ...fechas);
-    }
+    const today = new Date().toDateString(); // "Fri Jan 17 2026" comparison
+    const creadasHoy = filteredBitacoras.filter((b) => {
+      return b.fechaCreacion && new Date(b.fechaCreacion).toDateString() === today;
+    }).length;
 
     return {
       total,
       abiertas,
       cerradas,
-      ultimaActualizada: lastTs ? new Date(lastTs) : null,
+      creadasHoy,
     };
   }, [filteredBitacoras]);
 
