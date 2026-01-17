@@ -343,7 +343,7 @@ export default function BitacoraDetailsModal({
           if (!open) setSelectedImage(null);
         }}
       >
-        <DialogContent className="max-w-[95vw] sm:max-w-screen-lg h-[90vh] bg-black/95 border-none p-0 flex items-center justify-center shadow-none focus:outline-none focus-visible:ring-0">
+        <DialogContent className="max-w-[95vw] sm:max-w-screen-lg h-[90vh] bg-black/95 border-none p-0 flex items-center justify-center shadow-none focus:outline-none focus-visible:ring-0 [&>button[aria-label='Close']]:hidden">
           <button
             onClick={() => setSelectedImage(null)}
             className="absolute top-4 right-4 z-[99999] text-white/80 hover:text-white bg-white/10 hover:bg-white/20 rounded-full p-2 transition-colors cursor-pointer"
