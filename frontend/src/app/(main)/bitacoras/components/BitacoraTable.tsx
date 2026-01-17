@@ -4,7 +4,7 @@ import { useMemo } from "react";
 import { Bitacora } from "../types/bitacora";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Search, RefreshCw, Pencil, Eye } from "lucide-react";
+import { Search, RefreshCw, Pencil, Eye, FileSpreadsheet } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
 
@@ -40,6 +40,7 @@ interface BitacoraTableProps {
   onSearchChange: (value: string) => void;
 
   onEdit: (bitacora: Bitacora) => void;
+  onGenerateExcel: (bitacora: Bitacora) => void;
   onGeneratePDF: (bitacora: Bitacora) => void;
   onView: (bitacora: Bitacora) => void;
 }
@@ -60,6 +61,7 @@ export default function BitacoraTable({
   searchTerm,
   onSearchChange,
   onEdit,
+  onGenerateExcel,
   onGeneratePDF,
   onView,
 }: BitacoraTableProps) {
@@ -266,6 +268,15 @@ export default function BitacoraTable({
                   <Button
                     size="sm"
                     variant="outline"
+                    className="flex-1 text-green-700 border-green-200 hover:bg-green-50"
+                    onClick={() => onGenerateExcel(b)}
+                  >
+                    <FileSpreadsheet className="h-4 w-4 mr-2" /> XLS
+                  </Button>
+
+                  <Button
+                    size="sm"
+                    variant="outline"
                     className="flex-1 text-red-700 border-red-200 hover:bg-red-50"
                     onClick={() => onGeneratePDF(b)}
                   >
@@ -372,6 +383,14 @@ export default function BitacoraTable({
                           title="Editar"
                         >
                           <Pencil size={18} />
+                        </button>
+
+                        <button
+                          onClick={() => onGenerateExcel(b)}
+                          className="text-green-600 hover:text-green-800 transition bg-green-50 p-1.5 rounded-md hover:bg-green-100"
+                          title="Excel Individual"
+                        >
+                          <FileSpreadsheet size={18} />
                         </button>
 
                         <button

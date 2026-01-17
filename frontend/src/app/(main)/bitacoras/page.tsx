@@ -26,7 +26,7 @@ import {
 } from "./types/bitacora";
 
 import { createInitialFormState } from "./utils/initialForm";
-import { exportBitacorasToExcel } from "./utils/excel";
+import { exportBitacorasToExcel, exportSingleBitacoraToExcel } from "./utils/excel";
 
 // ✅ FUNCIÓN AUXILIAR PARA MOVER FOTOS
 // Convierte una URL de imagen en un objeto File para poder moverlo de sección
@@ -656,6 +656,7 @@ export default function BitacorasPage() {
         searchTerm={searchTerm}
         onSearchChange={setSearchTerm}
         onEdit={handleEdit}
+        onGenerateExcel={exportSingleBitacoraToExcel}
         onGeneratePDF={handleGeneratePDF}
         onView={handleView}
       />
