@@ -344,18 +344,18 @@ export class BitacorasService {
       // ==========================================================
       const extractPublicId = (url: string) => {
         try {
-          // Ejemplo: https://res.cloudinary.com/.../upload/v1234/supervitec-bitacoras/foto.jpg
-          // Queremos: supervitec-bitacoras/foto
-          const parts = url.split('/');
-          const folderIndex = parts.indexOf('supervitec-bitacoras');
-          if (folderIndex !== -1) {
-            const filename = parts[parts.length - 1]; // foto.jpg
-            const id = filename.split('.')[0]; // foto
-            return `supervitec-bitacoras/${id}`;
+          // Robust regex to extract public_id from Cloudinary URL
+          // Matches everything after /upload/ (optional version v123...) until the file extension
+          const regex = /\/upload\/(?:v\d+\/)?(.+)\.[a-zA-Z0-9]+$/;
+          const match = url.match(regex);
+
+          if (match && match[1]) {
+            return match[1]; // Returns "folder/filename" e.g., "supervitec-bitacoras/foto"
           }
-          // Fallback si la carpeta no es esa o la estructura cambia
+
           return null;
         } catch (e) {
+          this.logger.error(`Error extracting publicId from ${url}`, e);
           return null;
         }
       };
@@ -383,14 +383,23 @@ export class BitacorasService {
             select: { id: true, url: true }
           });
 
+          this.logger.log(`🗑️ Eliminando ${fotosToDelete.length} fotos normales de Cloudinary...`);
+
           // B) Borrar de Cloudinary
           for (const f of fotosToDelete) {
             if (f.url && f.url.includes('cloudinary')) {
               const publicId = extractPublicId(f.url);
+              this.logger.log(`🔍 URL: ${f.url} -> Public ID: ${publicId}`);
+
               if (publicId) {
-                await this.cloudinary.deleteImage(publicId).catch(e =>
-                  this.logger.error(`Error borrando img cloudinary ${publicId}`, e)
-                );
+                try {
+                  const result = await this.cloudinary.deleteImage(publicId);
+                  this.logger.log(`✅ Resultado borrar Cloudinary (${publicId}): ${JSON.stringify(result)}`);
+                } catch (e) {
+                  this.logger.error(`❌ Error borrando img cloudinary ${publicId}`, e);
+                }
+              } else {
+                this.logger.warn(`⚠️ No se pudo extraer Public ID de: ${f.url}`);
               }
             }
           }
@@ -412,14 +421,21 @@ export class BitacorasService {
             select: { id: true, url: true }
           });
 
+          this.logger.log(`🗑️ Eliminando ${fotosToDelete.length} fotos seguimiento de Cloudinary...`);
+
           // B) Borrar Cloudinary
           for (const f of fotosToDelete) {
             if (f.url && f.url.includes('cloudinary')) {
               const publicId = extractPublicId(f.url);
+              this.logger.log(`🔍 URL (Seg): ${f.url} -> Public ID: ${publicId}`);
+
               if (publicId) {
-                await this.cloudinary.deleteImage(publicId).catch(e =>
-                  this.logger.error(`Error borrando img seguimiento cloudinary ${publicId}`, e)
-                );
+                try {
+                  const result = await this.cloudinary.deleteImage(publicId);
+                  this.logger.log(`✅ Resultado borrar Cloudinary Seg (${publicId}): ${JSON.stringify(result)}`);
+                } catch (e) {
+                  this.logger.error(`❌ Error borrando img seguimiento cloudinary ${publicId}`, e);
+                }
               }
             }
           }
